@@ -1,0 +1,250 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { Wrench, Plus, Search, CheckCircle, Car, XCircle, Trash2 } from "lucide-react";
+import Button from "@/components/ui/Button";
+import Badge from "@/components/ui/Badge";
+import Table from "@/components/ui/Table";
+import { useToast } from "@/components/ui/Toast";
+import { formatCurrency, formatDate } from "@/lib/utils";
+import { resolveMaintenance, unresolveMaintenance, deleteMaintenance } from "@/actions/maintenance";
+
+const statusFilters = ["ALL", "ACTIVE", "COMPLETED"];
+
+interface MaintenanceClientProps {
+  logs: any[];
+}
+
+export default function MaintenanceClient({ logs }: MaintenanceClientProps) {
+  const router = useRouter();
+  const { toast } = useToast();
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("ALL");
+  const [resolving, setResolving] = useState<string | null>(null);
+
+  const filtered = logs.filter((log) => {
+    // ACTIVE means return date is missing, COMPLETED means returnDate exists
+    const isActive = !log.returnDate;
+    const matchesStatus = 
+      statusFilter === "ALL" || 
+      (statusFilter === "ACTIVE" && isActive) || 
+      (statusFilter === "COMPLETED" && !isActive);
+      
+    const term = search.toLowerCase();
+    const searchMatch =
+      !search ||
+      log.description.toLowerCase().includes(term) ||
+      (log.serviceProvider && log.serviceProvider.toLowerCase().includes(term)) ||
+      log.vehicle.plateNumber.toLowerCase().includes(term);
+      
+    return matchesStatus && searchMatch;
+  });
+
+  const handleResolve = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (confirm("Mark this maintenance job as completed? The vehicle will immediately become AVAILABLE in the fleet.")) {
+      setResolving(id);
+      const res = await resolveMaintenance(id);
+      setResolving(null);
+      if (res.success) {
+        toast("Vehicle is out of the shop and back in the fleet!", "success");
+      } else {
+        toast(res.message, "error");
+      }
+    }
+  };
+
+  const handleUnresolve = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (confirm("Reopen this maintenance job? The vehicle will be pulled back into the shop immediately.")) {
+      setResolving(id);
+      const res = await unresolveMaintenance(id);
+      setResolving(null);
+      if (res.success) {
+        toast(res.message, "success");
+      } else {
+        toast(res.message, "error");
+      }
+    }
+  };
+
+  const handleDelete = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (confirm("Permanently delete this shop log? This action cannot be undone.")) {
+      setResolving(id);
+      const res = await deleteMaintenance(id);
+      setResolving(null);
+      if (res.success) {
+        toast(res.message, "success");
+      } else {
+        toast(res.message, "error");
+      }
+    }
+  };
+
+  const columns = [
+    {
+      key: "vehicle",
+      label: "Vehicle",
+      render: (log: any) => (
+        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+          <div style={{ padding: "8px", background: "var(--bg-tertiary)", borderRadius: "6px" }}>
+            <Car size={16} />
+          </div>
+          <div style={{ display: "flex", flexDirection: "column" }}>
+            <span style={{ fontWeight: 600 }}>{log.vehicle.brand} {log.vehicle.model}</span>
+            <span style={{ fontSize: "0.75rem", color: "var(--text-tertiary)" }}>{log.vehicle.plateNumber}</span>
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: "description",
+      label: "Service Description",
+      render: (log: any) => (
+        <div style={{ display: "flex", flexDirection: "column" }}>
+          <span style={{ fontWeight: 500 }}>{log.description}</span>
+          {log.serviceProvider && (
+            <span style={{ fontSize: "0.75rem", color: "var(--text-tertiary)" }}>By: {log.serviceProvider}</span>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: "dates",
+      label: "Shop Logic",
+      render: (log: any) => (
+        <div style={{ fontSize: "0.875rem" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: "12px", width: "160px" }}>
+            <span style={{ color: "var(--text-secondary)" }}>In:</span>
+            <span>{formatDate(log.serviceDate)}</span>
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: "12px", width: "160px" }}>
+            <span style={{ color: "var(--text-secondary)" }}>Out:</span>
+            <span style={{ fontWeight: log.returnDate ? 600 : "normal", color: log.returnDate ? "var(--success)" : "var(--text-tertiary)" }}>
+              {log.returnDate ? formatDate(log.returnDate) : "Still in shop"}
+            </span>
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: "cost",
+      label: "Repair Cost",
+      render: (log: any) => (
+        <span style={{ fontWeight: 700, color: "var(--text-primary)" }}>
+          {formatCurrency(log.cost)}
+        </span>
+      ),
+    },
+    {
+      key: "status",
+      label: "Status",
+      render: (log: any) => (
+        <Badge
+          color={!log.returnDate ? "var(--warning)" : "var(--success)"}
+          bg={!log.returnDate ? "rgba(234, 179, 8, 0.1)" : "rgba(34, 197, 94, 0.1)"}
+          dot
+        >
+          {!log.returnDate ? "ACTIVE" : "COMPLETED"}
+        </Badge>
+      ),
+    },
+    {
+      key: "actions",
+      label: "Actions",
+      align: "right" as const,
+      render: (log: any) => (
+        <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
+          {!log.returnDate ? (
+            <Button
+              size="sm"
+              variant="success"
+              loading={resolving === log.id}
+              onClick={(e) => handleResolve(log.id, e)}
+              icon={<CheckCircle size={14} />}
+            >
+              Resolve
+            </Button>
+          ) : (
+            <Button
+              size="sm"
+              variant="secondary"
+              loading={resolving === log.id}
+              onClick={(e) => handleUnresolve(log.id, e)}
+              icon={<XCircle size={14} />}
+            >
+              Unresolve
+            </Button>
+          )}
+          <Button
+            size="sm"
+            variant="danger"
+            loading={resolving === log.id}
+            onClick={(e) => handleDelete(log.id, e)}
+            icon={<Trash2 size={14} />}
+          />
+        </div>
+      ),
+    },
+  ];
+
+  return (
+    <div className="animate-fade-in">
+      <div className="page-header">
+        <h1>
+          <Wrench size={24} />
+          Maintenance Dashboard
+        </h1>
+        <div className="page-header-actions">
+          <Link href="/maintenance/new">
+            <Button icon={<Plus size={16} />}>Log Maintenance</Button>
+          </Link>
+        </div>
+      </div>
+
+      <div style={{ display: "flex", gap: "16px", marginBottom: "24px", flexWrap: "wrap" }}>
+        <div style={{ position: "relative", flex: 1, minWidth: "250px", maxWidth: "400px" }}>
+          <Search size={16} style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "var(--text-tertiary)" }} />
+          <input
+            type="text"
+            placeholder="Search repairs or vehicle plate..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            style={{ width: "100%", height: "40px", padding: "0 12px 0 36px", background: "var(--bg-secondary)", border: "1px solid var(--border)", borderRadius: "8px", color: "var(--text-primary)" }}
+          />
+        </div>
+
+        <div style={{ display: "flex", gap: "4px", flexWrap: "wrap", alignItems: "center" }}>
+          {statusFilters.map((s) => (
+            <button
+              key={s}
+              onClick={() => setStatusFilter(s)}
+              style={{
+                padding: "6px 14px",
+                background: statusFilter === s ? "var(--accent-muted)" : "transparent",
+                color: statusFilter === s ? "var(--accent)" : "var(--text-secondary)",
+                border: `1px solid ${statusFilter === s ? "var(--accent)" : "var(--border)"}`,
+                borderRadius: "20px",
+                fontSize: "0.75rem",
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <Table
+        columns={columns}
+        data={filtered}
+        keyExtractor={(log) => log.id}
+        emptyMessage="No maintenance records found."
+      />
+    </div>
+  );
+}

@@ -1,0 +1,21 @@
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  
+  body {
+    background: white !important;
+  }
+  
+  /* Hide the entire AppShell specifically when printing */
+  .app-shell > nav,
+  .app-shell > .app-main > header {
+    display: none !important;
+  }
+
+  /* Expand main content */
+  .app-main {
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+}

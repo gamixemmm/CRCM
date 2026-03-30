@@ -1,0 +1,283 @@
+/* Dashboard Styles */
+
+.welcome {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-lg);
+  gap: var(--space-md);
+  flex-wrap: wrap;
+}
+
+.welcomeTitle {
+  font-size: 1.5rem;
+  font-weight: 800;
+}
+
+.welcomeSub {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  margin-top: 4px;
+}
+
+.quickActions {
+  display: flex;
+  gap: var(--space-sm);
+}
+
+/* Stats */
+.statCard {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.statIcon {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.statInfo {
+  flex: 1;
+}
+
+.statValue {
+  font-size: 1.5rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.statLabel {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+.statArrow {
+  color: var(--text-tertiary);
+  transition: transform var(--transition-fast);
+}
+
+/* Fleet bar */
+.fleetBar {
+  margin-bottom: var(--space-lg);
+}
+
+.fleetHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-md);
+}
+
+.fleetHeader h3 {
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.viewAll {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.75rem;
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.viewAll:hover {
+  color: var(--accent-hover);
+}
+
+.fleetStats {
+  display: flex;
+  gap: var(--space-xl);
+  margin-bottom: var(--space-md);
+}
+
+.fleetStat {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.fleetDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.fleetCount {
+  font-weight: 700;
+  font-size: 0.875rem;
+}
+
+.fleetLabel {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.progressBar {
+  display: flex;
+  height: 6px;
+  border-radius: 4px;
+  overflow: hidden;
+  background: var(--bg-tertiary);
+  gap: 2px;
+}
+
+.progressSeg {
+  height: 100%;
+  min-width: 4px;
+  transition: width 0.5s ease;
+}
+
+/* Two Column Layout */
+.twoCol {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-md);
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-md);
+  padding-bottom: var(--space-sm);
+  border-bottom: 1px solid var(--border);
+}
+
+.sectionHeader h3 {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+/* Activity list */
+.activityList {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.activityItem {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.activityItem:last-child {
+  border-bottom: none;
+}
+
+.activityDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.activityInfo {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.activityTitle {
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.activitySub {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+/* Booking list */
+.bookingList {
+  display: flex;
+  flex-direction: column;
+}
+
+.bookingItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+  text-decoration: none;
+  transition: all var(--transition-fast);
+}
+
+.bookingItem:last-child {
+  border-bottom: none;
+}
+
+.bookingItem:hover {
+  opacity: 0.85;
+}
+
+.bookingInfo {
+  display: flex;
+  flex-direction: column;
+}
+
+.bookingTitle {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.bookingSub {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.bookingRight {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.bookingAmount {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.emptyMini {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-xl);
+  color: var(--text-tertiary);
+  font-size: 0.8125rem;
+}
+
+@media (max-width: 768px) {
+  .twoCol {
+    grid-template-columns: 1fr;
+  }
+
+  .welcome {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .fleetStats {
+    gap: var(--space-md);
+    flex-wrap: wrap;
+  }
+}

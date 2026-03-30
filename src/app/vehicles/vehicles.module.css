@@ -1,0 +1,285 @@
+/* Vehicles page styles */
+
+/* Stats */
+.statCard {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.statIcon {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-md);
+  background: var(--bg-tertiary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.statValue {
+  font-size: 1.5rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.statLabel {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+/* Toolbar */
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  margin-bottom: var(--space-lg);
+  flex-wrap: wrap;
+}
+
+.searchWrap {
+  position: relative;
+  flex: 1;
+  min-width: 200px;
+  max-width: 320px;
+}
+
+.searchIcon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-tertiary);
+  pointer-events: none;
+}
+
+.searchInput {
+  width: 100%;
+  height: 38px;
+  padding: 0 12px 0 36px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-size: 0.8125rem;
+  font-family: var(--font-sans);
+  transition: all var(--transition-fast);
+}
+
+.searchInput:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-muted);
+}
+
+.searchInput::placeholder {
+  color: var(--text-tertiary);
+}
+
+.filters {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.filterBtn {
+  padding: 6px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-weight: 500;
+  font-family: var(--font-sans);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+}
+
+.filterBtn:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.filterActive {
+  background: var(--accent-muted) !important;
+  border-color: var(--accent) !important;
+  color: var(--accent) !important;
+}
+
+.viewToggle {
+  display: flex;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  margin-left: auto;
+}
+
+.viewBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: transparent;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.viewBtn:hover {
+  color: var(--text-primary);
+  background: var(--bg-tertiary);
+}
+
+.viewActive {
+  background: var(--accent-muted) !important;
+  color: var(--accent) !important;
+}
+
+/* Grid View */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--space-md);
+}
+
+.cardTop {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: var(--space-md);
+  padding-bottom: 0;
+}
+
+.cardIcon {
+  width: 52px;
+  height: 52px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cardBody {
+  padding: var(--space-md);
+}
+
+.cardTitle {
+  font-size: 1rem;
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+
+.cardPlate {
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  margin-bottom: var(--space-sm);
+}
+
+.cardMeta {
+  display: flex;
+  gap: var(--space-md);
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+  margin-bottom: var(--space-md);
+}
+
+.cardMeta span {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.cardFooter {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  padding-top: var(--space-sm);
+  border-top: 1px solid var(--border);
+}
+
+.cardRate {
+  font-size: 1.125rem;
+  font-weight: 800;
+  color: var(--accent);
+}
+
+.cardRateLabel {
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+}
+
+/* Table cells */
+.vehicleCell {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.vehicleIcon {
+  width: 38px;
+  height: 38px;
+  min-width: 38px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.vehicleName {
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.vehicleSub {
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+}
+
+.plate {
+  font-weight: 600;
+  font-size: 0.8125rem;
+  letter-spacing: 0.3px;
+  color: var(--text-secondary);
+  background: var(--bg-tertiary);
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+}
+
+.meta {
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+}
+
+.rate {
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.emptyFull {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 768px) {
+  .toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .searchWrap {
+    max-width: none;
+  }
+
+  .viewToggle {
+    margin-left: 0;
+  }
+
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}
