@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, User, Car, FileText, CheckCircle, XCircle, Trash2 } from "lucide-react";
+import { ArrowLeft, User, Car, FileText, CheckCircle, XCircle, Trash2, Building2, CreditCard } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
@@ -88,6 +88,12 @@ export default function BookingDetailClient({ booking }: { booking: any }) {
           <Badge color={getStatusColor(booking.status)} bg={getStatusBg(booking.status)} dot>
             {formatStatus(booking.status)}
           </Badge>
+          <Badge 
+            color={booking.clientType === "ENTREPRISE" ? "var(--warning)" : "var(--info)"}
+            bg={booking.clientType === "ENTREPRISE" ? "var(--warning-muted)" : "var(--info-muted)"}
+          >
+            {booking.clientType === "ENTREPRISE" ? "Company" : "Individual"}
+          </Badge>
           <Button variant="ghost" icon={<ArrowLeft size={16} />} onClick={() => router.back()}>
             Back
           </Button>
@@ -102,17 +108,21 @@ export default function BookingDetailClient({ booking }: { booking: any }) {
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "24px" }}>
             <Card padding="lg" hover onClick={() => router.push(`/customers/${booking.customerId}`)}>
               <h3 style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "16px", paddingBottom: "8px", borderBottom: "1px solid var(--border)" }}>
-                <User size={16} /> Customer
+                <User size={16} /> Broker
               </h3>
               <div style={{ fontWeight: 600, fontSize: "1.125rem", marginBottom: "4px" }}>
                 {getFullName(booking.customer.firstName, booking.customer.lastName)}
               </div>
-              <div style={{ color: "var(--text-secondary)", fontSize: "0.875rem" }}>
-                {booking.customer.phone}
-              </div>
-              <div style={{ color: "var(--text-secondary)", fontSize: "0.875rem", marginTop: "8px" }}>
-                License: {booking.customer.licenseNumber}
-              </div>
+              {booking.customer.phone && (
+                <div style={{ color: "var(--text-secondary)", fontSize: "0.875rem" }}>
+                  {booking.customer.phone}
+                </div>
+              )}
+              {booking.customer.licenseNumber && (
+                <div style={{ color: "var(--text-secondary)", fontSize: "0.875rem", marginTop: "8px" }}>
+                  License: {booking.customer.licenseNumber}
+                </div>
+              )}
             </Card>
 
             <Card padding="lg" hover onClick={() => router.push(`/vehicles/${booking.vehicleId}`)}>
@@ -162,6 +172,42 @@ export default function BookingDetailClient({ booking }: { booking: any }) {
               </div>
             )}
           </Card>
+
+          {/* Company & Driver Info */}
+          {booking.clientType === "ENTREPRISE" && (
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "24px" }}>
+              <Card padding="lg">
+                <h3 style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "16px", paddingBottom: "8px", borderBottom: "1px solid var(--border)" }}>
+                  <Building2 size={16} /> Company Info
+                </h3>
+                <div style={{ fontSize: "0.875rem", display: "flex", flexDirection: "column", gap: "8px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between" }}>
+                    <span style={{ color: "var(--text-secondary)" }}>Company</span>
+                    <span style={{ fontWeight: 600 }}>{booking.companyName}</span>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between" }}>
+                    <span style={{ color: "var(--text-secondary)" }}>ICE</span>
+                    <span style={{ fontWeight: 600, fontFamily: "monospace" }}>{booking.companyICE}</span>
+                  </div>
+                </div>
+              </Card>
+              <Card padding="lg">
+                <h3 style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "16px", paddingBottom: "8px", borderBottom: "1px solid var(--border)" }}>
+                  <User size={16} /> Driver
+                </h3>
+                <div style={{ fontSize: "0.875rem", display: "flex", flexDirection: "column", gap: "8px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between" }}>
+                    <span style={{ color: "var(--text-secondary)" }}>Name</span>
+                    <span style={{ fontWeight: 600 }}>{booking.driverFirstName} {booking.driverLastName}</span>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between" }}>
+                    <span style={{ color: "var(--text-secondary)" }}>CIN</span>
+                    <span style={{ fontWeight: 600, fontFamily: "monospace" }}>{booking.driverCIN}</span>
+                  </div>
+                </div>
+              </Card>
+            </div>
+          )}
 
         </div>
 

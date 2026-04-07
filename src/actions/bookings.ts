@@ -13,6 +13,14 @@ interface BookingInput {
   status?: string;
   totalAmount: number;
   depositAmount?: number;
+  pricePerDay?: number;
+  clientType?: string;
+  companyName?: string;
+  companyICE?: string;
+  paymentMethod?: string;
+  driverFirstName?: string;
+  driverLastName?: string;
+  driverCIN?: string;
   notes?: string;
 }
 
@@ -28,6 +36,7 @@ export async function getBookings(params?: { status?: string; search?: string })
       { customer: { firstName: { contains: params.search, mode: "insensitive" } } },
       { customer: { lastName: { contains: params.search, mode: "insensitive" } } },
       { vehicle: { plateNumber: { contains: params.search, mode: "insensitive" } } },
+      { companyName: { contains: params.search, mode: "insensitive" } },
     ];
   }
 
@@ -89,6 +98,14 @@ export async function createBooking(input: BookingInput) {
           status: input.status || "CONFIRMED",
           totalAmount: input.totalAmount,
           depositAmount: input.depositAmount || 0,
+          pricePerDay: input.pricePerDay || null,
+          clientType: input.clientType || "PARTICULIER",
+          companyName: input.companyName || null,
+          companyICE: input.companyICE || null,
+          paymentMethod: input.paymentMethod || "ESPECE",
+          driverFirstName: input.driverFirstName || null,
+          driverLastName: input.driverLastName || null,
+          driverCIN: input.driverCIN || null,
           notes: input.notes || null,
         },
       });

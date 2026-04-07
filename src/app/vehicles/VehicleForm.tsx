@@ -58,6 +58,7 @@ interface VehicleFormProps {
     mileage: number;
     status: string;
     imageUrl: string | null;
+    circulationDate: Date | null;
     insuranceExpiry: Date | null;
     registrationExpiry: Date | null;
     notes: string | null;
@@ -84,6 +85,9 @@ export default function VehicleForm({ vehicle }: VehicleFormProps) {
     mileage: vehicle?.mileage || 0,
     status: vehicle?.status || "AVAILABLE",
     imageUrl: vehicle?.imageUrl || "",
+    circulationDate: vehicle?.circulationDate
+      ? new Date(vehicle.circulationDate).toISOString().split("T")[0]
+      : "",
     insuranceExpiry: vehicle?.insuranceExpiry
       ? new Date(vehicle.insuranceExpiry).toISOString().split("T")[0]
       : "",
@@ -243,6 +247,14 @@ export default function VehicleForm({ vehicle }: VehicleFormProps) {
                 value={form.mileage}
                 onChange={handleChange}
                 min={0}
+              />
+              <Input
+                label="Registration Date"
+                name="circulationDate"
+                type="date"
+                value={form.circulationDate}
+                onChange={handleChange}
+                hint="Date de mise en circulation (optional)"
               />
               <Input
                 label="Insurance Expiry"

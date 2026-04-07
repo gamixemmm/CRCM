@@ -16,6 +16,7 @@ interface VehicleInput {
   mileage?: number;
   status?: string;
   imageUrl?: string;
+  circulationDate?: string;
   insuranceExpiry?: string;
   registrationExpiry?: string;
   notes?: string;
@@ -121,6 +122,7 @@ export async function createVehicle(input: VehicleInput): Promise<ActionResult> 
         mileage: input.mileage || 0,
         status: input.status || "AVAILABLE",
         imageUrl: input.imageUrl || null,
+        circulationDate: input.circulationDate ? new Date(input.circulationDate) : null,
         insuranceExpiry: input.insuranceExpiry ? new Date(input.insuranceExpiry) : null,
         registrationExpiry: input.registrationExpiry ? new Date(input.registrationExpiry) : null,
         notes: input.notes || null,
@@ -168,6 +170,7 @@ export async function updateVehicle(id: string, input: Partial<VehicleInput>): P
     if (input.mileage !== undefined) data.mileage = input.mileage;
     if (input.status !== undefined) data.status = input.status;
     if (input.imageUrl !== undefined) data.imageUrl = input.imageUrl || null;
+    if (input.circulationDate !== undefined) data.circulationDate = input.circulationDate ? new Date(input.circulationDate) : null;
     if (input.insuranceExpiry !== undefined) data.insuranceExpiry = input.insuranceExpiry ? new Date(input.insuranceExpiry) : null;
     if (input.registrationExpiry !== undefined) data.registrationExpiry = input.registrationExpiry ? new Date(input.registrationExpiry) : null;
     if (input.notes !== undefined) data.notes = input.notes || null;

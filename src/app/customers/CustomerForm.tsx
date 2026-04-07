@@ -43,7 +43,7 @@ export default function CustomerForm() {
   return (
     <div className="animate-fade-in">
       <div className="page-header">
-        <h1>Add New Customer</h1>
+        <h1>Add New Broker</h1>
         <Button variant="ghost" icon={<ArrowLeft size={16} />} onClick={() => router.back()}>
           Back
         </Button>
@@ -54,7 +54,7 @@ export default function CustomerForm() {
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "24px" }}>
           
           <Card padding="lg">
-            <h3 style={{ marginBottom: "16px", paddingBottom: "8px", borderBottom: "1px solid var(--border)" }}>Personal Information</h3>
+            <h3 style={{ marginBottom: "16px", paddingBottom: "8px", borderBottom: "1px solid var(--border)" }}>Broker Information</h3>
             <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
               <div style={{ display: "flex", gap: "16px" }}>
                 <Input
@@ -72,9 +72,9 @@ export default function CustomerForm() {
               </div>
               <Input
                 label="Phone Number"
-                required
                 value={form.phone}
                 onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                hint="Optional"
               />
               <Input
                 label="Email Address"
@@ -94,10 +94,10 @@ export default function CustomerForm() {
             <h3 style={{ marginBottom: "16px", paddingBottom: "8px", borderBottom: "1px solid var(--border)" }}>Identity Document</h3>
             <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
               <Input
-                label="Driver's License Number"
-                required
+                label="License / CIN Number"
                 value={form.licenseNumber}
                 onChange={(e) => setForm({ ...form, licenseNumber: e.target.value })}
+                hint="Optional"
               />
               <Input
                 label="License Expiry Date"
@@ -122,7 +122,7 @@ export default function CustomerForm() {
 
         <div style={{ display: "flex", justifyContent: "flex-end", gap: "12px", borderTop: "1px solid var(--border)", paddingTop: "24px" }}>
           <Button variant="secondary" type="button" onClick={() => router.back()}>Cancel</Button>
-          <Button type="submit" loading={loading} icon={<Save size={16} />}>Save Customer</Button>
+          <Button type="submit" loading={loading} icon={<Save size={16} />}>Save Broker</Button>
         </div>
       </form>
     </div>

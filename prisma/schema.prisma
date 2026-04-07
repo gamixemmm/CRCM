@@ -20,6 +20,7 @@ model Vehicle {
   mileage            Int           @default(0)
   status             String        @default("AVAILABLE")
   imageUrl           String?
+  circulationDate    DateTime?
   insuranceExpiry    DateTime?
   registrationExpiry DateTime?
   notes              String?
@@ -34,9 +35,9 @@ model Customer {
   id            String    @id @default(cuid())
   firstName     String
   lastName      String
-  phone         String
+  phone         String?
   email         String?
-  licenseNumber String    @unique
+  licenseNumber String?   @unique
   licenseExpiry DateTime?
   address       String?
   notes         String?
@@ -47,23 +48,31 @@ model Customer {
 }
 
 model Booking {
-  id             String   @id @default(cuid())
-  customerId     String
-  vehicleId      String
-  startDate      DateTime
-  endDate        DateTime
-  pickupLocation String?
-  returnLocation String?
-  status         String   @default("CONFIRMED")
-  totalAmount    Float
-  depositAmount  Float    @default(0)
-  notes          String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id              String   @id @default(cuid())
+  customerId      String
+  vehicleId       String
+  startDate       DateTime
+  endDate         DateTime
+  pickupLocation  String?
+  returnLocation  String?
+  status          String   @default("CONFIRMED")
+  totalAmount     Float
+  depositAmount   Float    @default(0)
+  pricePerDay     Float?
+  clientType      String   @default("PARTICULIER")
+  companyName     String?
+  companyICE      String?
+  paymentMethod   String   @default("ESPECE")
+  driverFirstName String?
+  driverLastName  String?
+  driverCIN       String?
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
-  customer       Customer @relation(fields: [customerId], references: [id])
-  vehicle        Vehicle  @relation(fields: [vehicleId], references: [id])
-  invoice        Invoice?
+  customer        Customer @relation(fields: [customerId], references: [id])
+  vehicle         Vehicle  @relation(fields: [vehicleId], references: [id])
+  invoice         Invoice?
 }
 
 model Invoice {

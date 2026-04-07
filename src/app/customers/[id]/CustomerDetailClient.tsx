@@ -34,7 +34,7 @@ export default function CustomerDetailClient({ customer }: { customer: any }) {
             <div style={{ display: "flex", flexDirection: "column", gap: "12px", fontSize: "0.875rem" }}>
               <div>
                 <span style={{ color: "var(--text-secondary)", display: "block" }}>Phone</span>
-                <span style={{ fontWeight: 600 }}>{customer.phone}</span>
+                <span style={{ fontWeight: 600 }}>{customer.phone || "—"}</span>
               </div>
               <div>
                 <span style={{ color: "var(--text-secondary)", display: "block" }}>Email</span>
@@ -57,8 +57,8 @@ export default function CustomerDetailClient({ customer }: { customer: any }) {
             </h3>
             <div style={{ display: "flex", flexDirection: "column", gap: "12px", fontSize: "0.875rem" }}>
               <div>
-                <span style={{ color: "var(--text-secondary)", display: "block" }}>Driver&apos;s License</span>
-                <span style={{ fontWeight: 600 }}>{customer.licenseNumber}</span>
+                <span style={{ color: "var(--text-secondary)", display: "block" }}>License / CIN</span>
+                <span style={{ fontWeight: 600 }}>{customer.licenseNumber || "—"}</span>
               </div>
               <div>
                 <span style={{ color: "var(--text-secondary)", display: "block" }}>License Expiry</span>
@@ -80,7 +80,7 @@ export default function CustomerDetailClient({ customer }: { customer: any }) {
 
             {customer.bookings.length === 0 ? (
               <div style={{ padding: "40px 20px", textAlign: "center", color: "var(--text-tertiary)" }}>
-                No bookings found for this customer.
+                No bookings found for this broker.
               </div>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>

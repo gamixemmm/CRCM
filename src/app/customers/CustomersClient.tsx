@@ -22,15 +22,15 @@ export default function CustomersClient({ customers }: CustomersClientProps) {
       !search ||
       c.firstName.toLowerCase().includes(term) ||
       c.lastName.toLowerCase().includes(term) ||
-      c.licenseNumber.toLowerCase().includes(term) ||
-      c.phone.includes(term)
+      (c.licenseNumber && c.licenseNumber.toLowerCase().includes(term)) ||
+      (c.phone && c.phone.includes(term))
     );
   });
 
   const columns = [
     {
       key: "name",
-      label: "Customer",
+      label: "Broker",
       render: (c: any) => (
         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
           <div style={{ width: "36px", height: "36px", borderRadius: "50%", background: "var(--accent-muted)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--accent)", fontWeight: "bold" }}>
@@ -45,8 +45,8 @@ export default function CustomersClient({ customers }: CustomersClientProps) {
       label: "Contact",
       render: (c: any) => (
         <div>
-          <div>{c.phone}</div>
-          <div style={{ fontSize: "0.75rem", color: "var(--text-tertiary)" }}>{c.email || "No email provided"}</div>
+          <div>{c.phone || "—"}</div>
+          <div style={{ fontSize: "0.75rem", color: "var(--text-tertiary)" }}>{c.email || "No email"}</div>
         </div>
       ),
     },
@@ -56,7 +56,7 @@ export default function CustomersClient({ customers }: CustomersClientProps) {
       render: (c: any) => (
         <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
           <FileText size={14} style={{ color: "var(--text-tertiary)" }} />
-          <span>{c.licenseNumber}</span>
+          <span>{c.licenseNumber || "—"}</span>
         </div>
       ),
     },
@@ -78,11 +78,11 @@ export default function CustomersClient({ customers }: CustomersClientProps) {
       <div className="page-header">
         <h1>
           <Users size={24} />
-          Customers
+          Brokers
         </h1>
         <div className="page-header-actions">
           <Link href="/customers/new">
-            <Button icon={<Plus size={16} />}>Add Customer</Button>
+            <Button icon={<Plus size={16} />}>Add Broker</Button>
           </Link>
         </div>
       </div>
@@ -103,7 +103,7 @@ export default function CustomersClient({ customers }: CustomersClientProps) {
         data={filtered}
         keyExtractor={(c) => c.id}
         onRowClick={(c) => router.push(`/customers/${c.id}`)}
-        emptyMessage="No customers found"
+        emptyMessage="No brokers found"
       />
     </div>
   );

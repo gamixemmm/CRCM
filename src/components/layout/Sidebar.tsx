@@ -21,7 +21,7 @@ const navItems = [
   { label: "Vehicles", href: "/vehicles", icon: Car },
   { label: "Bookings", href: "/bookings", icon: CalendarDays },
   { label: "Calendar", href: "/calendar", icon: CalendarDays },
-  { label: "Customers", href: "/customers", icon: Users },
+  { label: "Brokers", href: "/customers", icon: Users },
   { label: "Invoices", href: "/invoices", icon: FileText },
   { label: "Maintenance", href: "/maintenance", icon: Wrench },
   { label: "Settings", href: "/settings", icon: Settings },
