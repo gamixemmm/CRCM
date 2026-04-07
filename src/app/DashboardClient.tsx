@@ -70,7 +70,7 @@ export default function DashboardClient({
       href: "/bookings",
     },
     {
-      label: "Total Customers",
+      label: "Total Brokers",
       value: stats.totalCustomers,
       icon: <Users size={22} />,
       color: "var(--info)",

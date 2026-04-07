@@ -6,9 +6,9 @@ import { revalidatePath } from "next/cache";
 interface CustomerInput {
   firstName: string;
   lastName: string;
-  phone: string;
+  phone?: string;
   email?: string;
-  licenseNumber: string;
+  licenseNumber?: string;
   licenseExpiry?: string;
   address?: string;
   notes?: string;
@@ -20,7 +20,6 @@ export async function getCustomers(params?: { search?: string }) {
     where.OR = [
       { firstName: { contains: params.search, mode: "insensitive" } },
       { lastName: { contains: params.search, mode: "insensitive" } },
-      { licenseNumber: { contains: params.search, mode: "insensitive" } },
       { phone: { contains: params.search } },
     ];
   }
@@ -51,25 +50,26 @@ export async function getCustomer(id: string) {
 
 export async function createCustomer(input: CustomerInput) {
   try {
-    if (!input.firstName || !input.lastName || !input.phone || !input.licenseNumber) {
-      return { success: false, message: "Missing required fields" };
+    if (!input.firstName || !input.lastName) {
+      return { success: false, message: "First name and last name are required" };
     }
 
-    const existing = await prisma.customer.findUnique({
-      where: { licenseNumber: input.licenseNumber.trim() },
-    });
-
-    if (existing) {
-      return { success: false, message: "A customer with this license number already exists", errors: { licenseNumber: ["Must be unique"] } };
+    if (input.licenseNumber) {
+      const existing = await prisma.customer.findUnique({
+        where: { licenseNumber: input.licenseNumber.trim() },
+      });
+      if (existing) {
+        return { success: false, message: "A broker with this license number already exists" };
+      }
     }
 
     const customer = await prisma.customer.create({
       data: {
         firstName: input.firstName.trim(),
         lastName: input.lastName.trim(),
-        phone: input.phone.trim(),
+        phone: input.phone?.trim() || null,
         email: input.email?.trim() || null,
-        licenseNumber: input.licenseNumber.trim(),
+        licenseNumber: input.licenseNumber?.trim() || null,
         licenseExpiry: input.licenseExpiry ? new Date(input.licenseExpiry) : null,
         address: input.address?.trim() || null,
         notes: input.notes?.trim() || null,

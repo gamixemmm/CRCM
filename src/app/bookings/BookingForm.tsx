@@ -2,18 +2,23 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Save, Building2, User } from "lucide-react";
+import { ArrowLeft, Save, Building2, User, Plus, X } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import Input, { Textarea } from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
 import { useToast } from "@/components/ui/Toast";
 import { createBooking } from "@/actions/bookings";
+import { createCustomer } from "@/actions/customers";
 
-export default function BookingForm({ vehicles, customers }: { vehicles: any[]; customers: any[] }) {
+export default function BookingForm({ vehicles, customers: initialCustomers }: { vehicles: any[]; customers: any[] }) {
   const router = useRouter();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [customers, setCustomers] = useState(initialCustomers);
+  const [showNewBroker, setShowNewBroker] = useState(false);
+  const [brokerLoading, setBrokerLoading] = useState(false);
+  const [newBroker, setNewBroker] = useState({ firstName: "", lastName: "", phone: "" });
 
   const [form, setForm] = useState({
     customerId: "",
@@ -56,6 +61,27 @@ export default function BookingForm({ vehicles, customers }: { vehicles: any[]; 
       vehicleId,
       pricePerDay: v?.dailyRate || 0,
     });
+  };
+
+  const handleCreateBroker = async () => {
+    if (!newBroker.firstName || !newBroker.lastName) {
+      toast("First and last name are required", "error");
+      return;
+    }
+    setBrokerLoading(true);
+    const result = await createCustomer(newBroker);
+    setBrokerLoading(false);
+
+    if (result.success && result.data) {
+      const created = result.data as any;
+      setCustomers([created, ...customers]);
+      setForm({ ...form, customerId: created.id });
+      setNewBroker({ firstName: "", lastName: "", phone: "" });
+      setShowNewBroker(false);
+      toast("Broker created & selected!", "success");
+    } else {
+      toast(result.message, "error");
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -194,14 +220,84 @@ export default function BookingForm({ vehicles, customers }: { vehicles: any[]; 
           <Card padding="lg">
             <h3 style={{ marginBottom: "16px", paddingBottom: "8px", borderBottom: "1px solid var(--border)" }}>Rental Details</h3>
             <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-              <Select
-                label="Broker (Semsar)"
-                required
-                value={form.customerId}
-                onChange={(e) => setForm({ ...form, customerId: e.target.value })}
-                options={customers.map((c) => ({ value: c.id, label: `${c.firstName} ${c.lastName}${c.phone ? ` (${c.phone})` : ""}` }))}
-                placeholder="Select a broker..."
-              />
+              
+              {/* Broker selector with inline create */}
+              <div>
+                <div style={{ display: "flex", alignItems: "flex-end", gap: "8px" }}>
+                  <div style={{ flex: 1 }}>
+                    <Select
+                      label="Broker (Semsar)"
+                      required
+                      value={form.customerId}
+                      onChange={(e) => setForm({ ...form, customerId: e.target.value })}
+                      options={customers.map((c) => ({ value: c.id, label: `${c.firstName} ${c.lastName}${c.phone ? ` (${c.phone})` : ""}` }))}
+                      placeholder="Select a broker..."
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowNewBroker(!showNewBroker)}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      width: "40px",
+                      height: "40px",
+                      borderRadius: "8px",
+                      border: showNewBroker ? "1px solid var(--danger)" : "1px solid var(--accent)",
+                      background: showNewBroker ? "var(--danger-muted)" : "var(--accent-muted)",
+                      color: showNewBroker ? "var(--danger)" : "var(--accent)",
+                      cursor: "pointer",
+                      flexShrink: 0,
+                      transition: "all 0.2s ease",
+                    }}
+                    title={showNewBroker ? "Cancel" : "Quick add broker"}
+                  >
+                    {showNewBroker ? <X size={18} /> : <Plus size={18} />}
+                  </button>
+                </div>
+
+                {/* Inline Broker Creation */}
+                {showNewBroker && (
+                  <div style={{ marginTop: "12px", padding: "16px", background: "var(--bg-tertiary)", borderRadius: "8px", border: "1px solid var(--accent)33", display: "flex", flexDirection: "column", gap: "12px" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "0.8125rem", fontWeight: 600, color: "var(--accent)" }}>
+                      <Plus size={14} /> Quick Add Broker
+                    </div>
+                    <div style={{ display: "flex", gap: "8px" }}>
+                      <Input
+                        label="First Name"
+                        required
+                        value={newBroker.firstName}
+                        onChange={(e) => setNewBroker({ ...newBroker, firstName: e.target.value })}
+                        placeholder="First name"
+                      />
+                      <Input
+                        label="Last Name"
+                        required
+                        value={newBroker.lastName}
+                        onChange={(e) => setNewBroker({ ...newBroker, lastName: e.target.value })}
+                        placeholder="Last name"
+                      />
+                    </div>
+                    <Input
+                      label="Phone (optional)"
+                      value={newBroker.phone}
+                      onChange={(e) => setNewBroker({ ...newBroker, phone: e.target.value })}
+                      placeholder="Phone number"
+                    />
+                    <Button
+                      type="button"
+                      size="sm"
+                      loading={brokerLoading}
+                      onClick={handleCreateBroker}
+                      icon={<Plus size={14} />}
+                    >
+                      Create & Select Broker
+                    </Button>
+                  </div>
+                )}
+              </div>
+
               <Select
                 label="Vehicle"
                 required
@@ -251,6 +347,7 @@ export default function BookingForm({ vehicles, customers }: { vehicles: any[]; 
                 options={[
                   { value: "ESPECE", label: "Cash (Espèce)" },
                   { value: "CHEQUE", label: "Check (Chèque)" },
+                  { value: "TPE", label: "Card Terminal (TPE)" },
                 ]}
               />
               
