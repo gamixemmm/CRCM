@@ -1,9 +1,8 @@
 import { getInvoice } from "@/actions/invoices";
 import { notFound } from "next/navigation";
-import PrintableInvoice from "./PrintableInvoice";
-import "./print.css";
+import InvoiceDetailClient from "./InvoiceDetailClient";
 
-export default async function InvoicePrintPage(props: { params: Promise<{ id: string }> }) {
+export default async function InvoiceDetailPage(props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
   const invoice = await getInvoice(params.id);
 
@@ -11,5 +10,5 @@ export default async function InvoicePrintPage(props: { params: Promise<{ id: st
     return notFound();
   }
 
-  return <PrintableInvoice invoice={JSON.parse(JSON.stringify(invoice))} />;
+  return <InvoiceDetailClient invoice={JSON.parse(JSON.stringify(invoice))} />;
 }

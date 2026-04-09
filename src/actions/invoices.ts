@@ -100,22 +100,47 @@ export async function createInvoice(input: InvoiceInput) {
   }
 }
 
-export async function updatePaymentStatus(id: string, status: "PENDING" | "PAID", markBookingCompleted = false) {
+export async function updatePaymentStatus(id: string, status: "PENDING" | "PAID" | "PARTIAL", amountPaid: number = 0, markBookingCompleted = false, paymentMethod?: string) {
   try {
     const invoice = await prisma.$transaction(async (tx) => {
       const current = await tx.invoice.findUnique({ where: { id } });
       if (!current) throw new Error("Not found");
       
-      const revertedAmountDue = current.totalAmount - current.depositPaid;
+      let newAmountDue = current.amountDue;
+
+      if (status === "PAID") {
+        newAmountDue = 0;
+      } else if (status === "PARTIAL") {
+        newAmountDue = current.amountDue - amountPaid;
+        if (newAmountDue <= 0) {
+          newAmountDue = 0;
+          status = "PAID";
+        }
+      } else if (status === "PENDING") {
+        newAmountDue = current.totalAmount - current.depositPaid;
+      }
+
+      let notesToUpdate = current.notes;
+      if (paymentMethod && status !== "PENDING") {
+        notesToUpdate = `${current.notes ? current.notes + '\n' : ''}[Payment: ${amountPaid} via ${paymentMethod}]`;
+      }
 
       const inv = await tx.invoice.update({
         where: { id },
         data: {
           paymentStatus: status,
-          paidAt: status === "PAID" ? new Date() : null,
-          amountDue: status === "PAID" ? 0 : revertedAmountDue,
+          paidAt: status === "PAID" ? new Date() : (status === "PENDING" ? null : current.paidAt),
+          amountDue: newAmountDue,
+          notes: notesToUpdate,
         },
       });
+
+      if (paymentMethod) {
+         await tx.booking.update({
+           where: { id: current.bookingId },
+           data: { paymentMethod }
+         });
+      }
 
       if (status === "PAID" && markBookingCompleted) {
         await tx.booking.update({
@@ -124,7 +149,7 @@ export async function updatePaymentStatus(id: string, status: "PENDING" | "PAID"
         });
 
         const booking = await tx.booking.findUnique({ where: { id: inv.bookingId } });
-        if (booking) {
+        if (booking && booking.vehicleId) {
           await tx.vehicle.update({
             where: { id: booking.vehicleId },
             data: { status: "AVAILABLE" },

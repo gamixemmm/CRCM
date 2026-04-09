@@ -10,15 +10,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="app-shell">
-      {/* Desktop sidebar */}
       <Sidebar />
-
-      {/* Mobile sidebar */}
       <MobileNav isOpen={mobileOpen} onClose={() => setMobileOpen(false)}>
         <Sidebar />
       </MobileNav>
-
-      {/* Main content area */}
       <div className="app-main">
         <Topbar onMenuClick={() => setMobileOpen(true)} />
         <main className="app-content">{children}</main>
@@ -26,3 +21,4 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     </div>
   );
 }
+

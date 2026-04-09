@@ -1,7 +1,12 @@
 import { getInvoices } from "@/actions/invoices";
 import InvoicesClient from "./InvoicesClient";
+import { Suspense } from "react";
 
 export default async function InvoicesPage() {
   const invoices = await getInvoices();
-  return <InvoicesClient invoices={JSON.parse(JSON.stringify(invoices))} />;
+  return (
+    <Suspense fallback={<div>Loading invoices...</div>}>
+      <InvoicesClient invoices={JSON.parse(JSON.stringify(invoices))} />
+    </Suspense>
+  );
 }

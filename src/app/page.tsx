@@ -2,6 +2,12 @@ import { prisma } from "@/lib/prisma";
 import DashboardClient from "./DashboardClient";
 
 export default async function DashboardPage() {
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  const tomorrowEnd = new Date();
+  tomorrowEnd.setDate(tomorrowEnd.getDate() + 1);
+  tomorrowEnd.setHours(23, 59, 59, 999);
+
   const [
     vehicleCount,
     availableCount,
@@ -14,6 +20,7 @@ export default async function DashboardPage() {
     todayReturns,
     todayMaintenanceIn,
     todayMaintenanceOut,
+    allInvoices,
   ] = await Promise.all([
     prisma.vehicle.count(),
     prisma.vehicle.count({ where: { status: "AVAILABLE" } }),
@@ -29,28 +36,28 @@ export default async function DashboardPage() {
     prisma.booking.findMany({
       where: {
         startDate: {
-          gte: new Date(new Date().setHours(0, 0, 0, 0)),
-          lt: new Date(new Date().setHours(23, 59, 59, 999)),
+          gte: todayStart,
+          lt: tomorrowEnd,
         },
-        status: "CONFIRMED",
+        status: { in: ["CONFIRMED", "ACTIVE"] },
       },
       include: { customer: true, vehicle: true },
     }),
     prisma.booking.findMany({
       where: {
         endDate: {
-          gte: new Date(new Date().setHours(0, 0, 0, 0)),
-          lt: new Date(new Date().setHours(23, 59, 59, 999)),
+          gte: todayStart,
+          lt: tomorrowEnd,
         },
-        status: "ACTIVE",
+        status: { in: ["ACTIVE", "COMPLETED", "CONFIRMED"] },
       },
       include: { customer: true, vehicle: true },
     }),
     prisma.maintenance.findMany({
       where: {
         serviceDate: {
-          gte: new Date(new Date().setHours(0, 0, 0, 0)),
-          lt: new Date(new Date().setHours(23, 59, 59, 999)),
+          gte: todayStart,
+          lt: tomorrowEnd,
         },
       },
       include: { vehicle: true },
@@ -58,27 +65,17 @@ export default async function DashboardPage() {
     prisma.maintenance.findMany({
       where: {
         returnDate: {
-          gte: new Date(new Date().setHours(0, 0, 0, 0)),
-          lt: new Date(new Date().setHours(23, 59, 59, 999)),
+          gte: todayStart,
+          lt: tomorrowEnd,
         },
       },
       include: { vehicle: true },
     }),
+    prisma.invoice.findMany(),
   ]);
 
-  // Revenue this month
-  const firstOfMonth = new Date();
-  firstOfMonth.setDate(1);
-  firstOfMonth.setHours(0, 0, 0, 0);
-
-  const monthlyInvoices = await prisma.invoice.findMany({
-    where: {
-      createdAt: { gte: firstOfMonth },
-      paymentStatus: { in: ["PAID", "PARTIAL"] },
-    },
-  });
-
-  const monthlyRevenue = monthlyInvoices.reduce((sum, inv) => sum + inv.totalAmount, 0);
+  const overallRevenue = allInvoices.reduce((sum, inv) => sum + (inv.totalAmount - inv.amountDue), 0);
+  const pendingRevenue = allInvoices.reduce((sum, inv) => sum + inv.amountDue, 0);
 
   return (
     <DashboardClient
@@ -89,7 +86,8 @@ export default async function DashboardPage() {
         maintenanceCount,
         activeBookings,
         totalCustomers,
-        monthlyRevenue,
+        overallRevenue,
+        pendingRevenue,
       }}
       recentBookings={JSON.parse(JSON.stringify(recentBookings))}
       todayPickups={JSON.parse(JSON.stringify(todayPickups))}

@@ -1,4 +1,5 @@
 "use client";
+import { useSettings } from "@/lib/SettingsContext";
 
 import Link from "next/link";
 import {
@@ -10,11 +11,14 @@ import {
   TrendingUp,
   Clock,
   Plus,
+  CheckCircle,
+  Key,
+  CreditCard,
 } from "lucide-react";
 import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
-import { formatCurrency, formatDate, formatStatus, getStatusColor, getStatusBg, getFullName } from "@/lib/utils";
+import { formatDate, formatStatus, getStatusColor, getStatusBg, getFullName } from "@/lib/utils";
 import styles from "./dashboard.module.css";
 
 interface BookingRow {
@@ -35,7 +39,8 @@ interface DashboardClientProps {
     maintenanceCount: number;
     activeBookings: number;
     totalCustomers: number;
-    monthlyRevenue: number;
+    overallRevenue: number;
+    pendingRevenue: number;
   };
   recentBookings: BookingRow[];
   todayPickups: BookingRow[];
@@ -52,9 +57,24 @@ export default function DashboardClient({
   todayMaintenanceIn,
   todayMaintenanceOut,
 }: DashboardClientProps) {
+  const { formatPrice: formatCurrency, t, formatStatusT } = useSettings();
+
+  const getDayLabel = (dateString: string) => {
+    const d = new Date(dateString);
+    const today = new Date();
+    if (
+      d.getDate() === today.getDate() &&
+      d.getMonth() === today.getMonth() &&
+      d.getFullYear() === today.getFullYear()
+    ) {
+      return t("dashboard.today");
+    }
+    return t("dashboard.tomorrow");
+  };
+
   const statCards = [
     {
-      label: "Total Vehicles",
+      label: t("dashboard.totalVehicles"),
       value: stats.vehicleCount,
       icon: <Car size={22} />,
       color: "var(--accent)",
@@ -62,28 +82,36 @@ export default function DashboardClient({
       href: "/vehicles",
     },
     {
-      label: "Active Bookings",
-      value: stats.activeBookings,
-      icon: <CalendarDays size={22} />,
+      label: t("status.available"),
+      value: stats.availableCount,
+      icon: <CheckCircle size={22} />,
       color: "var(--success)",
       bg: "var(--success-muted)",
-      href: "/bookings",
+      href: "/vehicles?status=AVAILABLE",
     },
     {
-      label: "Total Brokers",
-      value: stats.totalCustomers,
-      icon: <Users size={22} />,
-      color: "var(--info)",
-      bg: "var(--info-muted)",
-      href: "/customers",
-    },
-    {
-      label: "Monthly Revenue",
-      value: formatCurrency(stats.monthlyRevenue),
-      icon: <DollarSign size={22} />,
+      label: t("status.rented"),
+      value: stats.rentedCount,
+      icon: <Key size={22} />,
       color: "var(--warning)",
       bg: "var(--warning-muted)",
+      href: "/vehicles?status=RENTED",
+    },
+    {
+      label: t("dashboard.monthlyRevenue"),
+      value: formatCurrency(stats.overallRevenue),
+      icon: <DollarSign size={22} />,
+      color: "var(--info)",
+      bg: "var(--info-muted)",
       href: "/invoices",
+    },
+    {
+      label: t("dashboard.pendingPayments"),
+      value: formatCurrency(stats.pendingRevenue),
+      icon: <CreditCard size={22} />,
+      color: "var(--danger)",
+      bg: "var(--danger-muted)",
+      href: "/invoices?status=UNPAID",
     },
   ];
 
@@ -92,20 +120,22 @@ export default function DashboardClient({
       {/* Welcome */}
       <div className={styles.welcome}>
         <div>
-          <h1 className={styles.welcomeTitle}>Welcome back 👋</h1>
+          <h1 className={styles.welcomeTitle}>{t("dashboard.welcome")} 👋</h1>
           <p className={styles.welcomeSub}>
-            Here&apos;s what&apos;s happening with your fleet today.
+            {t("dashboard.fleetSubtitle")}
           </p>
         </div>
         <div className={styles.quickActions}>
           <Link href="/bookings/new">
-            <Button icon={<Plus size={16} />}>New Booking</Button>
+            <Button icon={<Plus size={16} />}>{t("bookings.newBooking")}</Button>
           </Link>
           <Link href="/vehicles/new">
-            <Button variant="secondary" icon={<Plus size={16} />}>Add Vehicle</Button>
+            <Button variant="secondary" icon={<Plus size={16} />}>{t("vehicles.addVehicle")}</Button>
           </Link>
         </div>
       </div>
+
+
 
       {/* Stats Grid */}
       <div className="stats-grid">
@@ -133,26 +163,26 @@ export default function DashboardClient({
       <div className={styles.fleetBar}>
         <Card padding="md">
           <div className={styles.fleetHeader}>
-            <h3>Fleet Status</h3>
+            <h3>{t("dashboard.fleetStatus")}</h3>
             <Link href="/vehicles" className={styles.viewAll}>
-              View all <ArrowRight size={14} />
+              {t("action.viewAll")} <ArrowRight size={14} />
             </Link>
           </div>
           <div className={styles.fleetStats}>
             <div className={styles.fleetStat}>
               <span className={styles.fleetDot} style={{ background: "var(--success)" }} />
               <span className={styles.fleetCount}>{stats.availableCount}</span>
-              <span className={styles.fleetLabel}>Available</span>
+              <span className={styles.fleetLabel}>{t("status.available")}</span>
             </div>
             <div className={styles.fleetStat}>
               <span className={styles.fleetDot} style={{ background: "var(--accent)" }} />
               <span className={styles.fleetCount}>{stats.rentedCount}</span>
-              <span className={styles.fleetLabel}>Rented</span>
+              <span className={styles.fleetLabel}>{t("status.rented")}</span>
             </div>
             <div className={styles.fleetStat}>
               <span className={styles.fleetDot} style={{ background: "var(--warning)" }} />
               <span className={styles.fleetCount}>{stats.maintenanceCount}</span>
-              <span className={styles.fleetLabel}>Maintenance</span>
+              <span className={styles.fleetLabel}>{t("nav.maintenance")}</span>
             </div>
           </div>
           {/* Progress bar */}
@@ -193,12 +223,12 @@ export default function DashboardClient({
         {/* Today's Activity */}
         <Card padding="md">
           <div className={styles.sectionHeader}>
-            <h3><Clock size={18} /> Today&apos;s Activity</h3>
+            <h3><Clock size={18} /> {t("dashboard.todayTomorrow")}</h3>
           </div>
 
           {todayPickups.length === 0 && todayReturns.length === 0 && todayMaintenanceIn.length === 0 && todayMaintenanceOut.length === 0 ? (
             <div className={styles.emptyMini}>
-              <p>No pickups, returns, or shop repairs scheduled for today</p>
+              <p>{t("dashboard.noActivity")}</p>
             </div>
           ) : (
             <div className={styles.activityList}>
@@ -207,13 +237,13 @@ export default function DashboardClient({
                   <div className={styles.activityDot} style={{ background: "var(--success)" }} />
                   <div className={styles.activityInfo}>
                     <span className={styles.activityTitle}>
-                      Pickup: {b.vehicle.brand} {b.vehicle.model}
+                      {t("dashboard.pickup")}: {b.vehicle.brand} {b.vehicle.model}
                     </span>
                     <span className={styles.activitySub}>
                       {getFullName(b.customer.firstName, b.customer.lastName)}
                     </span>
                   </div>
-                  <Badge variant="success" size="sm">Pickup</Badge>
+                  <Badge variant="success" size="sm">{getDayLabel(b.startDate)}</Badge>
                 </div>
               ))}
               {todayReturns.map((b) => (
@@ -221,13 +251,13 @@ export default function DashboardClient({
                   <div className={styles.activityDot} style={{ background: "var(--info)" }} />
                   <div className={styles.activityInfo}>
                     <span className={styles.activityTitle}>
-                      Return: {b.vehicle.brand} {b.vehicle.model}
+                      {t("dashboard.return")}: {b.vehicle.brand} {b.vehicle.model}
                     </span>
                     <span className={styles.activitySub}>
                       {getFullName(b.customer.firstName, b.customer.lastName)}
                     </span>
                   </div>
-                  <Badge variant="info" size="sm">Return</Badge>
+                  <Badge variant="info" size="sm">{getDayLabel(b.endDate)}</Badge>
                 </div>
               ))}
               {todayMaintenanceIn.map((m) => (
@@ -235,13 +265,13 @@ export default function DashboardClient({
                   <div className={styles.activityDot} style={{ background: "var(--warning)" }} />
                   <div className={styles.activityInfo}>
                     <span className={styles.activityTitle}>
-                      To Shop: {m.vehicle.brand} {m.vehicle.model}
+                      {t("dashboard.toShop")}: {m.vehicle.brand} {m.vehicle.model}
                     </span>
                     <span className={styles.activitySub}>
                       {m.description}
                     </span>
                   </div>
-                  <Badge variant="warning" size="sm">Shop In</Badge>
+                  <Badge variant="warning" size="sm">{getDayLabel(m.serviceDate)}</Badge>
                 </div>
               ))}
               {todayMaintenanceOut.map((m) => (
@@ -249,13 +279,13 @@ export default function DashboardClient({
                   <div className={styles.activityDot} style={{ background: "var(--success)" }} />
                   <div className={styles.activityInfo}>
                     <span className={styles.activityTitle}>
-                      From Shop: {m.vehicle.brand} {m.vehicle.model}
+                      {t("dashboard.fromShop")}: {m.vehicle.brand} {m.vehicle.model}
                     </span>
                     <span className={styles.activitySub}>
                       {m.description}
                     </span>
                   </div>
-                  <Badge variant="success" size="sm">Shop Out</Badge>
+                  <Badge variant="success" size="sm">{getDayLabel(m.returnDate)}</Badge>
                 </div>
               ))}
             </div>
@@ -265,15 +295,15 @@ export default function DashboardClient({
         {/* Recent Bookings */}
         <Card padding="md">
           <div className={styles.sectionHeader}>
-            <h3><TrendingUp size={18} /> Recent Bookings</h3>
+            <h3><TrendingUp size={18} /> {t("dashboard.recentBookings")}</h3>
             <Link href="/bookings" className={styles.viewAll}>
-              View all <ArrowRight size={14} />
+              {t("action.viewAll")} <ArrowRight size={14} />
             </Link>
           </div>
 
           {recentBookings.length === 0 ? (
             <div className={styles.emptyMini}>
-              <p>No bookings yet</p>
+              <p>{t("dashboard.noBookingsYet")}</p>
             </div>
           ) : (
             <div className={styles.bookingList}>
@@ -298,7 +328,7 @@ export default function DashboardClient({
                       bg={getStatusBg(b.status)}
                       size="sm"
                     >
-                      {formatStatus(b.status)}
+                      {formatStatusT(b.status)}
                     </Badge>
                   </div>
                 </Link>

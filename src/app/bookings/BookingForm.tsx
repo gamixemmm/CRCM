@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Save, Building2, User, Plus, X } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
-import Input, { Textarea } from "@/components/ui/Input";
+import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
+import BookingCalendar from "@/components/ui/BookingCalendar";
 import { useToast } from "@/components/ui/Toast";
 import { createBooking } from "@/actions/bookings";
 import { createCustomer } from "@/actions/customers";
@@ -19,6 +20,7 @@ export default function BookingForm({ vehicles, customers: initialCustomers }: {
   const [showNewBroker, setShowNewBroker] = useState(false);
   const [brokerLoading, setBrokerLoading] = useState(false);
   const [newBroker, setNewBroker] = useState({ firstName: "", lastName: "", phone: "" });
+  const [showDriver2, setShowDriver2] = useState(false);
 
   const [form, setForm] = useState({
     customerId: "",
@@ -32,6 +34,11 @@ export default function BookingForm({ vehicles, customers: initialCustomers }: {
     driverFirstName: "",
     driverLastName: "",
     driverCIN: "",
+    driverLicense: "",
+    driver2FirstName: "",
+    driver2LastName: "",
+    driver2CIN: "",
+    driver2License: "",
     pricePerDay: 0,
     pickupLocation: "",
     returnLocation: "",
@@ -54,6 +61,28 @@ export default function BookingForm({ vehicles, customers: initialCustomers }: {
   
   const estimatedTotal = days * effectiveRate;
 
+  // Filter vehicles by availability when dates are selected
+  const isVehicleAvailable = (vehicle: any): boolean => {
+    if (!start || !end) return true;
+    const bookings = vehicle.bookings || [];
+    return !bookings.some((b: any) => {
+      const bStart = new Date(b.startDate);
+      const bEnd = new Date(b.endDate);
+      return bStart <= end && bEnd >= start;
+    });
+  };
+
+  const vehicleOptions = useMemo(() => {
+    return vehicles.map((v) => {
+      const available = isVehicleAvailable(v);
+      return {
+        value: v.id,
+        label: `${v.brand} ${v.model} — [${v.plateNumber}]${!available ? " ❌ Unavailable" : v.status === "RENTED" ? " 🔑" : " ✅"}`,
+        available,
+      };
+    });
+  }, [vehicles, form.startDate, form.endDate]);
+
   const handleVehicleChange = (vehicleId: string) => {
     const v = vehicles.find((veh) => veh.id === vehicleId);
     setForm({
@@ -61,6 +90,10 @@ export default function BookingForm({ vehicles, customers: initialCustomers }: {
       vehicleId,
       pricePerDay: v?.dailyRate || 0,
     });
+  };
+
+  const handleCalendarDateChange = (startVal: string, endVal: string) => {
+    setForm({ ...form, startDate: startVal, endDate: endVal });
   };
 
   const handleCreateBroker = async () => {
@@ -110,9 +143,10 @@ export default function BookingForm({ vehicles, customers: initialCustomers }: {
 
     setLoading(false);
 
-    if (result.success) {
+    if (result.success && result.data) {
       toast(result.message, "success");
-      router.push("/bookings");
+      const createdBooking = result.data as any;
+      router.push(`/bookings/${createdBooking.id}`);
     } else {
       toast(result.message, "error");
     }
@@ -298,30 +332,27 @@ export default function BookingForm({ vehicles, customers: initialCustomers }: {
                 )}
               </div>
 
+              {/* Calendar — always visible */}
+              <BookingCalendar
+                bookedRanges={selectedVehicle?.bookings || []}
+                startDate={form.startDate}
+                endDate={form.endDate}
+                onDateChange={handleCalendarDateChange}
+              />
+
               <Select
-                label="Vehicle"
+                label={form.startDate && form.endDate ? `Vehicle (${vehicleOptions.filter(v => v.available).length} available)` : "Vehicle"}
                 required
                 value={form.vehicleId}
                 onChange={(e) => handleVehicleChange(e.target.value)}
-                options={vehicles.map((v) => ({ value: v.id, label: `${v.brand} ${v.model} — [${v.plateNumber}]` }))}
+                options={vehicleOptions
+                  .filter((v) => v.available)
+                  .map((v) => ({
+                    value: v.value,
+                    label: v.label,
+                  }))}
                 placeholder="Select a vehicle..."
               />
-              <div style={{ display: "flex", gap: "16px" }}>
-                <Input
-                  label="Delivery Date"
-                  type="date"
-                  required
-                  value={form.startDate}
-                  onChange={(e) => setForm({ ...form, startDate: e.target.value })}
-                />
-                <Input
-                  label="Return Date"
-                  type="date"
-                  required
-                  value={form.endDate}
-                  onChange={(e) => setForm({ ...form, endDate: e.target.value })}
-                />
-              </div>
             </div>
           </Card>
 
@@ -369,48 +400,91 @@ export default function BookingForm({ vehicles, customers: initialCustomers }: {
           </Card>
         </div>
 
-        {/* Driver Info - only for Company rentals */}
-        {form.clientType === "ENTREPRISE" && (
-          <Card padding="lg">
-            <h3 style={{ marginBottom: "16px", paddingBottom: "8px", borderBottom: "1px solid var(--border)" }}>
+        {/* Driver Info - Always shown */}
+        <Card padding="lg">
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", paddingBottom: "8px", borderBottom: "1px solid var(--border)" }}>
+            <h3 style={{ margin: 0, display: "flex", alignItems: "center" }}>
               Driver Information
               <span style={{ fontSize: "0.75rem", color: "var(--text-tertiary)", fontWeight: 400, marginLeft: "8px" }}>
-                Required for company rentals
+                Primary driver
               </span>
             </h3>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "16px" }}>
-              <Input
-                label="Driver Last Name"
-                required
-                value={form.driverLastName}
-                onChange={(e) => setForm({ ...form, driverLastName: e.target.value })}
-              />
-              <Input
-                label="Driver First Name"
-                required
-                value={form.driverFirstName}
-                onChange={(e) => setForm({ ...form, driverFirstName: e.target.value })}
-              />
-              <Input
-                label="CIN (ID Number)"
-                required
-                value={form.driverCIN}
-                onChange={(e) => setForm({ ...form, driverCIN: e.target.value })}
-                placeholder="e.g. AB123456"
-              />
-            </div>
-          </Card>
-        )}
+            {!showDriver2 && (
+              <Button size="sm" variant="ghost" type="button" icon={<Plus size={14} />} onClick={() => setShowDriver2(true)}>
+                Add 2nd Driver
+              </Button>
+            )}
+          </div>
+          
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: "16px" }}>
+            <Input
+              label="Last Name"
+              required={form.clientType === "ENTREPRISE"}
+              value={form.driverLastName}
+              onChange={(e) => setForm({ ...form, driverLastName: e.target.value })}
+            />
+            <Input
+              label="First Name"
+              required={form.clientType === "ENTREPRISE"}
+              value={form.driverFirstName}
+              onChange={(e) => setForm({ ...form, driverFirstName: e.target.value })}
+            />
+            <Input
+              label="CIN / Passport"
+              required={form.clientType === "ENTREPRISE"}
+              value={form.driverCIN}
+              onChange={(e) => setForm({ ...form, driverCIN: e.target.value })}
+              placeholder="e.g. AB123456"
+            />
+            <Input
+              label="License Number"
+              value={form.driverLicense}
+              onChange={(e) => setForm({ ...form, driverLicense: e.target.value })}
+              placeholder="e.g. 15/45678"
+            />
+          </div>
 
-        <Card padding="lg">
-          <h3 style={{ marginBottom: "16px", paddingBottom: "8px", borderBottom: "1px solid var(--border)" }}>Additional Notes</h3>
-          <Textarea 
-            value={form.notes}
-            onChange={(e) => setForm({ ...form, notes: e.target.value })}
-            placeholder="Any special requests or details..."
-            rows={3} 
-          />
+          {showDriver2 && (
+            <div style={{ marginTop: "24px", paddingTop: "24px", borderTop: "1px dashed var(--border)" }}>
+               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+                <h4 style={{ margin: 0, fontSize: "0.875rem", fontWeight: 600, color: "var(--text-secondary)" }}>
+                  Second Driver (Optional)
+                </h4>
+                <Button size="sm" variant="ghost" type="button" onClick={() => {
+                  setShowDriver2(false);
+                  setForm({...form, driver2FirstName: "", driver2LastName: "", driver2CIN: "", driver2License: ""});
+                }}>
+                  Remove
+                </Button>
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: "16px" }}>
+                <Input
+                  label="Last Name"
+                  value={form.driver2LastName}
+                  onChange={(e) => setForm({ ...form, driver2LastName: e.target.value })}
+                />
+                <Input
+                  label="First Name"
+                  value={form.driver2FirstName}
+                  onChange={(e) => setForm({ ...form, driver2FirstName: e.target.value })}
+                />
+                <Input
+                  label="CIN / Passport"
+                  value={form.driver2CIN}
+                  onChange={(e) => setForm({ ...form, driver2CIN: e.target.value })}
+                />
+                <Input
+                  label="License Number"
+                  value={form.driver2License}
+                  onChange={(e) => setForm({ ...form, driver2License: e.target.value })}
+                />
+              </div>
+            </div>
+          )}
         </Card>
+
+
 
         <div style={{ display: "flex", justifyContent: "flex-end", gap: "12px", borderTop: "1px solid var(--border)", paddingTop: "24px" }}>
           <Button variant="secondary" type="button" onClick={() => router.back()}>Cancel</Button>

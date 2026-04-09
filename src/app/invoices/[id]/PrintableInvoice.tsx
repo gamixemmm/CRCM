@@ -1,12 +1,15 @@
 "use client";
+import { useSettings } from "@/lib/SettingsContext";
 
 import { useRef } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Printer } from "lucide-react";
 import Button from "@/components/ui/Button";
-import { formatCurrency, formatDate, getFullName } from "@/lib/utils";
+import { formatDate, getFullName } from "@/lib/utils";
 
 export default function PrintableInvoice({ invoice }: { invoice: any }) {
+  const { formatPrice: formatCurrency } = useSettings();
+
   const router = useRouter();
   const printRef = useRef<HTMLDivElement>(null);
 
@@ -73,9 +76,9 @@ export default function PrintableInvoice({ invoice }: { invoice: any }) {
               <span style={{ color: "#666" }}>Status:</span>
               <span style={{ 
                 fontWeight: 700, 
-                color: invoice.paymentStatus === "PAID" ? "#00c853" : "#ff3d71" 
+                color: invoice.paymentStatus === "PAID" ? "#00c853" : invoice.paymentStatus === "PARTIAL" ? "#00b0ff" : "#ff3d71" 
               }}>
-                {invoice.paymentStatus}
+                {invoice.paymentStatus === "PARTIAL" ? "PARTIALLY PAID" : invoice.paymentStatus}
               </span>
             </div>
           </div>
@@ -142,6 +145,18 @@ export default function PrintableInvoice({ invoice }: { invoice: any }) {
                 <span>-{formatCurrency(invoice.depositPaid)}</span>
               </div>
             )}
+            {(() => {
+              const prevPaid = invoice.totalAmount - invoice.depositPaid - invoice.amountDue;
+              if (prevPaid > 0 && invoice.paymentStatus !== "PENDING") {
+                return (
+                  <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", fontSize: "0.875rem", color: "#444" }}>
+                    <span>Payments Made</span>
+                    <span style={{ color: "#00c853" }}>-{formatCurrency(prevPaid)}</span>
+                  </div>
+                );
+              }
+              return null;
+            })()}
             <div style={{ display: "flex", justifyContent: "space-between", padding: "16px 0", borderTop: "2px solid #111", marginTop: "8px", fontWeight: 800, fontSize: "1.25rem", color: "#111" }}>
               <span>Amount Due</span>
               <span>{formatCurrency(invoice.amountDue)}</span>

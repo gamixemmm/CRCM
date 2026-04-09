@@ -66,6 +66,11 @@ model Booking {
   driverFirstName String?
   driverLastName  String?
   driverCIN       String?
+  driverLicense   String?
+  driver2FirstName String?
+  driver2LastName  String?
+  driver2CIN       String?
+  driver2License   String?
   notes           String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt

@@ -52,8 +52,38 @@ export async function getVehicles(params?: {
     where,
     orderBy: { createdAt: "desc" },
     include: {
+      bookings: {
+        where: { status: "ACTIVE" },
+        take: 1,
+        select: { id: true },
+      },
       _count: {
         select: { bookings: true },
+      },
+    },
+  });
+
+
+  return vehicles;
+}
+
+// ─── Get All Vehicles With Their Bookings (for booking calendar) ──
+export async function getVehiclesWithBookings() {
+  const vehicles = await prisma.vehicle.findMany({
+    where: {
+      status: { not: "MAINTENANCE" },
+    },
+    orderBy: { createdAt: "desc" },
+    include: {
+      bookings: {
+        where: {
+          status: { in: ["CONFIRMED", "ACTIVE"] },
+        },
+        select: {
+          startDate: true,
+          endDate: true,
+          status: true,
+        },
       },
     },
   });
@@ -83,7 +113,7 @@ export async function getVehicle(id: string) {
 export async function createVehicle(input: VehicleInput): Promise<ActionResult> {
   try {
     // Validate required fields
-    if (!input.brand || !input.model || !input.plateNumber || !input.dailyRate) {
+    if (!input.brand || !input.model || !input.plateNumber) {
       return {
         success: false,
         message: "Please fill in all required fields",
@@ -91,7 +121,6 @@ export async function createVehicle(input: VehicleInput): Promise<ActionResult> 
           ...((!input.brand) && { brand: ["Brand is required"] }),
           ...((!input.model) && { model: ["Model is required"] }),
           ...((!input.plateNumber) && { plateNumber: ["Plate number is required"] }),
-          ...((!input.dailyRate) && { dailyRate: ["Daily rate is required"] }),
         },
       };
     }
@@ -118,7 +147,7 @@ export async function createVehicle(input: VehicleInput): Promise<ActionResult> 
         color: input.color || "Black",
         transmission: input.transmission || "Automatic",
         fuelType: input.fuelType || "Gasoline",
-        dailyRate: input.dailyRate,
+        dailyRate: input.dailyRate || 0,
         mileage: input.mileage || 0,
         status: input.status || "AVAILABLE",
         imageUrl: input.imageUrl || null,

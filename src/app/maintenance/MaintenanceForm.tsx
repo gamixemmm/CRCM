@@ -9,9 +9,11 @@ import Input, { Textarea } from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
 import { useToast } from "@/components/ui/Toast";
 import { logMaintenance } from "@/actions/maintenance";
+import { useSettings } from "@/lib/SettingsContext";
 
 export default function MaintenanceForm({ vehicles }: { vehicles: any[] }) {
   const router = useRouter();
+  const { currency } = useSettings();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   
@@ -107,7 +109,7 @@ export default function MaintenanceForm({ vehicles }: { vehicles: any[] }) {
             
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
               <Input
-                label="Repair Cost ($)"
+                label={`Repair Cost (${currency})`}
                 type="number"
                 min={0}
                 required

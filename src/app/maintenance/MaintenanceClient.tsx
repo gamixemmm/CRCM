@@ -1,4 +1,5 @@
 "use client";
+import { useSettings } from "@/lib/SettingsContext";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -8,7 +9,7 @@ import Button from "@/components/ui/Button";
 import Badge from "@/components/ui/Badge";
 import Table from "@/components/ui/Table";
 import { useToast } from "@/components/ui/Toast";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { formatDate } from "@/lib/utils";
 import { resolveMaintenance, unresolveMaintenance, deleteMaintenance } from "@/actions/maintenance";
 
 const statusFilters = ["ALL", "ACTIVE", "COMPLETED"];
@@ -18,6 +19,8 @@ interface MaintenanceClientProps {
 }
 
 export default function MaintenanceClient({ logs }: MaintenanceClientProps) {
+  const { formatPrice: formatCurrency, t, formatStatusT } = useSettings();
+
   const router = useRouter();
   const { toast } = useToast();
   const [search, setSearch] = useState("");
@@ -44,7 +47,7 @@ export default function MaintenanceClient({ logs }: MaintenanceClientProps) {
 
   const handleResolve = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (confirm("Mark this maintenance job as completed? The vehicle will immediately become AVAILABLE in the fleet.")) {
+    if (confirm(t("maintenance.resolveConfirm"))) {
       setResolving(id);
       const res = await resolveMaintenance(id);
       setResolving(null);
@@ -58,7 +61,7 @@ export default function MaintenanceClient({ logs }: MaintenanceClientProps) {
 
   const handleUnresolve = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (confirm("Reopen this maintenance job? The vehicle will be pulled back into the shop immediately.")) {
+    if (confirm(t("maintenance.unresolveConfirm"))) {
       setResolving(id);
       const res = await unresolveMaintenance(id);
       setResolving(null);
@@ -72,7 +75,7 @@ export default function MaintenanceClient({ logs }: MaintenanceClientProps) {
 
   const handleDelete = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (confirm("Permanently delete this shop log? This action cannot be undone.")) {
+    if (confirm(t("maintenance.deleteConfirm"))) {
       setResolving(id);
       const res = await deleteMaintenance(id);
       setResolving(null);
@@ -87,7 +90,7 @@ export default function MaintenanceClient({ logs }: MaintenanceClientProps) {
   const columns = [
     {
       key: "vehicle",
-      label: "Vehicle",
+      label: t("bookings.vehicle"),
       render: (log: any) => (
         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
           <div style={{ padding: "8px", background: "var(--bg-tertiary)", borderRadius: "6px" }}>
@@ -102,7 +105,7 @@ export default function MaintenanceClient({ logs }: MaintenanceClientProps) {
     },
     {
       key: "description",
-      label: "Service Description",
+      label: t("maintenance.serviceDesc"),
       render: (log: any) => (
         <div style={{ display: "flex", flexDirection: "column" }}>
           <span style={{ fontWeight: 500 }}>{log.description}</span>
@@ -114,17 +117,17 @@ export default function MaintenanceClient({ logs }: MaintenanceClientProps) {
     },
     {
       key: "dates",
-      label: "Shop Logic",
+      label: t("maintenance.shopLogic"),
       render: (log: any) => (
         <div style={{ fontSize: "0.875rem" }}>
           <div style={{ display: "flex", justifyContent: "space-between", gap: "12px", width: "160px" }}>
-            <span style={{ color: "var(--text-secondary)" }}>In:</span>
+            <span style={{ color: "var(--text-secondary)" }}>{t("maintenance.in")}:</span>
             <span>{formatDate(log.serviceDate)}</span>
           </div>
           <div style={{ display: "flex", justifyContent: "space-between", gap: "12px", width: "160px" }}>
-            <span style={{ color: "var(--text-secondary)" }}>Out:</span>
+            <span style={{ color: "var(--text-secondary)" }}>{t("maintenance.out")}:</span>
             <span style={{ fontWeight: log.returnDate ? 600 : "normal", color: log.returnDate ? "var(--success)" : "var(--text-tertiary)" }}>
-              {log.returnDate ? formatDate(log.returnDate) : "Still in shop"}
+              {log.returnDate ? formatDate(log.returnDate) : t("maintenance.stillInShop")}
             </span>
           </div>
         </div>
@@ -132,7 +135,7 @@ export default function MaintenanceClient({ logs }: MaintenanceClientProps) {
     },
     {
       key: "cost",
-      label: "Repair Cost",
+      label: t("maintenance.repairCost"),
       render: (log: any) => (
         <span style={{ fontWeight: 700, color: "var(--text-primary)" }}>
           {formatCurrency(log.cost)}
@@ -141,20 +144,20 @@ export default function MaintenanceClient({ logs }: MaintenanceClientProps) {
     },
     {
       key: "status",
-      label: "Status",
+      label: t("label.status"),
       render: (log: any) => (
         <Badge
           color={!log.returnDate ? "var(--warning)" : "var(--success)"}
           bg={!log.returnDate ? "rgba(234, 179, 8, 0.1)" : "rgba(34, 197, 94, 0.1)"}
           dot
         >
-          {!log.returnDate ? "ACTIVE" : "COMPLETED"}
+          {!log.returnDate ? t("status.active").toUpperCase() : t("status.completed").toUpperCase()}
         </Badge>
       ),
     },
     {
       key: "actions",
-      label: "Actions",
+      label: t("label.actions"),
       align: "right" as const,
       render: (log: any) => (
         <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
@@ -166,7 +169,7 @@ export default function MaintenanceClient({ logs }: MaintenanceClientProps) {
               onClick={(e) => handleResolve(log.id, e)}
               icon={<CheckCircle size={14} />}
             >
-              Resolve
+              {t("maintenance.resolve")}
             </Button>
           ) : (
             <Button
@@ -176,7 +179,7 @@ export default function MaintenanceClient({ logs }: MaintenanceClientProps) {
               onClick={(e) => handleUnresolve(log.id, e)}
               icon={<XCircle size={14} />}
             >
-              Unresolve
+              {t("maintenance.unresolve")}
             </Button>
           )}
           <Button
@@ -196,11 +199,11 @@ export default function MaintenanceClient({ logs }: MaintenanceClientProps) {
       <div className="page-header">
         <h1>
           <Wrench size={24} />
-          Maintenance Dashboard
+          {t("maintenance.title")}
         </h1>
         <div className="page-header-actions">
           <Link href="/maintenance/new">
-            <Button icon={<Plus size={16} />}>Log Maintenance</Button>
+            <Button icon={<Plus size={16} />}>{t("maintenance.addRecord")}</Button>
           </Link>
         </div>
       </div>
@@ -210,7 +213,7 @@ export default function MaintenanceClient({ logs }: MaintenanceClientProps) {
           <Search size={16} style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "var(--text-tertiary)" }} />
           <input
             type="text"
-            placeholder="Search repairs or vehicle plate..."
+            placeholder={t("maintenance.searchPlaceholder")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             style={{ width: "100%", height: "40px", padding: "0 12px 0 36px", background: "var(--bg-secondary)", border: "1px solid var(--border)", borderRadius: "8px", color: "var(--text-primary)" }}
@@ -233,7 +236,7 @@ export default function MaintenanceClient({ logs }: MaintenanceClientProps) {
                 cursor: "pointer",
               }}
             >
-              {s}
+              {s === "ALL" ? t("label.all") : formatStatusT(s)}
             </button>
           ))}
         </div>
@@ -243,7 +246,7 @@ export default function MaintenanceClient({ logs }: MaintenanceClientProps) {
         columns={columns}
         data={filtered}
         keyExtractor={(log) => log.id}
-        emptyMessage="No maintenance records found."
+        emptyMessage={t("maintenance.noRecords")}
       />
     </div>
   );

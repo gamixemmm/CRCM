@@ -194,12 +194,13 @@ export default function VehicleForm({ vehicle }: VehicleFormProps) {
                 required
                 error={errors.plateNumber?.[0]}
               />
-              <Select
-                label="Color"
-                name="color"
-                value={form.color}
+              <Input
+                label="Registration Date"
+                name="circulationDate"
+                type="date"
+                value={form.circulationDate}
                 onChange={handleChange}
-                options={colorOptions}
+                hint="Mise en circulation"
               />
               <Select
                 label="Transmission"
@@ -215,31 +216,7 @@ export default function VehicleForm({ vehicle }: VehicleFormProps) {
                 onChange={handleChange}
                 options={fuelOptions}
               />
-              <Select
-                label="Status"
-                name="status"
-                value={form.status}
-                onChange={handleChange}
-                options={statusOptions}
-              />
-            </div>
-          </Card>
 
-          {/* Pricing & Details */}
-          <Card padding="lg" className={styles.section}>
-            <h3 className={styles.sectionTitle}>Pricing & Details</h3>
-            <div className={styles.fieldGrid}>
-              <Input
-                label="Daily Rate ($)"
-                name="dailyRate"
-                type="number"
-                value={form.dailyRate}
-                onChange={handleChange}
-                min={0}
-                step={0.01}
-                required
-                error={errors.dailyRate?.[0]}
-              />
               <Input
                 label="Mileage (km)"
                 name="mileage"
@@ -247,38 +224,6 @@ export default function VehicleForm({ vehicle }: VehicleFormProps) {
                 value={form.mileage}
                 onChange={handleChange}
                 min={0}
-              />
-              <Input
-                label="Registration Date"
-                name="circulationDate"
-                type="date"
-                value={form.circulationDate}
-                onChange={handleChange}
-                hint="Date de mise en circulation (optional)"
-              />
-              <Input
-                label="Insurance Expiry"
-                name="insuranceExpiry"
-                type="date"
-                value={form.insuranceExpiry}
-                onChange={handleChange}
-              />
-              <Input
-                label="Registration Expiry"
-                name="registrationExpiry"
-                type="date"
-                value={form.registrationExpiry}
-                onChange={handleChange}
-              />
-            </div>
-            <div className={styles.fullField}>
-              <Textarea
-                label="Notes"
-                name="notes"
-                value={form.notes}
-                onChange={handleChange}
-                placeholder="Any additional notes..."
-                rows={3}
               />
             </div>
           </Card>

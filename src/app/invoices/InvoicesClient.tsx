@@ -1,31 +1,43 @@
 "use client";
+import { useSettings } from "@/lib/SettingsContext";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { FileText, Search, User, Car, CheckCircle, XCircle, Trash2 } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Badge from "@/components/ui/Badge";
 import Table from "@/components/ui/Table";
 import { useToast } from "@/components/ui/Toast";
-import { formatCurrency, formatDate, getFullName } from "@/lib/utils";
+import Modal from "@/components/ui/Modal";
+import Input from "@/components/ui/Input";
+import Select from "@/components/ui/Select";
+import { formatDate, getFullName } from "@/lib/utils";
 import { updatePaymentStatus, deleteInvoice } from "@/actions/invoices";
 
-const statusFilters = ["ALL", "PENDING", "PAID"];
+const statusFilters = ["ALL", "UNPAID", "PENDING", "PARTIAL", "PAID"];
 
 interface InvoicesClientProps {
   invoices: any[];
 }
 
 export default function InvoicesClient({ invoices }: InvoicesClientProps) {
+  const { formatPrice: formatCurrency, t, formatStatusT } = useSettings();
+
   const router = useRouter();
   const { toast } = useToast();
+  const searchParams = useSearchParams();
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("ALL");
+  const [statusFilter, setStatusFilter] = useState(searchParams.get("status") || "ALL");
   const [processing, setProcessing] = useState<string | null>(null);
+  const [paymentModalOpen, setPaymentModalOpen] = useState(false);
+  const [paymentForm, setPaymentForm] = useState({ id: "", amount: 0, amountDue: 0, method: "ESPECE" });
 
   const filtered = invoices.filter((i) => {
-    const matchesStatus = statusFilter === "ALL" || i.paymentStatus === statusFilter;
+    const matchesStatus = 
+      statusFilter === "ALL" || 
+      i.paymentStatus === statusFilter || 
+      (statusFilter === "UNPAID" && (i.paymentStatus === "PENDING" || i.paymentStatus === "PARTIAL"));
     const term = search.toLowerCase();
     const searchMatch =
       !search ||
@@ -35,52 +47,63 @@ export default function InvoicesClient({ invoices }: InvoicesClientProps) {
     return matchesStatus && searchMatch;
   });
 
-  const handleMarkPaid = async (id: string, e: React.MouseEvent) => {
+  const handleMarkPaid = (id: string, amountDue: number, e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent row click
-    if (confirm("Mark this invoice as PAID? This will also Complete the booking and return the vehicle.")) {
-      setProcessing(id);
-      const res = await updatePaymentStatus(id, "PAID", true);
-      setProcessing(null);
-      if (res.success) {
-        toast("Invoice marked as PAID", "success");
-      } else {
-        toast(res.message, "error");
-      }
+    setPaymentForm({ id, amount: amountDue, amountDue, method: "ESPECE" });
+    setPaymentModalOpen(true);
+  };
+
+  const submitPayment = async () => {
+    if (paymentForm.amount <= 0) {
+      toast("Invalid amount", "error");
+      return;
+    }
+    
+    const isFullPayment = paymentForm.amount >= paymentForm.amountDue;
+    const finalStatus = isFullPayment ? "PAID" : "PARTIAL";
+
+    setProcessing(paymentForm.id);
+    setPaymentModalOpen(false);
+    
+    const res = await updatePaymentStatus(paymentForm.id, finalStatus, paymentForm.amount, false, paymentForm.method);
+    setProcessing(null);
+    if (res.success) {
+      toast(res.message, "success");
+    } else {
+      toast(res.message, "error");
     }
   };
 
   const handleMarkUnpaid = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (confirm("Revert this invoice to PENDING?")) {
-      setProcessing(id);
-      const res = await updatePaymentStatus(id, "PENDING", false);
-      setProcessing(null);
-      if (res.success) {
-        toast("Invoice reverted to PENDING", "success");
-      } else {
-        toast(res.message, "error");
-      }
+    setProcessing(id);
+    const res = await updatePaymentStatus(id, "PENDING", 0, false);
+    setProcessing(null);
+    if (res.success) {
+      toast("Invoice reverted to PENDING", "success");
+      router.refresh();
+    } else {
+      toast(res.message, "error");
     }
   };
 
   const handleDelete = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (confirm("Are you sure you want to permanently delete this invoice? This cannot be undone.")) {
-      setProcessing(id);
-      const res = await deleteInvoice(id);
-      setProcessing(null);
-      if (res.success) {
-        toast("Invoice deleted", "success");
-      } else {
-        toast(res.message, "error");
-      }
+    setProcessing(id);
+    const res = await deleteInvoice(id);
+    setProcessing(null);
+    if (res.success) {
+      toast("Invoice deleted", "success");
+      router.refresh();
+    } else {
+      toast(res.message, "error");
     }
   };
 
   const columns = [
     {
       key: "id",
-      label: "Inv ID",
+      label: t("invoices.invId"),
       render: (i: any) => (
         <span style={{ fontFamily: "monospace", fontSize: "0.75rem", color: "var(--text-secondary)" }}>
           {i.id.slice(0, 8).toUpperCase()}
@@ -89,7 +112,7 @@ export default function InvoicesClient({ invoices }: InvoicesClientProps) {
     },
     {
       key: "customer",
-      label: "Customer & Vehicle",
+      label: t("invoices.customerVehicle"),
       render: (i: any) => (
         <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
           <div style={{ fontWeight: 600, display: "flex", alignItems: "center", gap: "6px" }}>
@@ -105,12 +128,12 @@ export default function InvoicesClient({ invoices }: InvoicesClientProps) {
     },
     {
       key: "date",
-      label: "Date Created",
+      label: t("invoices.dateCreated"),
       render: (i: any) => <span>{formatDate(i.createdAt)}</span>,
     },
     {
       key: "amountDue",
-      label: "Amount Due",
+      label: t("invoices.amountDue"),
       render: (i: any) => (
         <span style={{ fontWeight: 700, color: i.paymentStatus === "PAID" ? "var(--success)" : "var(--accent)" }}>
           {formatCurrency(i.amountDue)}
@@ -119,19 +142,19 @@ export default function InvoicesClient({ invoices }: InvoicesClientProps) {
     },
     {
       key: "status",
-      label: "Status",
+      label: t("label.status"),
       render: (i: any) => (
         <Badge
-          variant={i.paymentStatus === "PAID" ? "success" : "warning"}
+          variant={i.paymentStatus === "PAID" ? "success" : i.paymentStatus === "PARTIAL" ? "info" : "warning"}
           size="sm"
         >
-          {i.paymentStatus}
+          {formatStatusT(i.paymentStatus)}
         </Badge>
       ),
     },
     {
       key: "actions",
-      label: "Actions",
+      label: t("label.actions"),
       align: "right" as const,
       render: (i: any) => (
         <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
@@ -140,10 +163,10 @@ export default function InvoicesClient({ invoices }: InvoicesClientProps) {
               size="sm"
               variant="success"
               loading={processing === i.id}
-              onClick={(e) => handleMarkPaid(i.id, e)}
+              onClick={(e) => handleMarkPaid(i.id, i.amountDue, e)}
               icon={<CheckCircle size={14} />}
             >
-              Pay
+              {t("invoices.pay")}
             </Button>
           ) : (
             <Button
@@ -153,7 +176,7 @@ export default function InvoicesClient({ invoices }: InvoicesClientProps) {
               onClick={(e) => handleMarkUnpaid(i.id, e)}
               icon={<XCircle size={14} />}
             >
-              Unpay
+              {t("invoices.unpay")}
             </Button>
           )}
           <Button
@@ -173,7 +196,7 @@ export default function InvoicesClient({ invoices }: InvoicesClientProps) {
       <div className="page-header">
         <h1>
           <FileText size={24} />
-          Invoices & Billing
+          {t("invoices.title")}
         </h1>
       </div>
 
@@ -182,7 +205,7 @@ export default function InvoicesClient({ invoices }: InvoicesClientProps) {
           <Search size={16} style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "var(--text-tertiary)" }} />
           <input
             type="text"
-            placeholder="Search invoice ID or customer..."
+            placeholder={t("invoices.searchPlaceholder")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             style={{ width: "100%", height: "40px", padding: "0 12px 0 36px", background: "var(--bg-secondary)", border: "1px solid var(--border)", borderRadius: "8px", color: "var(--text-primary)" }}
@@ -205,7 +228,7 @@ export default function InvoicesClient({ invoices }: InvoicesClientProps) {
                 cursor: "pointer",
               }}
             >
-              {s}
+              {s === "ALL" ? t("label.all") : formatStatusT(s)}
             </button>
           ))}
         </div>
@@ -216,8 +239,49 @@ export default function InvoicesClient({ invoices }: InvoicesClientProps) {
         data={filtered}
         keyExtractor={(i) => i.id}
         onRowClick={(i) => router.push(`/invoices/${i.id}`)}
-        emptyMessage="No invoices generated yet."
+        emptyMessage={t("invoices.noInvoices")}
       />
+
+      <Modal
+        isOpen={paymentModalOpen}
+        onClose={() => setPaymentModalOpen(false)}
+        title={t("invoices.recordPayment")}
+        size="sm"
+      >
+        <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+          <div style={{ padding: "12px", background: "var(--bg-tertiary)", borderRadius: "8px", fontSize: "0.875rem" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
+              <span style={{ color: "var(--text-secondary)" }}>{t("invoices.amountDue")}</span>
+              <span style={{ fontWeight: 600 }}>{formatCurrency(paymentForm.amountDue)}</span>
+            </div>
+          </div>
+          <Input 
+            label={t("invoices.paymentAmount")} 
+            type="number"
+            min={0}
+            step="0.01"
+            value={paymentForm.amount}
+            onChange={(e) => setPaymentForm({ ...paymentForm, amount: Number(e.target.value) })}
+          />
+          <Select
+            label={t("invoices.paymentMethod")}
+            options={[
+              { value: "ESPECE", label: t("payment.cash") },
+              { value: "CARTE", label: t("payment.card") },
+              { value: "VIREMENT", label: t("payment.transfer") },
+              { value: "CHEQUE", label: t("payment.check") },
+            ]}
+            value={paymentForm.method}
+            onChange={(e) => setPaymentForm({ ...paymentForm, method: e.target.value })}
+          />
+
+          <div style={{ marginTop: "8px" }}>
+            <Button fullWidth onClick={submitPayment} loading={processing === paymentForm.id}>
+              {t("invoices.confirmPayment")}
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

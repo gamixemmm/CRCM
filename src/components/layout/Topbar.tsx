@@ -2,37 +2,40 @@
 
 import { usePathname } from "next/navigation";
 import { Bell, Search, Menu } from "lucide-react";
+import { useSettings } from "@/lib/SettingsContext";
+import { TranslationKey } from "@/lib/translations";
 import styles from "./Topbar.module.css";
 
 interface TopbarProps {
   onMenuClick?: () => void;
 }
 
-const pageTitles: Record<string, string> = {
-  "/": "Dashboard",
-  "/vehicles": "Fleet Management",
-  "/bookings": "Bookings",
-  "/calendar": "Calendar",
-  "/customers": "Brokers",
-  "/invoices": "Invoices",
-  "/maintenance": "Maintenance",
-  "/settings": "Settings",
+const pageTitleKeys: Record<string, TranslationKey> = {
+  "/": "nav.dashboard",
+  "/vehicles": "nav.vehicles",
+  "/bookings": "nav.bookings",
+  "/calendar": "nav.calendar",
+  "/customers": "nav.brokers",
+  "/invoices": "nav.invoices",
+  "/maintenance": "nav.maintenance",
+  "/settings": "nav.settings",
 };
 
-function getPageTitle(pathname: string): string {
-  if (pageTitles[pathname]) return pageTitles[pathname];
+function getPageTitleKey(pathname: string): TranslationKey {
+  if (pageTitleKeys[pathname]) return pageTitleKeys[pathname];
 
   // Match nested routes
-  for (const [key, title] of Object.entries(pageTitles)) {
-    if (key !== "/" && pathname.startsWith(key)) return title;
+  for (const [key, titleKey] of Object.entries(pageTitleKeys)) {
+    if (key !== "/" && pathname.startsWith(key)) return titleKey;
   }
 
-  return "CRMS";
+  return "nav.dashboard";
 }
 
 export default function Topbar({ onMenuClick }: TopbarProps) {
   const pathname = usePathname();
-  const title = getPageTitle(pathname);
+  const { t } = useSettings();
+  const title = t(getPageTitleKey(pathname));
 
   return (
     <header className={styles.topbar}>
@@ -53,7 +56,7 @@ export default function Topbar({ onMenuClick }: TopbarProps) {
           <Search size={16} className={styles.searchIcon} />
           <input
             type="text"
-            placeholder="Search..."
+            placeholder={t("topbar.search")}
             className={styles.searchInput}
             id="global-search"
           />

@@ -1,4 +1,5 @@
 "use client";
+import { useSettings } from "@/lib/SettingsContext";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -17,7 +18,7 @@ import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
 import Table from "@/components/ui/Table";
-import { formatCurrency, formatStatus, getStatusColor, getStatusBg, formatMileage } from "@/lib/utils";
+import { formatStatus, getStatusColor, getStatusBg, formatMileage } from "@/lib/utils";
 import styles from "./vehicles.module.css";
 
 const statusFilters = ["ALL", "AVAILABLE", "RENTED", "MAINTENANCE", "OUT_OF_SERVICE"];
@@ -36,6 +37,7 @@ type VehicleRow = {
   status: string;
   imageUrl: string | null;
   _count: { bookings: number };
+  bookings?: { id: string }[];
 };
 
 interface VehiclesClientProps {
@@ -44,6 +46,8 @@ interface VehiclesClientProps {
 }
 
 export default function VehiclesClient({ vehicles, stats }: VehiclesClientProps) {
+  const { formatPrice: formatCurrency, t, formatStatusT } = useSettings();
+
   const router = useRouter();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
@@ -60,16 +64,16 @@ export default function VehiclesClient({ vehicles, stats }: VehiclesClientProps)
   });
 
   const statCards = [
-    { label: "Total Fleet", value: stats.total, color: "var(--text-primary)", icon: <Car size={20} /> },
-    { label: "Available", value: stats.available, color: "var(--success)", icon: <Car size={20} /> },
-    { label: "Rented", value: stats.rented, color: "var(--accent)", icon: <Car size={20} /> },
-    { label: "In Maintenance", value: stats.maintenance, color: "var(--warning)", icon: <Car size={20} /> },
+    { label: t("dashboard.totalVehicles"), value: stats.total, color: "var(--text-primary)", icon: <Car size={20} /> },
+    { label: t("status.available"), value: stats.available, color: "var(--success)", icon: <Car size={20} /> },
+    { label: t("status.rented"), value: stats.rented, color: "var(--accent)", icon: <Car size={20} /> },
+    { label: t("status.inMaintenance"), value: stats.maintenance, color: "var(--warning)", icon: <Car size={20} /> },
   ];
 
   const columns = [
     {
       key: "vehicle",
-      label: "Vehicle",
+      label: t("bookings.vehicle"),
       render: (v: VehicleRow) => (
         <div className={styles.vehicleCell}>
           <div className={styles.vehicleIcon} style={{ background: `${getStatusBg(v.status)}` }}>
@@ -84,44 +88,62 @@ export default function VehiclesClient({ vehicles, stats }: VehiclesClientProps)
     },
     {
       key: "plateNumber",
-      label: "Plate",
+      label: t("vehicles.plate"),
       render: (v: VehicleRow) => <span className={styles.plate}>{v.plateNumber}</span>,
     },
     {
       key: "transmission",
-      label: "Type",
+      label: t("vehicles.type"),
       render: (v: VehicleRow) => (
         <span className={styles.meta}>{v.transmission} · {v.fuelType}</span>
       ),
     },
     {
       key: "mileage",
-      label: "Mileage",
+      label: t("vehicles.mileage"),
       render: (v: VehicleRow) => <span className={styles.meta}>{formatMileage(v.mileage)}</span>,
     },
     {
       key: "dailyRate",
-      label: "Daily Rate",
+      label: t("vehicles.dailyRate"),
       render: (v: VehicleRow) => (
         <span className={styles.rate}>{formatCurrency(v.dailyRate)}</span>
       ),
     },
     {
       key: "status",
-      label: "Status",
+      label: t("label.status"),
       render: (v: VehicleRow) => (
-        <Badge
-          color={getStatusColor(v.status)}
-          bg={getStatusBg(v.status)}
-          dot
-        >
-          {formatStatus(v.status)}
-        </Badge>
+        <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+          <Badge
+            color={getStatusColor(v.status)}
+            bg={getStatusBg(v.status)}
+            dot
+          >
+            {formatStatusT(v.status)}
+          </Badge>
+          {v.status === "RENTED" && v.bookings && v.bookings.length > 0 && (
+            <Link
+              href={`/bookings/${v.bookings[0].id}`}
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                fontSize: "0.75rem",
+                color: "var(--accent)",
+                textDecoration: "none",
+                fontWeight: 500,
+                display: "inline-flex",
+                alignItems: "center",
+              }}
+            >
+              {t("vehicles.viewBooking")} ↗
+            </Link>
+          )}
+        </div>
       ),
     },
     {
       key: "bookings",
-      label: "Bookings",
+      label: t("nav.bookings"),
       align: "center" as const,
       render: (v: VehicleRow) => <span className={styles.meta}>{v._count.bookings}</span>,
     },
@@ -152,11 +174,11 @@ export default function VehiclesClient({ vehicles, stats }: VehiclesClientProps)
       <div className="page-header">
         <h1>
           <Car size={24} />
-          Fleet Management
+          {t("vehicles.title")}
         </h1>
         <div className="page-header-actions">
           <Link href="/vehicles/new">
-            <Button icon={<Plus size={16} />}>Add Vehicle</Button>
+            <Button icon={<Plus size={16} />}>{t("vehicles.addVehicle")}</Button>
           </Link>
         </div>
       </div>
@@ -167,7 +189,7 @@ export default function VehiclesClient({ vehicles, stats }: VehiclesClientProps)
           <Search size={16} className={styles.searchIcon} />
           <input
             type="text"
-            placeholder="Search vehicles..."
+            placeholder={t("vehicles.searchPlaceholder")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className={styles.searchInput}
@@ -182,7 +204,7 @@ export default function VehiclesClient({ vehicles, stats }: VehiclesClientProps)
               className={`${styles.filterBtn} ${statusFilter === s ? styles.filterActive : ""}`}
               onClick={() => setStatusFilter(s)}
             >
-              {s === "ALL" ? "All" : formatStatus(s)}
+              {s === "ALL" ? t("label.all") : formatStatusT(s)}
             </button>
           ))}
         </div>
@@ -219,9 +241,28 @@ export default function VehiclesClient({ vehicles, stats }: VehiclesClientProps)
                 <div className={styles.cardIcon} style={{ background: getStatusBg(v.status) }}>
                   <Car size={28} style={{ color: getStatusColor(v.status) }} />
                 </div>
-                <Badge color={getStatusColor(v.status)} bg={getStatusBg(v.status)} dot>
-                  {formatStatus(v.status)}
-                </Badge>
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "6px" }}>
+                  <Badge color={getStatusColor(v.status)} bg={getStatusBg(v.status)} dot>
+                    {formatStatusT(v.status)}
+                  </Badge>
+                  {v.status === "RENTED" && v.bookings && v.bookings.length > 0 && (
+                    <Link
+                      href={`/bookings/${v.bookings[0].id}`}
+                      onClick={(e) => e.stopPropagation()}
+                      style={{
+                        fontSize: "0.75rem",
+                        color: "var(--accent)",
+                        textDecoration: "none",
+                        fontWeight: 500,
+                        backgroundColor: "var(--accent-muted)",
+                        padding: "2px 8px",
+                        borderRadius: "12px",
+                      }}
+                    >
+                      {t("vehicles.viewBooking")} ↗
+                    </Link>
+                  )}
+                </div>
               </div>
               <div className={styles.cardBody}>
                 <h3 className={styles.cardTitle}>
@@ -234,7 +275,7 @@ export default function VehiclesClient({ vehicles, stats }: VehiclesClientProps)
                 </div>
                 <div className={styles.cardFooter}>
                   <span className={styles.cardRate}>{formatCurrency(v.dailyRate)}</span>
-                  <span className={styles.cardRateLabel}>/ day</span>
+                  <span className={styles.cardRateLabel}>{t("vehicles.perDay")}</span>
                 </div>
               </div>
             </Card>
@@ -243,8 +284,8 @@ export default function VehiclesClient({ vehicles, stats }: VehiclesClientProps)
           {filtered.length === 0 && (
             <div className={`empty-state ${styles.emptyFull}`}>
               <Car size={48} />
-              <h3>No vehicles found</h3>
-              <p>Try adjusting your search or filters</p>
+              <h3>{t("vehicles.noVehiclesFound")}</h3>
+              <p>{t("vehicles.tryAdjusting")}</p>
             </div>
           )}
         </div>
@@ -254,7 +295,7 @@ export default function VehiclesClient({ vehicles, stats }: VehiclesClientProps)
           data={filtered}
           keyExtractor={(v) => v.id}
           onRowClick={(v) => router.push(`/vehicles/${v.id}`)}
-          emptyMessage="No vehicles found"
+          emptyMessage={t("vehicles.noVehicles")}
         />
       )}
     </div>

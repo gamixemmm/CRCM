@@ -7,6 +7,7 @@ import { Users, Plus, Search, FileText } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Table from "@/components/ui/Table";
 import { getFullName, formatDate } from "@/lib/utils";
+import { useSettings } from "@/lib/SettingsContext";
 
 interface CustomersClientProps {
   customers: any[];
@@ -14,6 +15,7 @@ interface CustomersClientProps {
 
 export default function CustomersClient({ customers }: CustomersClientProps) {
   const router = useRouter();
+  const { t } = useSettings();
   const [search, setSearch] = useState("");
 
   const filtered = customers.filter((c) => {
@@ -78,11 +80,11 @@ export default function CustomersClient({ customers }: CustomersClientProps) {
       <div className="page-header">
         <h1>
           <Users size={24} />
-          Brokers
+          {t("customers.title")}
         </h1>
         <div className="page-header-actions">
           <Link href="/customers/new">
-            <Button icon={<Plus size={16} />}>Add Broker</Button>
+            <Button icon={<Plus size={16} />}>{t("customers.addCustomer")}</Button>
           </Link>
         </div>
       </div>
@@ -91,7 +93,7 @@ export default function CustomersClient({ customers }: CustomersClientProps) {
         <Search size={16} style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "var(--text-tertiary)" }} />
         <input
           type="text"
-          placeholder="Search by name, license, or phone..."
+          placeholder={t("customers.searchPlaceholder")}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           style={{ width: "100%", height: "40px", padding: "0 12px 0 36px", background: "var(--bg-secondary)", border: "1px solid var(--border)", borderRadius: "8px", color: "var(--text-primary)" }}
@@ -103,7 +105,7 @@ export default function CustomersClient({ customers }: CustomersClientProps) {
         data={filtered}
         keyExtractor={(c) => c.id}
         onRowClick={(c) => router.push(`/customers/${c.id}`)}
-        emptyMessage="No brokers found"
+        emptyMessage={t("customers.noCustomers")}
       />
     </div>
   );

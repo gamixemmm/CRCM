@@ -1,4 +1,5 @@
 "use client";
+import { useSettings } from "@/lib/SettingsContext";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -8,7 +9,7 @@ import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
 import Table from "@/components/ui/Table";
-import { formatCurrency, formatDate, formatStatus, getStatusColor, getStatusBg, getFullName } from "@/lib/utils";
+import { formatDate, formatStatus, getStatusColor, getStatusBg, getFullName } from "@/lib/utils";
 
 const statusFilters = ["ALL", "PENDING", "CONFIRMED", "ACTIVE", "COMPLETED", "CANCELLED"];
 
@@ -17,6 +18,8 @@ interface BookingsClientProps {
 }
 
 export default function BookingsClient({ bookings }: BookingsClientProps) {
+  const { formatPrice: formatCurrency, t, formatStatusT } = useSettings();
+
   const router = useRouter();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
@@ -35,7 +38,7 @@ export default function BookingsClient({ bookings }: BookingsClientProps) {
   const columns = [
     {
       key: "vehicle",
-      label: "Vehicle",
+      label: t("bookings.vehicle"),
       render: (b: any) => (
         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
           <div style={{ padding: "8px", background: "var(--bg-tertiary)", borderRadius: "6px" }}>
@@ -50,7 +53,7 @@ export default function BookingsClient({ bookings }: BookingsClientProps) {
     },
     {
       key: "customer",
-      label: "Customer",
+      label: t("bookings.customer"),
       render: (b: any) => (
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
           <User size={14} style={{ color: "var(--text-tertiary)" }} />
@@ -60,17 +63,17 @@ export default function BookingsClient({ bookings }: BookingsClientProps) {
     },
     {
       key: "dates",
-      label: "Duration",
+      label: t("bookings.duration"),
       render: (b: any) => (
         <div>
           <div style={{ fontSize: "0.8125rem" }}>{formatDate(b.startDate)}</div>
-          <div style={{ fontSize: "0.75rem", color: "var(--text-tertiary)" }}>to {formatDate(b.endDate)}</div>
+          <div style={{ fontSize: "0.75rem", color: "var(--text-tertiary)" }}>{t("label.to")} {formatDate(b.endDate)}</div>
         </div>
       ),
     },
     {
       key: "totalAmount",
-      label: "Amount",
+      label: t("bookings.totalAmount"),
       render: (b: any) => (
         <span style={{ fontWeight: 700, color: "var(--text-primary)" }}>
           {formatCurrency(b.totalAmount)}
@@ -79,10 +82,10 @@ export default function BookingsClient({ bookings }: BookingsClientProps) {
     },
     {
       key: "status",
-      label: "Status",
+      label: t("label.status"),
       render: (b: any) => (
         <Badge color={getStatusColor(b.status)} bg={getStatusBg(b.status)} dot>
-          {formatStatus(b.status)}
+          {formatStatusT(b.status)}
         </Badge>
       ),
     },
@@ -93,11 +96,11 @@ export default function BookingsClient({ bookings }: BookingsClientProps) {
       <div className="page-header">
         <h1>
           <CalendarDays size={24} />
-          Bookings
+          {t("bookings.title")}
         </h1>
         <div className="page-header-actions">
           <Link href="/bookings/new">
-            <Button icon={<Plus size={16} />}>New Booking</Button>
+            <Button icon={<Plus size={16} />}>{t("bookings.newBooking")}</Button>
           </Link>
         </div>
       </div>
@@ -107,7 +110,7 @@ export default function BookingsClient({ bookings }: BookingsClientProps) {
           <Search size={16} style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "var(--text-tertiary)" }} />
           <input
             type="text"
-            placeholder="Search by customer or plate..."
+            placeholder={t("bookings.searchPlaceholder")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             style={{ width: "100%", height: "40px", padding: "0 12px 0 36px", background: "var(--bg-secondary)", border: "1px solid var(--border)", borderRadius: "8px", color: "var(--text-primary)" }}
@@ -130,7 +133,7 @@ export default function BookingsClient({ bookings }: BookingsClientProps) {
                 cursor: "pointer",
               }}
             >
-              {s === "ALL" ? "All" : formatStatus(s)}
+              {s === "ALL" ? t("label.all") : formatStatusT(s)}
             </button>
           ))}
         </div>
@@ -141,7 +144,7 @@ export default function BookingsClient({ bookings }: BookingsClientProps) {
         data={filtered}
         keyExtractor={(b) => b.id}
         onRowClick={(b) => router.push(`/bookings/${b.id}`)}
-        emptyMessage="No bookings found"
+        emptyMessage={t("bookings.noBookings")}
       />
     </div>
   );
