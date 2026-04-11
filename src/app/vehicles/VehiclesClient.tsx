@@ -1,8 +1,8 @@
 "use client";
 import { useSettings } from "@/lib/SettingsContext";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
   Plus,
@@ -49,9 +49,17 @@ export default function VehiclesClient({ vehicles, stats }: VehiclesClientProps)
   const { formatPrice: formatCurrency, t, formatStatusT } = useSettings();
 
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+
+  useEffect(() => {
+    const statusParam = searchParams.get("status");
+    if (statusParam && statusFilters.includes(statusParam.toUpperCase())) {
+      setStatusFilter(statusParam.toUpperCase());
+    }
+  }, [searchParams]);
 
   const filtered = vehicles.filter((v) => {
     const matchesStatus = statusFilter === "ALL" || v.status === statusFilter;

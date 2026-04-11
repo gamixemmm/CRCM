@@ -54,7 +54,7 @@ const translations = {
   "dashboard.title": { en: "Dashboard", fr: "Tableau de bord", ar: "لوحة القيادة" },
   "dashboard.totalVehicles": { en: "Total Vehicles", fr: "Total véhicules", ar: "إجمالي المركبات" },
   "dashboard.activeBookings": { en: "Active Bookings", fr: "Réservations actives", ar: "الحجوزات النشطة" },
-  "dashboard.monthlyRevenue": { en: "Monthly Revenue", fr: "Revenu mensuel", ar: "الإيرادات الشهرية" },
+  "dashboard.overallRevenue": { en: "Overall Revenue", fr: "Revenu global", ar: "الإيرادات الإجمالية" },
   "dashboard.pendingPayments": { en: "Pending Payments", fr: "Paiements en attente", ar: "المدفوعات المعلقة" },
   "dashboard.recentBookings": { en: "Recent Bookings", fr: "Réservations récentes", ar: "الحجوزات الأخيرة" },
   "dashboard.fleetStatus": { en: "Fleet Status", fr: "État de la flotte", ar: "حالة الأسطول" },

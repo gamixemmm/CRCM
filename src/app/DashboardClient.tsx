@@ -98,7 +98,7 @@ export default function DashboardClient({
       href: "/vehicles?status=RENTED",
     },
     {
-      label: t("dashboard.monthlyRevenue"),
+      label: t("dashboard.overallRevenue"),
       value: formatCurrency(stats.overallRevenue),
       icon: <DollarSign size={22} />,
       color: "var(--info)",
@@ -169,21 +169,21 @@ export default function DashboardClient({
             </Link>
           </div>
           <div className={styles.fleetStats}>
-            <div className={styles.fleetStat}>
+            <Link href="/vehicles?status=AVAILABLE" className={styles.fleetStat} style={{ textDecoration: "none", color: "inherit" }}>
               <span className={styles.fleetDot} style={{ background: "var(--success)" }} />
               <span className={styles.fleetCount}>{stats.availableCount}</span>
               <span className={styles.fleetLabel}>{t("status.available")}</span>
-            </div>
-            <div className={styles.fleetStat}>
+            </Link>
+            <Link href="/vehicles?status=RENTED" className={styles.fleetStat} style={{ textDecoration: "none", color: "inherit" }}>
               <span className={styles.fleetDot} style={{ background: "var(--accent)" }} />
               <span className={styles.fleetCount}>{stats.rentedCount}</span>
               <span className={styles.fleetLabel}>{t("status.rented")}</span>
-            </div>
-            <div className={styles.fleetStat}>
+            </Link>
+            <Link href="/vehicles?status=MAINTENANCE" className={styles.fleetStat} style={{ textDecoration: "none", color: "inherit" }}>
               <span className={styles.fleetDot} style={{ background: "var(--warning)" }} />
               <span className={styles.fleetCount}>{stats.maintenanceCount}</span>
               <span className={styles.fleetLabel}>{t("nav.maintenance")}</span>
-            </div>
+            </Link>
           </div>
           {/* Progress bar */}
           <div className={styles.progressBar}>
