@@ -2,6 +2,8 @@ import { getCustomer } from "@/actions/customers";
 import { notFound } from "next/navigation";
 import CustomerDetailClient from "./CustomerDetailClient";
 
+export const dynamic = "force-dynamic";
+
 export default async function CustomerDetailPage(props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
   const customer = await getCustomer(params.id);
