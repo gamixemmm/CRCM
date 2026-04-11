@@ -62,10 +62,18 @@ export default function PrintableInvoice({ invoice }: { invoice: any }) {
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "40px", marginBottom: "40px" }}>
           <div>
-            <h3 style={{ fontSize: "0.875rem", textTransform: "uppercase", color: "#666", letterSpacing: "1px", marginBottom: "8px" }}>Billed To:</h3>
+            <h3 style={{ fontSize: "0.875rem", textTransform: "uppercase", color: "#666", letterSpacing: "1px", marginBottom: "8px" }}>Billed To (Broker):</h3>
             <p style={{ margin: "0 0 4px 0", fontWeight: 700, fontSize: "1.125rem" }}>{getFullName(invoice.booking.customer.firstName, invoice.booking.customer.lastName)}</p>
             <p style={{ margin: "0", color: "#444", fontSize: "0.875rem" }}>{invoice.booking.customer.address || "Address not provided"}</p>
             <p style={{ margin: "4px 0 0 0", color: "#444", fontSize: "0.875rem" }}>{invoice.booking.customer.phone}</p>
+            
+            <div style={{ marginTop: "16px" }}>
+              <h3 style={{ fontSize: "0.875rem", textTransform: "uppercase", color: "#666", letterSpacing: "1px", marginBottom: "8px" }}>Driver(s):</h3>
+              <p style={{ margin: "0", fontWeight: 600 }}>{getFullName(invoice.booking.driverFirstName || "", invoice.booking.driverLastName || "") || "N/A"}</p>
+              {invoice.booking.driver2FirstName && (
+                 <p style={{ margin: "4px 0 0 0", color: "#444" }}>{getFullName(invoice.booking.driver2FirstName, invoice.booking.driver2LastName)} (Secondary)</p>
+              )}
+            </div>
           </div>
           <div style={{ textAlign: "right", alignSelf: "flex-end" }}>
             <div style={{ display: "flex", justifyContent: "flex-end", gap: "24px", marginBottom: "8px", fontSize: "0.875rem" }}>

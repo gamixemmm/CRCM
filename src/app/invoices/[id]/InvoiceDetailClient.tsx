@@ -137,11 +137,22 @@ export default function InvoiceDetailClient({ invoice }: { invoice: any }) {
               <User size={16} /> {t("invoices.customerBooking")}
             </h3>
             
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "24px" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "24px" }}>
               <div>
-                <div style={{ fontSize: "0.75rem", color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "4px" }}>{t("bookings.customer")}</div>
+                <div style={{ fontSize: "0.75rem", color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "4px" }}>{t("bookings.broker")}</div>
                 <div style={{ fontWeight: 600, fontSize: "1.125rem" }}>{getFullName(invoice.booking.customer.firstName, invoice.booking.customer.lastName)}</div>
                 <div style={{ color: "var(--text-secondary)", fontSize: "0.875rem", marginTop: "4px" }}>{invoice.booking.customer.phone}</div>
+              </div>
+              <div>
+                <div style={{ fontSize: "0.75rem", color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "4px" }}>{t("bookings.primaryDriver")}</div>
+                <div style={{ fontWeight: 600, fontSize: "1.125rem" }}>{getFullName(invoice.booking.driverFirstName || "", invoice.booking.driverLastName || "") || "N/A"}</div>
+                
+                {invoice.booking.driver2FirstName && (
+                  <div style={{ marginTop: "12px" }}>
+                    <div style={{ fontSize: "0.75rem", color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "4px" }}>{t("bookings.secondDriver")}</div>
+                    <div style={{ fontWeight: 600, fontSize: "1.125rem" }}>{getFullName(invoice.booking.driver2FirstName, invoice.booking.driver2LastName)}</div>
+                  </div>
+                )}
               </div>
               <div>
                 <div style={{ fontSize: "0.75rem", color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "4px" }}>{t("bookings.vehicle")}</div>

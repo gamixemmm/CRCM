@@ -135,9 +135,14 @@ export default function InvoicesClient({ invoices }: InvoicesClientProps) {
       key: "amountDue",
       label: t("invoices.amountDue"),
       render: (i: any) => (
-        <span style={{ fontWeight: 700, color: i.paymentStatus === "PAID" ? "var(--success)" : "var(--accent)" }}>
-          {formatCurrency(i.amountDue)}
-        </span>
+        <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+          <span style={{ fontWeight: 700, color: i.paymentStatus === "PAID" ? "var(--success)" : "var(--accent)" }}>
+            {formatCurrency(i.amountDue)}
+          </span>
+          <span style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>
+            {t("label.total")}: {formatCurrency(i.totalAmount)}
+          </span>
+        </div>
       ),
     },
     {
