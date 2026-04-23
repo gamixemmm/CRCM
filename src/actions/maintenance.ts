@@ -10,6 +10,9 @@ interface MaintenanceInput {
   cost: number;
   serviceProvider?: string;
   notes?: string;
+  type: string;
+  partsUsed: string[];
+  mileageAtService?: number;
 }
 
 export async function getMaintenanceLogs(params?: { status?: string; search?: string }) {
@@ -47,28 +50,48 @@ export async function logMaintenance(input: MaintenanceInput) {
 
     if (!vehicle) return { success: false, message: "Vehicle not found" };
 
-    if (vehicle.status === "RENTED") {
-      return { success: false, message: "Cannot send a rented vehicle into maintenance." };
-    }
+    const serviceDate = new Date(input.serviceDate);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const isServiceToday = serviceDate <= today;
 
     const log = await prisma.$transaction(async (tx) => {
       // Create log
       const m = await tx.maintenance.create({
         data: {
           vehicleId: input.vehicleId,
-          serviceDate: new Date(input.serviceDate),
+          serviceDate,
           description: input.description,
           cost: input.cost,
           serviceProvider: input.serviceProvider || null,
           notes: input.notes || null,
+          type: input.type,
+          partsUsed: input.partsUsed,
+          mileageAtService: input.mileageAtService || vehicle.mileage,
         },
       });
 
-      // Swap vehicle status immediately
-      await tx.vehicle.update({
-        where: { id: input.vehicleId },
-        data: { status: "MAINTENANCE" },
-      });
+      // Only change status to MAINTENANCE if the service is today or past
+      // and the vehicle is not currently rented
+      if (isServiceToday && vehicle.status !== "RENTED") {
+        await tx.vehicle.update({
+          where: { id: input.vehicleId },
+          data: { status: "MAINTENANCE" },
+        });
+      }
+
+      // Auto-create an expense if cost > 0
+      if (input.cost > 0) {
+        await tx.expense.create({
+          data: {
+            date: serviceDate,
+            category: "Maintenance",
+            amount: input.cost,
+            description: `Maintenance (${input.type}): ${input.description}`,
+            vehicleId: input.vehicleId,
+          }
+        });
+      }
 
       return m;
     });

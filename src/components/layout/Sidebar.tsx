@@ -12,6 +12,7 @@ import {
   Settings,
   ChevronLeft,
   ChevronRight,
+  TrendingDown,
 } from "lucide-react";
 import { useState } from "react";
 import { useSettings } from "@/lib/SettingsContext";
@@ -25,6 +26,7 @@ const navItems: { labelKey: TranslationKey; href: string; icon: any }[] = [
   { labelKey: "nav.calendar", href: "/calendar", icon: CalendarDays },
   { labelKey: "nav.brokers", href: "/customers", icon: Users },
   { labelKey: "nav.invoices", href: "/invoices", icon: FileText },
+  { labelKey: "nav.expenses", href: "/expenses", icon: TrendingDown },
   { labelKey: "nav.maintenance", href: "/maintenance", icon: Wrench },
   { labelKey: "nav.settings", href: "/settings", icon: Settings },
 ];

@@ -38,6 +38,7 @@ type VehicleRow = {
   imageUrl: string | null;
   _count: { bookings: number };
   bookings?: { id: string }[];
+  maintenance?: { mileageAtService: number | null }[];
 };
 
 interface VehiclesClientProps {
@@ -87,9 +88,14 @@ export default function VehiclesClient({ vehicles, stats }: VehiclesClientProps)
           <div className={styles.vehicleIcon} style={{ background: `${getStatusBg(v.status)}` }}>
             <Car size={18} style={{ color: getStatusColor(v.status) }} />
           </div>
-          <div>
+          <div style={{ display: "flex", flexDirection: "column" }}>
             <div className={styles.vehicleName}>{v.brand} {v.model}</div>
             <div className={styles.vehicleSub}>{v.year} · {v.color}</div>
+            {v.maintenance && v.maintenance[0]?.mileageAtService && v.mileage >= v.maintenance[0].mileageAtService + 10000 && (
+              <span style={{ fontSize: "0.75rem", color: "var(--error)", fontWeight: 600, display: "flex", alignItems: "center", gap: "4px", marginTop: "4px" }}>
+                ⚠️ {t("maintenance.oilChangeRequired")}
+              </span>
+            )}
           </div>
         </div>
       ),
@@ -281,6 +287,11 @@ export default function VehiclesClient({ vehicles, stats }: VehiclesClientProps)
                   <span><Fuel size={14} /> {v.fuelType}</span>
                   <span><Gauge size={14} /> {formatMileage(v.mileage)}</span>
                 </div>
+                {v.maintenance && v.maintenance[0]?.mileageAtService && v.mileage >= v.maintenance[0].mileageAtService + 10000 && (
+                  <div style={{ padding: "4px 8px", background: "rgba(239, 68, 68, 0.1)", borderRadius: "4px", color: "var(--error)", fontSize: "0.75rem", fontWeight: 600, marginTop: "8px", display: "inline-block" }}>
+                    ⚠️ {t("maintenance.oilChangeRequired")} ({t("maintenance.lastOilChange")} {v.maintenance[0].mileageAtService} km)
+                  </div>
+                )}
                 <div className={styles.cardFooter}>
                   <span className={styles.cardRate}>{formatCurrency(v.dailyRate)}</span>
                   <span className={styles.cardRateLabel}>{t("vehicles.perDay")}</span>

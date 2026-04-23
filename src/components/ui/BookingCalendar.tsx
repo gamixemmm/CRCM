@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useSettings } from "@/lib/SettingsContext";
 import {
   startOfMonth,
   endOfMonth,
@@ -30,6 +31,7 @@ interface BookingCalendarProps {
   startDate: string;
   endDate: string;
   onDateChange: (start: string, end: string) => void;
+  mode?: "range" | "single";
 }
 
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -39,9 +41,11 @@ export default function BookingCalendar({
   startDate,
   endDate,
   onDateChange,
+  mode = "range",
 }: BookingCalendarProps) {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selecting, setSelecting] = useState<"start" | "end">("start");
+  const { t } = useSettings();
 
   const today = startOfDay(new Date());
 
@@ -86,6 +90,12 @@ export default function BookingCalendar({
   const handleDayClick = (date: Date) => {
     const d = startOfDay(date);
     if (isDatePast(d) || isDateBooked(d)) return;
+
+    if (mode === "single") {
+      const formatted = format(d, "yyyy-MM-dd");
+      onDateChange(formatted, formatted);
+      return;
+    }
 
     if (selecting === "start") {
       const formatted = format(d, "yyyy-MM-dd");
@@ -369,7 +379,7 @@ export default function BookingCalendar({
               background: "var(--accent)",
             }}
           />
-          Selected
+          {t("calendar.selected")}
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
           <div
@@ -380,7 +390,7 @@ export default function BookingCalendar({
               background: "var(--accent-muted)",
             }}
           />
-          Range
+          {t("calendar.range")}
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
           <div
@@ -392,7 +402,7 @@ export default function BookingCalendar({
               border: "1px solid var(--danger)",
             }}
           />
-          Booked
+          {t("calendar.booked")}
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
           <div
@@ -404,7 +414,7 @@ export default function BookingCalendar({
               opacity: 0.4,
             }}
           />
-          Past
+          {t("calendar.past")}
         </div>
       </div>
 
@@ -422,18 +432,29 @@ export default function BookingCalendar({
         }}
       >
         <div style={{ display: "flex", gap: "16px" }}>
-          <span>
-            <span style={{ color: "var(--text-tertiary)" }}>Delivery: </span>
-            <span style={{ fontWeight: 600, color: selectedStart ? "var(--accent)" : "var(--text-tertiary)" }}>
-              {selectedStart ? format(selectedStart, "dd MMM yyyy") : "Click a date"}
+          {mode === "single" ? (
+            <span>
+              <span style={{ color: "var(--text-tertiary)" }}>{t("calendar.selectedDate")} </span>
+              <span style={{ fontWeight: 600, color: selectedStart ? "var(--accent)" : "var(--text-tertiary)" }}>
+                {selectedStart ? format(selectedStart, "dd MMM yyyy") : t("calendar.clickToSelect")}
+              </span>
             </span>
-          </span>
-          <span>
-            <span style={{ color: "var(--text-tertiary)" }}>Return: </span>
-            <span style={{ fontWeight: 600, color: selectedEnd ? "var(--accent)" : "var(--text-tertiary)" }}>
-              {selectedEnd ? format(selectedEnd, "dd MMM yyyy") : selecting === "end" ? "Click end date" : "—"}
-            </span>
-          </span>
+          ) : (
+            <>
+              <span>
+                <span style={{ color: "var(--text-tertiary)" }}>{t("calendar.delivery")} </span>
+                <span style={{ fontWeight: 600, color: selectedStart ? "var(--accent)" : "var(--text-tertiary)" }}>
+                  {selectedStart ? format(selectedStart, "dd MMM yyyy") : t("calendar.clickDate")}
+                </span>
+              </span>
+              <span>
+                <span style={{ color: "var(--text-tertiary)" }}>{t("calendar.return")} </span>
+                <span style={{ fontWeight: 600, color: selectedEnd ? "var(--accent)" : "var(--text-tertiary)" }}>
+                  {selectedEnd ? format(selectedEnd, "dd MMM yyyy") : selecting === "end" ? t("calendar.clickEndDate") : "—"}
+                </span>
+              </span>
+            </>
+          )}
         </div>
         {(selectedStart || selectedEnd) && (
           <button
@@ -451,7 +472,7 @@ export default function BookingCalendar({
               fontWeight: 600,
             }}
           >
-            Clear
+            {t("calendar.clear")}
           </button>
         )}
       </div>

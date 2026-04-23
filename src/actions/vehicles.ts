@@ -60,6 +60,11 @@ export async function getVehicles(params?: {
       _count: {
         select: { bookings: true },
       },
+      maintenance: {
+        where: { type: "Vidange" },
+        orderBy: { serviceDate: "desc" },
+        take: 1,
+      }
     },
   });
 
@@ -73,6 +78,27 @@ export async function getVehiclesWithBookings() {
     where: {
       status: { not: "MAINTENANCE" },
     },
+    orderBy: { createdAt: "desc" },
+    include: {
+      bookings: {
+        where: {
+          status: { in: ["CONFIRMED", "ACTIVE"] },
+        },
+        select: {
+          startDate: true,
+          endDate: true,
+          status: true,
+        },
+      },
+    },
+  });
+
+  return vehicles;
+}
+
+// ─── Get All Vehicles With Their Bookings (for maintenance calendar) ──
+export async function getVehiclesForMaintenance() {
+  const vehicles = await prisma.vehicle.findMany({
     orderBy: { createdAt: "desc" },
     include: {
       bookings: {

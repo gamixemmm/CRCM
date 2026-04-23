@@ -52,7 +52,7 @@ export default function MaintenanceClient({ logs }: MaintenanceClientProps) {
       const res = await resolveMaintenance(id);
       setResolving(null);
       if (res.success) {
-        toast("Vehicle is out of the shop and back in the fleet!", "success");
+        toast(t("maintenance.successMsg"), "success");
       } else {
         toast(res.message, "error");
       }
@@ -108,9 +108,15 @@ export default function MaintenanceClient({ logs }: MaintenanceClientProps) {
       label: t("maintenance.serviceDesc"),
       render: (log: any) => (
         <div style={{ display: "flex", flexDirection: "column" }}>
+          <span style={{ fontWeight: 600, color: "var(--accent)" }}>{log.type}</span>
           <span style={{ fontWeight: 500 }}>{log.description}</span>
+          {log.partsUsed && log.partsUsed.length > 0 && (
+            <span style={{ fontSize: "0.75rem", color: "var(--text-secondary)", marginTop: "4px" }}>
+              {t("maintenance.parts")} {log.partsUsed.join(", ")}
+            </span>
+          )}
           {log.serviceProvider && (
-            <span style={{ fontSize: "0.75rem", color: "var(--text-tertiary)" }}>By: {log.serviceProvider}</span>
+            <span style={{ fontSize: "0.75rem", color: "var(--text-tertiary)" }}>{t("maintenance.by")} {log.serviceProvider}</span>
           )}
         </div>
       ),

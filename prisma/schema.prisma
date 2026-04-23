@@ -29,6 +29,7 @@ model Vehicle {
 
   bookings           Booking[]
   maintenance        Maintenance[]
+  expenses           Expense[]
 }
 
 model Customer {
@@ -108,8 +109,29 @@ model Maintenance {
   cost            Float     @default(0)
   serviceProvider String?
   notes           String?
+  type            String    @default("Autre")
+  partsUsed       String[]  @default([])
+  mileageAtService Int?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
   vehicle         Vehicle   @relation(fields: [vehicleId], references: [id])
+}
+
+model Expense {
+  id          String   @id @default(cuid())
+  date        DateTime @default(now())
+  category    String
+  amount      Float
+  description String?
+  vehicleId   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  vehicle     Vehicle? @relation(fields: [vehicleId], references: [id])
+}
+
+model GlobalSettings {
+  id            String @id @default("global")
+  cashRegister  Float  @default(0)
 }

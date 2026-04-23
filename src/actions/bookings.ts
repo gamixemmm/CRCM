@@ -391,7 +391,7 @@ export async function handleReturn(bookingId: string, updateDate: boolean, newMi
     revalidatePath(`/vehicles/${booking.vehicleId}`);
     revalidatePath("/");
 
-    return { success: true, message: updateDate ? "Returned early — date & invoice updated" : "Vehicle returned successfully" };
+    return { success: true, message: updateDate ? "Vehicle returned — date & invoice updated to today" : "Vehicle returned successfully" };
   } catch (error) {
     console.error(error);
     return { success: false, message: "Failed to process return" };

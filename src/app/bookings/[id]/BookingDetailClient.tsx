@@ -378,7 +378,8 @@ export default function BookingDetailClient({ booking }: { booking: any }) {
                   setReturnMileage(booking.vehicle.mileage || 0);
                   const today = new Date();
                   const returnDate = new Date(booking.endDate);
-                  setReturnUpdateDate(today.toDateString() !== returnDate.toDateString() && today < returnDate);
+                  // Offer date update for both early and late returns
+                  setReturnUpdateDate(today.toDateString() !== returnDate.toDateString());
                   setIsReturnModalOpen(true);
                 }}
               >
@@ -659,15 +660,22 @@ export default function BookingDetailClient({ booking }: { booking: any }) {
         size="sm"
       >
         <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-          {/* Early return notice */}
-          {returnUpdateDate && (
-            <div style={{ padding: "16px", background: "var(--info-muted)", borderRadius: "8px", border: "1px solid var(--info)", fontSize: "0.875rem", lineHeight: 1.5 }}>
-              <strong style={{ color: "var(--info)" }}>{t("bookings.returningEarly")}: {formatDate(booking.endDate)}</strong>
-              <p style={{ marginTop: "8px", color: "var(--text-secondary)" }}>
-                {t("bookings.earlyReturnQuestion")}
-              </p>
-            </div>
-          )}
+          {/* Early/Late return notice */}
+          {returnUpdateDate && (() => {
+            const isLate = new Date() > new Date(booking.endDate);
+            return (
+              <div style={{ padding: "16px", background: isLate ? "var(--danger-muted)" : "var(--info-muted)", borderRadius: "8px", border: `1px solid ${isLate ? "var(--danger)" : "var(--info)"}`, fontSize: "0.875rem", lineHeight: 1.5 }}>
+                <strong style={{ color: isLate ? "var(--danger)" : "var(--info)" }}>
+                  {isLate ? `⚠️ ${t("bookings.lateReturn")} ${formatDate(booking.endDate)}` : `${t("bookings.returningEarly")}: ${formatDate(booking.endDate)}`}
+                </strong>
+                <p style={{ marginTop: "8px", color: "var(--text-secondary)" }}>
+                  {isLate
+                    ? t("bookings.lateReturnQuestion")
+                    : t("bookings.earlyReturnQuestion")}
+                </p>
+              </div>
+            );
+          })()}
 
           {/* Mileage input */}
           <div style={{ padding: "16px", background: "var(--bg-tertiary)", borderRadius: "8px", border: "1px solid var(--border)" }}>
