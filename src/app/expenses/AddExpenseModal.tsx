@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Button from "@/components/ui/Button";
 import { logExpense, updateExpense } from "@/actions/expenses";
 import { useToast } from "@/components/ui/Toast";
+import { useSettings } from "@/lib/SettingsContext";
 
 interface AddExpenseModalProps {
   isOpen: boolean;
@@ -11,6 +12,19 @@ interface AddExpenseModalProps {
   vehicles: any[];
   editingExpense?: any | null;
 }
+
+const CATEGORY_KEY_MAP: Record<string, string> = {
+  "Maintenance": "expenses.cat.maintenance",
+  "Vignette": "expenses.cat.vignette",
+  "Assurance": "expenses.cat.insurance",
+  "Gasoil": "expenses.cat.fuel",
+  "Visite technique": "expenses.cat.inspection",
+  "Salaire": "expenses.cat.salary",
+  "CNSS": "expenses.cat.cnss",
+  "Loyer": "expenses.cat.rent",
+  "Comptabilité": "expenses.cat.accounting",
+  "Autre": "expenses.cat.other",
+};
 
 const CATEGORIES = [
   "Maintenance",
@@ -34,6 +48,7 @@ const defaultForm = {
 };
 
 export default function AddExpenseModal({ isOpen, onClose, vehicles, editingExpense }: AddExpenseModalProps) {
+  const { t } = useSettings();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState(defaultForm);
@@ -69,7 +84,7 @@ export default function AddExpenseModal({ isOpen, onClose, vehicles, editingExpe
     };
 
     if (isNaN(data.amount) || data.amount <= 0) {
-      toast("Veuillez entrer un montant valide", "error");
+      toast(t("expenses.invalidAmount"), "error");
       setLoading(false);
       return;
     }
@@ -79,7 +94,7 @@ export default function AddExpenseModal({ isOpen, onClose, vehicles, editingExpe
       : await logExpense(data);
 
     if (res.success) {
-      toast(isEditMode ? "Charge modifiée avec succès" : "Charge ajoutée avec succès", "success");
+      toast(isEditMode ? t("expenses.updated") : t("expenses.added"), "success");
       onClose();
       setFormData(defaultForm);
     } else {
@@ -89,17 +104,23 @@ export default function AddExpenseModal({ isOpen, onClose, vehicles, editingExpe
     setLoading(false);
   };
 
+  const translateCategory = (cat: string) => {
+    const key = CATEGORY_KEY_MAP[cat];
+    if (key) return t(key as any);
+    return cat;
+  };
+
   return (
     <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.5)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center" }}>
       <div style={{ backgroundColor: "var(--bg-primary)", borderRadius: "12px", border: "1px solid var(--border)", width: "100%", maxWidth: "500px", padding: "24px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
-          <h2 style={{ fontSize: "1.25rem", margin: 0 }}>{isEditMode ? "Modifier la charge" : "Ajouter une charge"}</h2>
+          <h2 style={{ fontSize: "1.25rem", margin: 0 }}>{isEditMode ? t("expenses.modalTitleEdit") : t("expenses.modalTitleAdd")}</h2>
           <button onClick={onClose} style={{ background: "none", border: "none", fontSize: "1.5rem", cursor: "pointer", color: "var(--text-tertiary)" }}>&times;</button>
         </div>
 
         <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
           <div>
-            <label style={{ display: "block", marginBottom: "8px", fontSize: "0.875rem", fontWeight: 500, color: "var(--text-secondary)" }}>Date</label>
+            <label style={{ display: "block", marginBottom: "8px", fontSize: "0.875rem", fontWeight: 500, color: "var(--text-secondary)" }}>{t("label.date")}</label>
             <input
               type="date"
               required
@@ -110,7 +131,7 @@ export default function AddExpenseModal({ isOpen, onClose, vehicles, editingExpe
           </div>
 
           <div>
-            <label style={{ display: "block", marginBottom: "8px", fontSize: "0.875rem", fontWeight: 500, color: "var(--text-secondary)" }}>Catégorie</label>
+            <label style={{ display: "block", marginBottom: "8px", fontSize: "0.875rem", fontWeight: 500, color: "var(--text-secondary)" }}>{t("expenses.category")}</label>
             <select
               required
               value={formData.category}
@@ -118,13 +139,13 @@ export default function AddExpenseModal({ isOpen, onClose, vehicles, editingExpe
               style={{ width: "100%", height: "40px", padding: "0 12px", background: "var(--bg-secondary)", border: "1px solid var(--border)", borderRadius: "8px", color: "var(--text-primary)" }}
             >
               {CATEGORIES.map((cat) => (
-                <option key={cat} value={cat}>{cat}</option>
+                <option key={cat} value={cat}>{translateCategory(cat)}</option>
               ))}
             </select>
           </div>
 
           <div>
-            <label style={{ display: "block", marginBottom: "8px", fontSize: "0.875rem", fontWeight: 500, color: "var(--text-secondary)" }}>Montant</label>
+            <label style={{ display: "block", marginBottom: "8px", fontSize: "0.875rem", fontWeight: 500, color: "var(--text-secondary)" }}>{t("expenses.amount")}</label>
             <input
               type="number"
               step="0.01"
@@ -136,13 +157,13 @@ export default function AddExpenseModal({ isOpen, onClose, vehicles, editingExpe
           </div>
 
           <div>
-            <label style={{ display: "block", marginBottom: "8px", fontSize: "0.875rem", fontWeight: 500, color: "var(--text-secondary)" }}>Véhicule (Optionnel)</label>
+            <label style={{ display: "block", marginBottom: "8px", fontSize: "0.875rem", fontWeight: 500, color: "var(--text-secondary)" }}>{t("expenses.vehicleOptional")}</label>
             <select
               value={formData.vehicleId}
               onChange={(e) => setFormData({ ...formData, vehicleId: e.target.value })}
               style={{ width: "100%", height: "40px", padding: "0 12px", background: "var(--bg-secondary)", border: "1px solid var(--border)", borderRadius: "8px", color: "var(--text-primary)" }}
             >
-              <option value="">Aucun véhicule sélectionné</option>
+              <option value="">{t("expenses.noVehicleSelected")}</option>
               {vehicles.map((v) => (
                 <option key={v.id} value={v.id}>
                   {v.brand} {v.model} ({v.plateNumber})
@@ -152,7 +173,7 @@ export default function AddExpenseModal({ isOpen, onClose, vehicles, editingExpe
           </div>
 
           <div>
-            <label style={{ display: "block", marginBottom: "8px", fontSize: "0.875rem", fontWeight: 500, color: "var(--text-secondary)" }}>Description (Optionnelle)</label>
+            <label style={{ display: "block", marginBottom: "8px", fontSize: "0.875rem", fontWeight: 500, color: "var(--text-secondary)" }}>{t("expenses.descriptionOptional")}</label>
             <textarea
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
@@ -161,9 +182,9 @@ export default function AddExpenseModal({ isOpen, onClose, vehicles, editingExpe
           </div>
 
           <div style={{ display: "flex", justifyContent: "flex-end", gap: "12px", marginTop: "16px" }}>
-            <Button variant="ghost" onClick={onClose} type="button">Annuler</Button>
+            <Button variant="ghost" onClick={onClose} type="button">{t("action.cancel")}</Button>
             <Button type="submit" loading={loading} variant="primary">
-              {isEditMode ? "Enregistrer les modifications" : "Enregistrer la charge"}
+              {isEditMode ? t("expenses.saveEdit") : t("expenses.saveNew")}
             </Button>
           </div>
         </form>

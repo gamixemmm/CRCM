@@ -82,7 +82,7 @@ export default function DashboardClient({
       href: "/vehicles",
     },
     {
-      label: t("status.available"),
+      label: t("dashboard.availableVehicles"),
       value: stats.availableCount,
       icon: <CheckCircle size={22} />,
       color: "var(--success)",
@@ -90,7 +90,7 @@ export default function DashboardClient({
       href: "/vehicles?status=AVAILABLE",
     },
     {
-      label: t("status.rented"),
+      label: t("dashboard.rentedVehicles"),
       value: stats.rentedCount,
       icon: <Key size={22} />,
       color: "var(--warning)",
@@ -106,7 +106,7 @@ export default function DashboardClient({
       href: "/invoices",
     },
     {
-      label: t("dashboard.pendingPayments"),
+      label: t("dashboard.howMuchRevenue"),
       value: formatCurrency(stats.pendingRevenue),
       icon: <CreditCard size={22} />,
       color: "var(--danger)",

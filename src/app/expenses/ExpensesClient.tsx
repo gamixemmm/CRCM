@@ -7,44 +7,42 @@ import Table from "@/components/ui/Table";
 import { useSettings } from "@/lib/SettingsContext";
 import { formatDate } from "@/lib/utils";
 import AddExpenseModal from "./AddExpenseModal";
-import { updateCashRegister, deleteExpense } from "@/actions/expenses";
+import { deleteExpense } from "@/actions/expenses";
 import { useToast } from "@/components/ui/Toast";
 
 interface ExpensesClientProps {
   expenses: any[];
-  cashRegister: number;
+  overallRevenue: number;
   vehicles: any[];
 }
 
-export default function ExpensesClient({ expenses, cashRegister, vehicles }: ExpensesClientProps) {
+const CATEGORY_KEY_MAP: Record<string, string> = {
+  "Maintenance": "expenses.cat.maintenance",
+  "Vignette": "expenses.cat.vignette",
+  "Assurance": "expenses.cat.insurance",
+  "Gasoil": "expenses.cat.fuel",
+  "Visite technique": "expenses.cat.inspection",
+  "Salaire": "expenses.cat.salary",
+  "CNSS": "expenses.cat.cnss",
+  "Loyer": "expenses.cat.rent",
+  "Comptabilité": "expenses.cat.accounting",
+  "Autre": "expenses.cat.other",
+};
+
+export default function ExpensesClient({ expenses, overallRevenue, vehicles }: ExpensesClientProps) {
   const { t, formatPrice } = useSettings();
   const { toast } = useToast();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState<any | null>(null);
-  const [isEditingCash, setIsEditingCash] = useState(false);
-  const [cashInput, setCashInput] = useState(cashRegister.toString());
-  const [isSavingCash, setIsSavingCash] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const totalCharges = expenses.reduce((acc, exp) => acc + exp.amount, 0);
-  const resteCaisse = cashRegister - totalCharges;
+  const reste = overallRevenue - totalCharges;
 
-  const handleSaveCash = async () => {
-    setIsSavingCash(true);
-    const amount = parseFloat(cashInput);
-    if (isNaN(amount)) {
-      toast("Veuillez entrer un montant valide", "error");
-      setIsSavingCash(false);
-      return;
-    }
-    const res = await updateCashRegister(amount);
-    if (res.success) {
-      toast("Caisse mise à jour", "success");
-      setIsEditingCash(false);
-    } else {
-      toast("Erreur de mise à jour", "error");
-    }
-    setIsSavingCash(false);
+  const translateCategory = (cat: string) => {
+    const key = CATEGORY_KEY_MAP[cat];
+    if (key) return t(key as any);
+    return cat;
   };
 
   const handleEdit = (expense: any, e: React.MouseEvent) => {
@@ -55,12 +53,12 @@ export default function ExpensesClient({ expenses, cashRegister, vehicles }: Exp
 
   const handleDelete = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!confirm("Supprimer cette charge définitivement ?")) return;
+    if (!confirm(t("expenses.deleteConfirm"))) return;
     setDeletingId(id);
     const res = await deleteExpense(id);
     setDeletingId(null);
     if (res.success) {
-      toast("Charge supprimée", "success");
+      toast(t("expenses.deleted"), "success");
     } else {
       toast(res.message, "error");
     }
@@ -74,22 +72,22 @@ export default function ExpensesClient({ expenses, cashRegister, vehicles }: Exp
   const columns = [
     {
       key: "date",
-      label: "Date",
+      label: t("label.date"),
       render: (e: any) => <span>{formatDate(e.date)}</span>,
     },
     {
       key: "category",
-      label: "Catégorie",
-      render: (e: any) => <span style={{ fontWeight: 600 }}>{e.category}</span>,
+      label: t("expenses.category"),
+      render: (e: any) => <span style={{ fontWeight: 600 }}>{translateCategory(e.category)}</span>,
     },
     {
       key: "description",
-      label: "Description",
+      label: t("expenses.description"),
       render: (e: any) => <span>{e.description || "—"}</span>,
     },
     {
       key: "vehicle",
-      label: "Véhicule",
+      label: t("expenses.vehicle"),
       render: (e: any) => e.vehicle ? (
         <span style={{ color: "var(--text-secondary)" }}>
           {e.vehicle.brand} {e.vehicle.model} - {e.vehicle.plateNumber}
@@ -100,7 +98,7 @@ export default function ExpensesClient({ expenses, cashRegister, vehicles }: Exp
     },
     {
       key: "amount",
-      label: "Montant",
+      label: t("expenses.amount"),
       render: (e: any) => (
         <span style={{ fontWeight: "bold", color: "var(--error)" }}>
           {formatPrice(e.amount)}
@@ -109,7 +107,7 @@ export default function ExpensesClient({ expenses, cashRegister, vehicles }: Exp
     },
     {
       key: "actions",
-      label: "Actions",
+      label: t("label.actions"),
       align: "right" as const,
       render: (exp: any) => (
         <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
@@ -119,7 +117,7 @@ export default function ExpensesClient({ expenses, cashRegister, vehicles }: Exp
             onClick={(e) => handleEdit(exp, e)}
             icon={<Pencil size={14} />}
           >
-            Modifier
+            {t("expenses.edit")}
           </Button>
           <Button
             size="sm"
@@ -138,24 +136,24 @@ export default function ExpensesClient({ expenses, cashRegister, vehicles }: Exp
       <div className="page-header">
         <h1>
           <TrendingDown size={24} />
-          Gestion des charges
+          {t("expenses.title")}
         </h1>
         <div className="page-header-actions">
           <Button icon={<Plus size={16} />} onClick={() => { setEditingExpense(null); setIsModalOpen(true); }}>
-            Ajouter une dépense
+            {t("expenses.addExpense")}
           </Button>
         </div>
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "24px", marginBottom: "32px" }}>
-        {/* Card: Somme des charges */}
+        {/* Card: Total Charges */}
         <div style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)", borderRadius: "12px", padding: "20px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "16px", color: "var(--error)" }}>
             <div style={{ padding: "10px", background: "rgba(239, 68, 68, 0.1)", borderRadius: "8px" }}>
               <CreditCard size={20} />
             </div>
             <h3 style={{ margin: 0, fontSize: "1.1rem", color: "var(--text-secondary)" }}>
-              Somme des charges
+              {t("expenses.totalCharges")}
             </h3>
           </div>
           <div style={{ fontSize: "2rem", fontWeight: "bold", color: "var(--text-primary)" }}>
@@ -163,50 +161,36 @@ export default function ExpensesClient({ expenses, cashRegister, vehicles }: Exp
           </div>
         </div>
 
-        {/* Card: Montant de la caisse */}
+        {/* Card: Cash Amount (Overall Revenue from invoices) */}
         <div style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)", borderRadius: "12px", padding: "20px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "16px", color: "var(--success)" }}>
             <div style={{ padding: "10px", background: "rgba(34, 197, 94, 0.1)", borderRadius: "8px" }}>
               <Wallet size={20} />
             </div>
             <h3 style={{ margin: 0, fontSize: "1.1rem", color: "var(--text-secondary)" }}>
-              Montant de la Caisse
+              {t("expenses.cashAmount")}
             </h3>
           </div>
-          
-          {isEditingCash ? (
-            <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-              <input
-                type="number"
-                value={cashInput}
-                onChange={(e) => setCashInput(e.target.value)}
-                style={{ width: "100%", height: "40px", padding: "0 12px", background: "var(--bg-primary)", border: "1px solid var(--border)", borderRadius: "8px", color: "var(--text-primary)" }}
-              />
-              <Button onClick={handleSaveCash} loading={isSavingCash}>Enregistrer</Button>
-              <Button variant="ghost" onClick={() => setIsEditingCash(false)}>Annuler</Button>
-            </div>
-          ) : (
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
-              <div style={{ fontSize: "2rem", fontWeight: "bold", color: "var(--text-primary)" }}>
-                {formatPrice(cashRegister)}
-              </div>
-              <Button variant="ghost" onClick={() => setIsEditingCash(true)}>Modifier</Button>
-            </div>
-          )}
+          <div style={{ fontSize: "2rem", fontWeight: "bold", color: "var(--text-primary)" }}>
+            {formatPrice(overallRevenue)}
+          </div>
+          <div style={{ fontSize: "0.8125rem", color: "var(--text-tertiary)", marginTop: "8px" }}>
+            {t("expenses.cashSubtitle")}
+          </div>
         </div>
 
-        {/* Card: Reste / Formule */}
+        {/* Card: Remainder = Revenue - Charges */}
         <div style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)", borderRadius: "12px", padding: "20px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "16px", color: "var(--accent)" }}>
             <div style={{ padding: "10px", background: "var(--accent-muted)", borderRadius: "8px" }}>
               <Calculator size={20} />
             </div>
             <h3 style={{ margin: 0, fontSize: "1.1rem", color: "var(--text-secondary)" }}>
-              Reste (Caisse - Charges)
+              {t("expenses.remainder")}
             </h3>
           </div>
-          <div style={{ fontSize: "2rem", fontWeight: "bold", color: resteCaisse < 0 ? "var(--error)" : "var(--success)" }}>
-            {formatPrice(resteCaisse)}
+          <div style={{ fontSize: "2rem", fontWeight: "bold", color: reste < 0 ? "var(--error)" : "var(--success)" }}>
+            {formatPrice(reste)}
           </div>
         </div>
       </div>
@@ -215,7 +199,7 @@ export default function ExpensesClient({ expenses, cashRegister, vehicles }: Exp
         columns={columns}
         data={expenses}
         keyExtractor={(e) => e.id}
-        emptyMessage="Aucune charge enregistrée."
+        emptyMessage={t("expenses.noExpenses")}
       />
 
       <AddExpenseModal
