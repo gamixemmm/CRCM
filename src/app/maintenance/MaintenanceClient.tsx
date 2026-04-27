@@ -10,6 +10,7 @@ import Badge from "@/components/ui/Badge";
 import Table from "@/components/ui/Table";
 import { useToast } from "@/components/ui/Toast";
 import { formatDate } from "@/lib/utils";
+import { formatMaintenanceEntries } from "@/lib/maintenanceDetails";
 import { resolveMaintenance, unresolveMaintenance, deleteMaintenance } from "@/actions/maintenance";
 
 const statusFilters = ["ALL", "ACTIVE", "COMPLETED"];
@@ -112,7 +113,7 @@ export default function MaintenanceClient({ logs }: MaintenanceClientProps) {
           <span style={{ fontWeight: 500 }}>{log.description}</span>
           {log.partsUsed && log.partsUsed.length > 0 && (
             <span style={{ fontSize: "0.75rem", color: "var(--text-secondary)", marginTop: "4px" }}>
-              {t("maintenance.parts")} {log.partsUsed.join(", ")}
+              {t("maintenance.parts")} {formatMaintenanceEntries(log.partsUsed, "")}
             </span>
           )}
           {log.serviceProvider && (
@@ -252,6 +253,7 @@ export default function MaintenanceClient({ logs }: MaintenanceClientProps) {
         columns={columns}
         data={filtered}
         keyExtractor={(log) => log.id}
+        onRowClick={(log) => router.push(`/maintenance/${log.id}`)}
         emptyMessage={t("maintenance.noRecords")}
       />
     </div>

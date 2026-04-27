@@ -18,6 +18,13 @@ export async function getExpenses() {
   });
 }
 
+export async function getExpense(id: string) {
+  return prisma.expense.findUnique({
+    where: { id },
+    include: { vehicle: true },
+  });
+}
+
 export async function logExpense(input: ExpenseInput) {
   try {
     const expense = await prisma.expense.create({

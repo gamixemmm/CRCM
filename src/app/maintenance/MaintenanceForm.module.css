@@ -1,0 +1,459 @@
+.detailPanel {
+  animation: detailPanelIn 220ms ease-out both;
+  transform-origin: top center;
+}
+
+.detailPanelGrid {
+  column-count: 2;
+  column-gap: 10px;
+}
+
+.shopVehicleLayout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(260px, 0.75fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.vehicleSummary {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 100%;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-primary);
+}
+
+.vehicleSummaryGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.vehicleSummaryGrid div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  padding: 10px;
+  border-radius: 8px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+}
+
+.vehicleSummaryGrid span {
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.vehicleSummaryGrid strong {
+  color: var(--text-primary);
+  font-size: 0.86rem;
+  overflow-wrap: anywhere;
+}
+
+.mileagePrompt {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.mileageIcon {
+  width: 48px;
+  height: 48px;
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  background: var(--accent-muted);
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mileageCopy {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: var(--text-primary);
+}
+
+.mileageCopy strong {
+  font-size: 1rem;
+  line-height: 1.3;
+}
+
+.mileageCopy span {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  line-height: 1.45;
+}
+
+.mileageStats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.mileageStats div {
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-primary);
+}
+
+.mileageStats span {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.mileageStats strong {
+  color: var(--text-primary);
+  font-size: 0.88rem;
+  overflow-wrap: anywhere;
+}
+
+.otherServicesPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-primary);
+}
+
+.otherServicesHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.otherServicesHeader div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.otherServicesHeader strong {
+  color: var(--text-primary);
+  font-size: 0.95rem;
+}
+
+.otherServicesHeader span {
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+.otherServicesList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.otherServiceRow {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) minmax(120px, 180px) 38px;
+  gap: 8px;
+  align-items: end;
+}
+
+.otherServiceRemove {
+  width: 38px;
+  height: 40px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    border-color 140ms ease,
+    background 140ms ease,
+    color 140ms ease;
+}
+
+.otherServiceRemove:hover:not(:disabled) {
+  border-color: var(--danger);
+  background: var(--danger-muted);
+  color: var(--danger);
+}
+
+.otherServiceRemove:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.otherServicesTotal {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
+.otherServicesTotal span {
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.otherServicesTotal strong {
+  color: var(--accent);
+  font-size: 0.95rem;
+}
+
+.selectableTile {
+  transition:
+    transform 140ms ease,
+    border-color 140ms ease,
+    background 140ms ease,
+    color 140ms ease,
+    box-shadow 140ms ease;
+}
+
+.selectableTile:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 0 0 3px var(--accent-muted);
+}
+
+.selectionChecked {
+  animation: selectionPop 360ms ease;
+}
+
+.detailPanelOut {
+  animation: detailPanelOut 200ms ease-in both;
+}
+
+.detailPanelGrid .detailPanel {
+  display: inline-flex;
+  width: 100%;
+  margin-bottom: 10px;
+  break-inside: avoid;
+}
+
+.brakeDiagram {
+  min-height: 230px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-secondary);
+  position: relative;
+  overflow: hidden;
+}
+
+.brakeDiagram::before {
+  content: "";
+  position: absolute;
+  inset: 18px 22%;
+  border-radius: 999px;
+  background: radial-gradient(circle, var(--accent-muted) 0, transparent 65%);
+  opacity: 0.55;
+  animation: diagramGlow 2.8s ease-in-out infinite;
+}
+
+.carBody {
+  position: absolute;
+  top: 22px;
+  bottom: 22px;
+  left: 50%;
+  width: 112px;
+  transform: translateX(-50%);
+  border: 2px solid var(--accent);
+  border-radius: 42px 42px 24px 24px;
+  background: var(--accent-muted);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+  animation: carFloat 2.6s ease-in-out infinite;
+}
+
+.wheelButton {
+  position: absolute;
+  width: 36px;
+  height: 54px;
+  border-radius: 12px;
+  color: var(--bg-primary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    transform 140ms ease,
+    border-color 140ms ease,
+    background 140ms ease,
+    box-shadow 140ms ease;
+}
+
+.wheelButton:hover {
+  transform: translateY(-2px) scale(1.06);
+  box-shadow: 0 0 0 4px var(--accent-muted);
+}
+
+.wheelButton:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.orientationLabel {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2;
+  padding: 3px 9px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition:
+    transform 140ms ease,
+    border-color 140ms ease,
+    color 140ms ease,
+    box-shadow 140ms ease;
+}
+
+.orientationLabel:hover {
+  transform: translateX(-50%) translateY(-1px);
+  border-color: var(--accent);
+  color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-muted);
+}
+
+.orientationLabel:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.frontLabel {
+  top: 8px;
+}
+
+.rearLabel {
+  bottom: 8px;
+}
+
+.wheelSelected {
+  animation: selectedWheel 520ms ease;
+}
+
+.frontLeft {
+  top: 38px;
+  left: calc(50% - 94px);
+}
+
+.frontRight {
+  top: 38px;
+  left: calc(50% + 58px);
+}
+
+.rearLeft {
+  top: 158px;
+  left: calc(50% - 94px);
+}
+
+.rearRight {
+  top: 158px;
+  left: calc(50% + 58px);
+}
+
+@media (max-width: 860px) {
+  .shopVehicleLayout {
+    grid-template-columns: 1fr;
+  }
+
+  .detailPanelGrid {
+    column-count: 1;
+  }
+
+  .otherServiceRow {
+    grid-template-columns: 1fr;
+  }
+
+  .otherServiceRemove {
+    width: 100%;
+  }
+}
+
+@keyframes carFloat {
+  0%,
+  100% {
+    transform: translateX(-50%) translateY(0);
+  }
+  50% {
+    transform: translateX(-50%) translateY(-3px);
+  }
+}
+
+@keyframes diagramGlow {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(0.96);
+  }
+  50% {
+    opacity: 0.65;
+    transform: scale(1.03);
+  }
+}
+
+@keyframes selectedWheel {
+  0% {
+    transform: scale(0.94);
+  }
+  55% {
+    transform: scale(1.12);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes detailPanelIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes detailPanelOut {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    max-height: 320px;
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.985);
+    max-height: 0;
+  }
+}
+
+@keyframes selectionPop {
+  0% {
+    transform: scale(0.98);
+  }
+  55% {
+    transform: scale(1.025);
+  }
+  100% {
+    transform: scale(1);
+  }
+}

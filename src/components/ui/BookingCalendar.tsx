@@ -32,6 +32,8 @@ interface BookingCalendarProps {
   endDate: string;
   onDateChange: (start: string, end: string) => void;
   mode?: "range" | "single";
+  allowBookedDates?: boolean; // New prop to allow selecting booked dates
+  allowPastDates?: boolean;
 }
 
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -42,6 +44,8 @@ export default function BookingCalendar({
   endDate,
   onDateChange,
   mode = "range",
+  allowBookedDates = false,
+  allowPastDates = false,
 }: BookingCalendarProps) {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selecting, setSelecting] = useState<"start" | "end">("start");
@@ -89,7 +93,11 @@ export default function BookingCalendar({
 
   const handleDayClick = (date: Date) => {
     const d = startOfDay(date);
-    if (isDatePast(d) || isDateBooked(d)) return;
+    
+    // Allow selecting booked dates if allowBookedDates is true (for maintenance)
+    const shouldBlockBooked = !allowBookedDates && isDateBooked(d);
+    
+    if ((!allowPastDates && isDatePast(d)) || shouldBlockBooked) return;
 
     if (mode === "single") {
       const formatted = format(d, "yyyy-MM-dd");
@@ -104,7 +112,8 @@ export default function BookingCalendar({
     } else {
       // selecting end
       if (selectedStart && (isAfter(d, selectedStart) || isSameDay(d, selectedStart))) {
-        if (rangeHasConflict(selectedStart, d)) {
+        // Only check for conflicts if we're not allowing booked dates
+        if (!allowBookedDates && rangeHasConflict(selectedStart, d)) {
           // Can't span across booked dates — restart
           const formatted = format(d, "yyyy-MM-dd");
           onDateChange(formatted, "");
@@ -168,25 +177,7 @@ export default function BookingCalendar({
       return { ...base, color: "var(--text-tertiary)", opacity: 0.3 };
     }
 
-    if (booked) {
-      return {
-        ...base,
-        background: "var(--danger-muted)",
-        color: "var(--danger)",
-        cursor: "not-allowed",
-        fontWeight: 600,
-      };
-    }
-
-    if (past) {
-      return {
-        ...base,
-        color: "var(--text-tertiary)",
-        opacity: 0.4,
-        cursor: "not-allowed",
-      };
-    }
-
+    // Check if selected first (takes priority over booked styling)
     if (isStart || isEnd) {
       return {
         ...base,
@@ -207,6 +198,25 @@ export default function BookingCalendar({
         fontWeight: 600,
         cursor: "pointer",
         borderRadius: "6px",
+      };
+    }
+
+    if (booked) {
+      return {
+        ...base,
+        background: "var(--danger-muted)",
+        color: "var(--danger)",
+        cursor: allowBookedDates ? "pointer" : "not-allowed",
+        fontWeight: 600,
+      };
+    }
+
+    if (past && !allowPastDates) {
+      return {
+        ...base,
+        color: "var(--text-tertiary)",
+        opacity: 0.4,
+        cursor: "not-allowed",
       };
     }
 
@@ -328,7 +338,8 @@ export default function BookingCalendar({
           const inMonth = isSameMonth(d, currentMonth);
           const booked = isDateBooked(d);
           const past = isDatePast(d);
-          const clickable = inMonth && !booked && !past;
+          // Allow clicking booked dates if allowBookedDates is true
+          const clickable = inMonth && (allowPastDates || !past) && (allowBookedDates || !booked);
 
           return (
             <div

@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 interface MaintenanceInput {
   vehicleId: string;
   serviceDate: string;
+  returnDate?: string;
   description: string;
   cost: number;
   serviceProvider?: string;
@@ -13,6 +14,13 @@ interface MaintenanceInput {
   type: string;
   partsUsed: string[];
   mileageAtService?: number;
+}
+
+export async function getMaintenanceLog(id: string) {
+  return prisma.maintenance.findUnique({
+    where: { id },
+    include: { vehicle: true },
+  });
 }
 
 export async function getMaintenanceLogs(params?: { status?: string; search?: string }) {
@@ -42,6 +50,76 @@ export async function getMaintenanceLogs(params?: { status?: string; search?: st
   });
 }
 
+export async function updateMaintenance(id: string, input: Partial<MaintenanceInput>) {
+  try {
+    const current = await prisma.maintenance.findUnique({
+      where: { id },
+      include: { vehicle: true },
+    });
+
+    if (!current) return { success: false, message: "Maintenance log not found" };
+
+    if (input.mileageAtService !== undefined && input.mileageAtService < current.vehicle.mileage) {
+      return { success: false, message: "New mileage cannot be less than current mileage" };
+    }
+
+    const data: Record<string, unknown> = {};
+    if (input.serviceDate !== undefined) data.serviceDate = new Date(input.serviceDate);
+    if (input.returnDate !== undefined) data.returnDate = input.returnDate ? new Date(input.returnDate) : null;
+    if (input.description !== undefined) data.description = input.description;
+    if (input.cost !== undefined) data.cost = input.cost;
+    if (input.serviceProvider !== undefined) data.serviceProvider = input.serviceProvider || null;
+    if (input.notes !== undefined) data.notes = input.notes || null;
+    if (input.type !== undefined) data.type = input.type;
+    if (input.partsUsed !== undefined) data.partsUsed = input.partsUsed;
+    if (input.mileageAtService !== undefined) data.mileageAtService = input.mileageAtService;
+
+    const updated = await prisma.$transaction(async (tx) => {
+      const log = await tx.maintenance.update({ where: { id }, data });
+
+      if (input.mileageAtService !== undefined) {
+        await tx.vehicle.update({
+          where: { id: current.vehicleId },
+          data: { mileage: input.mileageAtService },
+        });
+      }
+
+      return log;
+    });
+
+    revalidatePath("/maintenance");
+    revalidatePath(`/maintenance/${id}`);
+    revalidatePath("/vehicles");
+    revalidatePath(`/vehicles/${current.vehicleId}`);
+
+    return { success: true, message: "Maintenance updated successfully", data: updated };
+  } catch (error) {
+    console.error("Failed to update maintenance", error);
+    return { success: false, message: "Failed to update maintenance" };
+  }
+}
+
+export async function getMaintenanceServiceProviders() {
+  const providers = await prisma.maintenance.findMany({
+    where: {
+      serviceProvider: {
+        not: null,
+      },
+    },
+    select: {
+      serviceProvider: true,
+    },
+    distinct: ["serviceProvider"],
+    orderBy: {
+      serviceProvider: "asc",
+    },
+  });
+
+  return providers
+    .map((provider) => provider.serviceProvider?.trim())
+    .filter((provider): provider is string => Boolean(provider));
+}
+
 export async function logMaintenance(input: MaintenanceInput) {
   try {
     const vehicle = await prisma.vehicle.findUnique({
@@ -49,6 +127,9 @@ export async function logMaintenance(input: MaintenanceInput) {
     });
 
     if (!vehicle) return { success: false, message: "Vehicle not found" };
+    if (input.mileageAtService !== undefined && input.mileageAtService < vehicle.mileage) {
+      return { success: false, message: "New mileage cannot be less than current mileage" };
+    }
 
     const serviceDate = new Date(input.serviceDate);
     const today = new Date();
@@ -61,6 +142,7 @@ export async function logMaintenance(input: MaintenanceInput) {
         data: {
           vehicleId: input.vehicleId,
           serviceDate,
+          returnDate: input.returnDate ? new Date(input.returnDate) : null,
           description: input.description,
           cost: input.cost,
           serviceProvider: input.serviceProvider || null,
@@ -73,10 +155,21 @@ export async function logMaintenance(input: MaintenanceInput) {
 
       // Only change status to MAINTENANCE if the service is today or past
       // and the vehicle is not currently rented
-      if (isServiceToday && vehicle.status !== "RENTED") {
+      // and there's no return date (meaning it's still in maintenance)
+      const vehicleUpdateData: { status?: string; mileage?: number } = {};
+
+      if (input.mileageAtService !== undefined) {
+        vehicleUpdateData.mileage = input.mileageAtService;
+      }
+
+      if (isServiceToday && vehicle.status !== "RENTED" && !input.returnDate) {
+        vehicleUpdateData.status = "MAINTENANCE";
+      }
+
+      if (Object.keys(vehicleUpdateData).length > 0) {
         await tx.vehicle.update({
           where: { id: input.vehicleId },
-          data: { status: "MAINTENANCE" },
+          data: vehicleUpdateData,
         });
       }
 

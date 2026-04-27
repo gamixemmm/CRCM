@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { TrendingDown, Plus, CreditCard, Wallet, Calculator, Pencil, Trash2 } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Table from "@/components/ui/Table";
@@ -31,6 +32,7 @@ const CATEGORY_KEY_MAP: Record<string, string> = {
 
 export default function ExpensesClient({ expenses, overallRevenue, vehicles }: ExpensesClientProps) {
   const { t, formatPrice } = useSettings();
+  const router = useRouter();
   const { toast } = useToast();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState<any | null>(null);
@@ -199,6 +201,7 @@ export default function ExpensesClient({ expenses, overallRevenue, vehicles }: E
         columns={columns}
         data={expenses}
         keyExtractor={(e) => e.id}
+        onRowClick={(e) => router.push(`/expenses/${e.id}`)}
         emptyMessage={t("expenses.noExpenses")}
       />
 
