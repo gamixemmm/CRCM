@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 
 interface Column<T> {
   key: string;
-  label: string;
+  label: React.ReactNode;
   width?: string;
   align?: "left" | "center" | "right";
   render?: (item: T) => React.ReactNode;

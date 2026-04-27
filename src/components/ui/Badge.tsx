@@ -8,6 +8,7 @@ interface BadgeProps {
   variant?: "default" | "success" | "warning" | "danger" | "info" | "accent";
   size?: "sm" | "md";
   dot?: boolean;
+  icon?: React.ReactNode;
 }
 
 const variantColors: Record<string, { color: string; bg: string }> = {
@@ -26,6 +27,7 @@ export default function Badge({
   variant = "default",
   size = "sm",
   dot = false,
+  icon,
 }: BadgeProps) {
   const vc = variantColors[variant];
   const finalColor = color || vc.color;
@@ -37,6 +39,7 @@ export default function Badge({
       style={{ color: finalColor, backgroundColor: finalBg }}
     >
       {dot && <span className={styles.dot} style={{ backgroundColor: finalColor }} />}
+      {icon && <span className={styles.icon}>{icon}</span>}
       {children}
     </span>
   );

@@ -7,6 +7,7 @@ interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
   error?: string;
   options?: { value: string; label: string }[];
   placeholder?: string;
+  icon?: React.ReactNode;
   fullWidth?: boolean;
 }
 
@@ -15,6 +16,7 @@ export default function Select({
   error,
   options,
   placeholder,
+  icon,
   fullWidth = true,
   className,
   id,
@@ -32,7 +34,8 @@ export default function Select({
         </label>
       )}
       <div className={cn(styles.selectWrap, error && styles.hasError)}>
-        <select id={selectId} className={styles.select} {...props}>
+        {icon && <span className={styles.icon}>{icon}</span>}
+        <select id={selectId} className={cn(styles.select, icon && styles.hasIcon)} {...props}>
           {placeholder && (
             <option value="" disabled>
               {placeholder}

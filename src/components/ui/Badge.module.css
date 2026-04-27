@@ -26,3 +26,10 @@
   border-radius: 50%;
   flex-shrink: 0;
 }
+
+.icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
