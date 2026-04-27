@@ -17,6 +17,7 @@ const pageTitleKeys: Record<string, TranslationKey> = {
   "/calendar": "nav.calendar",
   "/customers": "nav.brokers",
   "/invoices": "nav.invoices",
+  "/employees": "nav.employees",
   "/maintenance": "nav.maintenance",
   "/settings": "nav.settings",
 };

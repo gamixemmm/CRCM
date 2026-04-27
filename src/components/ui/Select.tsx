@@ -5,7 +5,7 @@ import { ChevronDown } from "lucide-react";
 interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
   label?: string;
   error?: string;
-  options: { value: string; label: string }[];
+  options?: { value: string; label: string }[];
   placeholder?: string;
   fullWidth?: boolean;
 }
@@ -18,6 +18,7 @@ export default function Select({
   fullWidth = true,
   className,
   id,
+  children,
   ...props
 }: SelectProps) {
   const selectId = id || props.name;
@@ -37,11 +38,12 @@ export default function Select({
               {placeholder}
             </option>
           )}
-          {options.map((opt) => (
+          {options?.map((opt) => (
             <option key={opt.value} value={opt.value}>
               {opt.label}
             </option>
           ))}
+          {children}
         </select>
         <ChevronDown size={16} className={styles.chevron} />
       </div>

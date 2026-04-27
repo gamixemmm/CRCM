@@ -131,6 +131,49 @@ model Expense {
   vehicle     Vehicle? @relation(fields: [vehicleId], references: [id])
 }
 
+model Employee {
+  id             String                  @id @default(cuid())
+  firstName      String
+  lastName       String
+  phone          String?
+  email          String?
+  role           String?
+  hasSalary      Boolean                 @default(true)
+  salary         Float?
+  payDay         Int?
+  active         Boolean                 @default(true)
+  notes          String?
+  createdAt      DateTime                @default(now())
+  updatedAt      DateTime                @updatedAt
+
+  salaryPayments EmployeeSalaryPayment[]
+}
+
+model EmployeeRole {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model EmployeeSalaryPayment {
+  id         String   @id @default(cuid())
+  employeeId String
+  month      Int
+  year       Int
+  amount     Float
+  status     String   @default("PENDING")
+  paidAt     DateTime?
+  expenseId  String?
+  notes      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@unique([employeeId, month, year])
+}
+
 model GlobalSettings {
   id            String @id @default("global")
   cashRegister  Float  @default(0)

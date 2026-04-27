@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Button from "@/components/ui/Button";
+import Modal from "@/components/ui/Modal";
 import { logExpense, updateExpense } from "@/actions/expenses";
 import { useToast } from "@/components/ui/Toast";
 import { useSettings } from "@/lib/SettingsContext";
@@ -11,6 +12,8 @@ interface AddExpenseModalProps {
   onClose: () => void;
   vehicles: any[];
   editingExpense?: any | null;
+  mode?: "general" | "car" | "cnss" | "rent" | "vignette";
+  initialVehicleId?: string;
 }
 
 const CATEGORY_KEY_MAP: Record<string, string> = {
@@ -39,6 +42,13 @@ const CATEGORIES = [
   "Autre",
 ];
 
+const CAR_EXPENSE_CATEGORIES = [
+  "Vignette",
+  "Assurance",
+  "Gasoil",
+  "Visite technique",
+];
+
 const defaultForm = {
   date: new Date().toISOString().split("T")[0],
   category: "Autre",
@@ -47,13 +57,27 @@ const defaultForm = {
   vehicleId: "",
 };
 
-export default function AddExpenseModal({ isOpen, onClose, vehicles, editingExpense }: AddExpenseModalProps) {
+export default function AddExpenseModal({ isOpen, onClose, vehicles, editingExpense, mode = "general", initialVehicleId }: AddExpenseModalProps) {
   const { t } = useSettings();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState(defaultForm);
 
   const isEditMode = !!editingExpense;
+  const isCarExpenseMode = mode === "car" && !isEditMode;
+  const isCnssMode = mode === "cnss" && !isEditMode;
+  const isRentMode = mode === "rent" && !isEditMode;
+  const isVignetteMode = mode === "vignette" && !isEditMode;
+
+  const activeCategories = isCarExpenseMode
+    ? CAR_EXPENSE_CATEGORIES
+    : isCnssMode
+      ? ["CNSS"]
+      : isRentMode
+        ? ["Loyer"]
+        : isVignetteMode
+          ? ["Vignette"]
+          : CATEGORIES;
 
   useEffect(() => {
     if (editingExpense) {
@@ -65,11 +89,19 @@ export default function AddExpenseModal({ isOpen, onClose, vehicles, editingExpe
         vehicleId: editingExpense.vehicleId || "",
       });
     } else {
-      setFormData(defaultForm);
-    }
-  }, [editingExpense]);
+      let initialCategory = defaultForm.category;
+      if (mode === "car") initialCategory = CAR_EXPENSE_CATEGORIES[0];
+      if (mode === "cnss") initialCategory = "CNSS";
+      if (mode === "rent") initialCategory = "Loyer";
+      if (mode === "vignette") initialCategory = "Vignette";
 
-  if (!isOpen) return null;
+      setFormData({
+        ...defaultForm,
+        category: initialCategory,
+        vehicleId: initialVehicleId || defaultForm.vehicleId,
+      });
+    }
+  }, [editingExpense, mode, initialVehicleId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -89,6 +121,12 @@ export default function AddExpenseModal({ isOpen, onClose, vehicles, editingExpe
       return;
     }
 
+    if (isCarExpenseMode && !data.vehicleId) {
+      toast(t("expenses.vehicleRequired"), "error");
+      setLoading(false);
+      return;
+    }
+
     const res = isEditMode
       ? await updateExpense(editingExpense.id, data)
       : await logExpense(data);
@@ -96,7 +134,10 @@ export default function AddExpenseModal({ isOpen, onClose, vehicles, editingExpe
     if (res.success) {
       toast(isEditMode ? t("expenses.updated") : t("expenses.added"), "success");
       onClose();
-      setFormData(defaultForm);
+      setFormData({
+        ...defaultForm,
+        category: mode === "car" ? CAR_EXPENSE_CATEGORIES[0] : (mode === "rent" ? "Loyer" : (mode === "cnss" ? "CNSS" : defaultForm.category)),
+      });
     } else {
       toast(res.message, "error");
     }
@@ -110,55 +151,63 @@ export default function AddExpenseModal({ isOpen, onClose, vehicles, editingExpe
     return cat;
   };
 
+  const modalTitle = isEditMode
+    ? t("expenses.modalTitleEdit")
+    : isCnssMode
+      ? t("expenses.modalTitleCnss")
+      : isRentMode
+        ? t("expenses.modalTitleRent")
+        : isCarExpenseMode
+          ? t("expenses.modalTitleCar")
+          : t("expenses.modalTitleAdd");
+
   return (
-    <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.5)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center" }}>
-      <div style={{ backgroundColor: "var(--bg-primary)", borderRadius: "12px", border: "1px solid var(--border)", width: "100%", maxWidth: "500px", padding: "24px" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
-          <h2 style={{ fontSize: "1.25rem", margin: 0 }}>{isEditMode ? t("expenses.modalTitleEdit") : t("expenses.modalTitleAdd")}</h2>
-          <button onClick={onClose} style={{ background: "none", border: "none", fontSize: "1.5rem", cursor: "pointer", color: "var(--text-tertiary)" }}>&times;</button>
+    <Modal isOpen={isOpen} onClose={onClose} title={modalTitle}>
+      <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+        <div>
+          <label style={{ display: "block", marginBottom: "8px", fontSize: "0.875rem", fontWeight: 500, color: "var(--text-secondary)" }}>{t("label.date")}</label>
+          <input
+            type="date"
+            required
+            value={formData.date}
+            onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+            style={{ width: "100%", height: "40px", padding: "0 12px", background: "var(--bg-secondary)", border: "1px solid var(--border)", borderRadius: "8px", color: "var(--text-primary)" }}
+          />
         </div>
 
-        <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-          <div>
-            <label style={{ display: "block", marginBottom: "8px", fontSize: "0.875rem", fontWeight: 500, color: "var(--text-secondary)" }}>{t("label.date")}</label>
-            <input
-              type="date"
-              required
-              value={formData.date}
-              onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-              style={{ width: "100%", height: "40px", padding: "0 12px", background: "var(--bg-secondary)", border: "1px solid var(--border)", borderRadius: "8px", color: "var(--text-primary)" }}
-            />
-          </div>
+        <div>
+          <label style={{ display: "block", marginBottom: "8px", fontSize: "0.875rem", fontWeight: 500, color: "var(--text-secondary)" }}>{t("expenses.category")}</label>
+          <select
+            required
+            value={formData.category}
+            onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+            style={{ width: "100%", height: "40px", padding: "0 12px", background: "var(--bg-secondary)", border: "1px solid var(--border)", borderRadius: "8px", color: "var(--text-primary)" }}
+          >
+            {activeCategories.map((cat) => (
+              <option key={cat} value={cat}>{translateCategory(cat)}</option>
+            ))}
+          </select>
+        </div>
 
+        <div>
+          <label style={{ display: "block", marginBottom: "8px", fontSize: "0.875rem", fontWeight: 500, color: "var(--text-secondary)" }}>{t("expenses.amount")}</label>
+          <input
+            type="number"
+            step="0.01"
+            required
+            value={formData.amount}
+            onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+            style={{ width: "100%", height: "40px", padding: "0 12px", background: "var(--bg-secondary)", border: "1px solid var(--border)", borderRadius: "8px", color: "var(--text-primary)" }}
+          />
+        </div>
+
+        {!isCnssMode && !isRentMode && (
           <div>
-            <label style={{ display: "block", marginBottom: "8px", fontSize: "0.875rem", fontWeight: 500, color: "var(--text-secondary)" }}>{t("expenses.category")}</label>
+            <label style={{ display: "block", marginBottom: "8px", fontSize: "0.875rem", fontWeight: 500, color: "var(--text-secondary)" }}>
+              {isCarExpenseMode ? t("expenses.vehicleRequiredLabel") : t("expenses.vehicleOptional")}
+            </label>
             <select
-              required
-              value={formData.category}
-              onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-              style={{ width: "100%", height: "40px", padding: "0 12px", background: "var(--bg-secondary)", border: "1px solid var(--border)", borderRadius: "8px", color: "var(--text-primary)" }}
-            >
-              {CATEGORIES.map((cat) => (
-                <option key={cat} value={cat}>{translateCategory(cat)}</option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label style={{ display: "block", marginBottom: "8px", fontSize: "0.875rem", fontWeight: 500, color: "var(--text-secondary)" }}>{t("expenses.amount")}</label>
-            <input
-              type="number"
-              step="0.01"
-              required
-              value={formData.amount}
-              onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-              style={{ width: "100%", height: "40px", padding: "0 12px", background: "var(--bg-secondary)", border: "1px solid var(--border)", borderRadius: "8px", color: "var(--text-primary)" }}
-            />
-          </div>
-
-          <div>
-            <label style={{ display: "block", marginBottom: "8px", fontSize: "0.875rem", fontWeight: 500, color: "var(--text-secondary)" }}>{t("expenses.vehicleOptional")}</label>
-            <select
+              required={isCarExpenseMode}
               value={formData.vehicleId}
               onChange={(e) => setFormData({ ...formData, vehicleId: e.target.value })}
               style={{ width: "100%", height: "40px", padding: "0 12px", background: "var(--bg-secondary)", border: "1px solid var(--border)", borderRadius: "8px", color: "var(--text-primary)" }}
@@ -171,24 +220,24 @@ export default function AddExpenseModal({ isOpen, onClose, vehicles, editingExpe
               ))}
             </select>
           </div>
+        )}
 
-          <div>
-            <label style={{ display: "block", marginBottom: "8px", fontSize: "0.875rem", fontWeight: 500, color: "var(--text-secondary)" }}>{t("expenses.descriptionOptional")}</label>
-            <textarea
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              style={{ width: "100%", minHeight: "80px", padding: "12px", background: "var(--bg-secondary)", border: "1px solid var(--border)", borderRadius: "8px", color: "var(--text-primary)", resize: "vertical" }}
-            />
-          </div>
+        <div>
+          <label style={{ display: "block", marginBottom: "8px", fontSize: "0.875rem", fontWeight: 500, color: "var(--text-secondary)" }}>{t("expenses.descriptionOptional")}</label>
+          <textarea
+            value={formData.description}
+            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+            style={{ width: "100%", minHeight: "80px", padding: "12px", background: "var(--bg-secondary)", border: "1px solid var(--border)", borderRadius: "8px", color: "var(--text-primary)", resize: "vertical" }}
+          />
+        </div>
 
-          <div style={{ display: "flex", justifyContent: "flex-end", gap: "12px", marginTop: "16px" }}>
-            <Button variant="ghost" onClick={onClose} type="button">{t("action.cancel")}</Button>
-            <Button type="submit" loading={loading} variant="primary">
-              {isEditMode ? t("expenses.saveEdit") : t("expenses.saveNew")}
-            </Button>
-          </div>
-        </form>
-      </div>
-    </div>
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: "12px", marginTop: "16px" }}>
+          <Button variant="ghost" onClick={onClose} type="button">{t("action.cancel")}</Button>
+          <Button type="submit" loading={loading} variant="primary">
+            {isEditMode ? t("expenses.saveEdit") : t("expenses.saveNew")}
+          </Button>
+        </div>
+      </form>
+    </Modal>
   );
 }

@@ -38,6 +38,7 @@ export async function logExpense(input: ExpenseInput) {
     });
 
     revalidatePath("/expenses");
+    revalidatePath("/vignette");
     return { success: true, message: "Expense logged successfully", data: expense };
   } catch (error) {
     console.error("Failed to log expense", error);
@@ -59,6 +60,7 @@ export async function updateExpense(id: string, input: ExpenseInput) {
     });
 
     revalidatePath("/expenses");
+    revalidatePath("/vignette");
     return { success: true, message: "Expense updated successfully", data: expense };
   } catch (error) {
     console.error("Failed to update expense", error);

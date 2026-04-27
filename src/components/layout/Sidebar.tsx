@@ -13,6 +13,8 @@ import {
   ChevronLeft,
   ChevronRight,
   TrendingDown,
+  BriefcaseBusiness,
+  ShieldCheck,
 } from "lucide-react";
 import { useState } from "react";
 import { useSettings } from "@/lib/SettingsContext";
@@ -27,6 +29,8 @@ const navItems: { labelKey: TranslationKey; href: string; icon: any }[] = [
   { labelKey: "nav.brokers", href: "/customers", icon: Users },
   { labelKey: "nav.invoices", href: "/invoices", icon: FileText },
   { labelKey: "nav.expenses", href: "/expenses", icon: TrendingDown },
+  { labelKey: "nav.vignette", href: "/vignette", icon: ShieldCheck },
+  { labelKey: "nav.employees", href: "/employees", icon: BriefcaseBusiness },
   { labelKey: "nav.maintenance", href: "/maintenance", icon: Wrench },
   { labelKey: "nav.settings", href: "/settings", icon: Settings },
 ];
