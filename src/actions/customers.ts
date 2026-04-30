@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { requireCompanyId } from "@/lib/company";
 import { canPerform } from "@/lib/permissions";
 import { requireCompanyAdminAccess } from "@/actions/companyAuth";
+import { logAuditAction } from "@/lib/audit";
 
 interface CustomerInput {
   firstName: string;
@@ -90,6 +91,13 @@ export async function createCustomer(input: CustomerInput) {
 
     revalidatePath("/customers");
     revalidatePath("/");
+    await logAuditAction({
+      actor: session,
+      action: "CREATE_BROKER",
+      entityType: "Customer",
+      entityId: customer.id,
+      message: `${session.name} created broker ${customer.firstName} ${customer.lastName}`,
+    });
 
     return { success: true, message: "Customer added", data: customer };
   } catch (error) {

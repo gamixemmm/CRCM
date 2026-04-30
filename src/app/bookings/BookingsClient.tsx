@@ -10,7 +10,7 @@ import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
 import Table from "@/components/ui/Table";
 import { formatDate, formatStatus, getStatusColor, getStatusBg, getFullName } from "@/lib/utils";
-
+import styles from "./bookings.module.css";
 const statusFilters = ["ALL", "PENDING", "CONFIRMED", "ACTIVE", "COMPLETED", "CANCELLED"];
 
 interface BookingsClientProps {
@@ -107,6 +107,59 @@ export default function BookingsClient({ bookings }: BookingsClientProps) {
     },
   ];
 
+  const mobileCards = filtered.map((b) => (
+    <Card
+      key={b.id}
+      hover
+      padding="md"
+      className={styles.mobileCard}
+      onClick={() => router.push(`/bookings/${b.id}`)}
+    >
+      <div className={styles.mobileCardHeader}>
+        <div className={styles.mobileTitle}>
+          <strong>{b.vehicle.brand} {b.vehicle.model}</strong>
+          <span>{b.vehicle.plateNumber}</span>
+        </div>
+        <Badge color={getStatusColor(b.status)} bg={getStatusBg(b.status)} dot>
+          {formatStatusT(b.status)}
+        </Badge>
+      </div>
+
+      <div className={styles.mobileMetaGrid}>
+        <div className={styles.mobileMetaItem}>
+          <span className={styles.mobileMetaLabel}>{t("bookings.broker")}</span>
+          <span className={styles.mobileMetaValue}>{getFullName(b.customer.firstName, b.customer.lastName)}</span>
+        </div>
+        <div className={styles.mobileMetaItem}>
+          <span className={styles.mobileMetaLabel}>{t("bookings.customer")}</span>
+          <span className={styles.mobileMetaValue}>
+            {b.driverFirstName || b.driverLastName
+              ? getFullName(b.driverFirstName || "", b.driverLastName || "")
+              : "-"}
+          </span>
+        </div>
+        <div className={styles.mobileMetaItem}>
+          <span className={styles.mobileMetaLabel}>{t("bookings.duration")}</span>
+          <span className={styles.mobileMetaValue}>{formatDate(b.startDate)} {t("label.to")} {formatDate(b.endDate)}</span>
+        </div>
+        <div className={styles.mobileMetaItem}>
+          <span className={styles.mobileMetaLabel}>{t("bookings.totalAmount")}</span>
+          <span className={styles.mobileMetaValue}>{formatCurrency(b.totalAmount)}</span>
+        </div>
+      </div>
+
+      <div className={styles.mobileFooter}>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px", color: "var(--text-tertiary)", fontSize: "0.8125rem" }}>
+          <CalendarDays size={14} />
+          {formatDate(b.startDate)}
+        </div>
+        <Link href={`/bookings/${b.id}`} onClick={(e) => e.stopPropagation()} className={styles.mobileLink}>
+          {t("action.view")}
+        </Link>
+      </div>
+    </Card>
+  ));
+
   return (
     <div className="animate-fade-in">
       <div className="page-header">
@@ -155,13 +208,25 @@ export default function BookingsClient({ bookings }: BookingsClientProps) {
         </div>
       </div>
 
-      <Table
-        columns={columns}
-        data={filtered}
-        keyExtractor={(b) => b.id}
-        onRowClick={(b) => router.push(`/bookings/${b.id}`)}
-        emptyMessage={t("bookings.noBookings")}
-      />
+      <div className={styles.desktopTable}>
+        <Table
+          columns={columns}
+          data={filtered}
+          keyExtractor={(b) => b.id}
+          onRowClick={(b) => router.push(`/bookings/${b.id}`)}
+          emptyMessage={t("bookings.noBookings")}
+        />
+      </div>
+      <div className={styles.mobileList}>
+        {mobileCards}
+        {filtered.length === 0 && (
+          <div className={`empty-state ${styles.mobileEmpty}`}>
+            <CalendarDays size={44} />
+            <h3>{t("bookings.noBookings")}</h3>
+            <p>{t("bookings.searchPlaceholder")}</p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

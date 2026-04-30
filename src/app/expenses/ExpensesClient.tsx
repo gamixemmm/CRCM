@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { TrendingDown, Plus, CreditCard, Wallet, Calculator, Pencil, Trash2, Car, ShieldCheck, Home, Search, Filter, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { TrendingDown, Plus, CreditCard, Wallet, Calculator, Pencil, Trash2, Car, ShieldCheck, Home, Search, Filter, ArrowUpDown, ArrowUp, ArrowDown, ChevronRight } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Table from "@/components/ui/Table";
 import Input from "@/components/ui/Input";
@@ -12,25 +12,16 @@ import { formatDate } from "@/lib/utils";
 import AddExpenseModal from "./AddExpenseModal";
 import { deleteExpense } from "@/actions/expenses";
 import { useToast } from "@/components/ui/Toast";
+import { EXPENSE_CATEGORIES, normalizeExpenseCategory, translateExpenseCategory, translateExpenseDescription } from "@/lib/expenseCategories";
+import Card from "@/components/ui/Card";
+import Badge from "@/components/ui/Badge";
+import styles from "./expenses.module.css";
 
 interface ExpensesClientProps {
   expenses: any[];
   overallRevenue: number;
   vehicles: any[];
 }
-
-const CATEGORY_KEY_MAP: Record<string, string> = {
-  "Maintenance": "expenses.cat.maintenance",
-  "Vignette": "expenses.cat.vignette",
-  "Assurance": "expenses.cat.insurance",
-  "Gasoil": "expenses.cat.fuel",
-  "Visite technique": "expenses.cat.inspection",
-  "Salaire": "expenses.cat.salary",
-  "CNSS": "expenses.cat.cnss",
-  "Loyer": "expenses.cat.rent",
-  "Comptabilité": "expenses.cat.accounting",
-  "Autre": "expenses.cat.other",
-};
 
 export default function ExpensesClient({ expenses, overallRevenue, vehicles }: ExpensesClientProps) {
   const { t, formatPrice } = useSettings();
@@ -54,12 +45,6 @@ export default function ExpensesClient({ expenses, overallRevenue, vehicles }: E
   const totalCharges = expenses.reduce((acc, exp) => acc + exp.amount, 0);
   const reste = overallRevenue - totalCharges;
 
-  const translateCategory = (cat: string) => {
-    const key = CATEGORY_KEY_MAP[cat];
-    if (key) return t(key as any);
-    return cat;
-  };
-
   const handleEdit = (expense: any, e: React.MouseEvent) => {
     e.stopPropagation();
     setExpenseMode("general");
@@ -75,6 +60,7 @@ export default function ExpensesClient({ expenses, overallRevenue, vehicles }: E
     setDeletingId(null);
     if (res.success) {
       toast(t("expenses.deleted"), "success");
+      router.refresh();
     } else {
       toast(res.message, "error");
     }
@@ -103,7 +89,7 @@ export default function ExpensesClient({ expenses, overallRevenue, vehicles }: E
           (exp.vehicle?.plateNumber?.toLowerCase().includes(searchQuery.toLowerCase())) ||
           (exp.vehicle?.brand?.toLowerCase().includes(searchQuery.toLowerCase()));
         
-        const matchesCategory = categoryFilter === "All" || exp.category === categoryFilter;
+        const matchesCategory = categoryFilter === "All" || normalizeExpenseCategory(exp.category) === categoryFilter;
         
         const expDate = new Date(exp.date).toISOString().split('T')[0];
         const matchesStartDate = startDate === "" || expDate >= startDate;
@@ -118,7 +104,7 @@ export default function ExpensesClient({ expenses, overallRevenue, vehicles }: E
         } else if (sortBy === "amount") {
           comparison = a.amount - b.amount;
         } else if (sortBy === "category") {
-          comparison = a.category.localeCompare(b.category);
+          comparison = normalizeExpenseCategory(a.category).localeCompare(normalizeExpenseCategory(b.category));
         }
         return sortOrder === "asc" ? comparison : -comparison;
       });
@@ -146,12 +132,12 @@ export default function ExpensesClient({ expenses, overallRevenue, vehicles }: E
           {t("expenses.category")} <SortIcon columnKey="category" />
         </div>
       ),
-      render: (e: any) => <span style={{ fontWeight: 600 }}>{translateCategory(e.category)}</span>,
+      render: (e: any) => <span style={{ fontWeight: 600 }}>{translateExpenseCategory(e.category, t)}</span>,
     },
     {
       key: "description",
       label: t("expenses.description"),
-      render: (e: any) => <span>{e.description || "—"}</span>,
+      render: (e: any) => <span>{translateExpenseDescription(e.description, t) || "—"}</span>,
     },
     {
       key: "vehicle",
@@ -203,16 +189,90 @@ export default function ExpensesClient({ expenses, overallRevenue, vehicles }: E
     },
   ];
 
-  const categories = ["All", ...Object.keys(CATEGORY_KEY_MAP)];
+  const mobileCards = processedExpenses.map((e) => (
+    <Card
+      key={e.id}
+      hover
+      padding="md"
+      className={styles.mobileCard}
+      onClick={() => router.push(`/expenses/${e.id}`)}
+    >
+      <div className={styles.mobileCardTop}>
+        <div className={styles.mobileCardTitle}>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <span style={{ fontSize: "0.75rem", color: "var(--text-tertiary)", fontFamily: "monospace" }}>
+              {formatDate(e.date)}
+            </span>
+            <Badge size="sm" variant="default">
+              {translateExpenseCategory(e.category, t)}
+            </Badge>
+          </div>
+          <div style={{ fontWeight: 700, color: "var(--text-primary)" }}>
+            {translateExpenseDescription(e.description, t) || "-"}
+          </div>
+          <div style={{ fontSize: "0.8125rem", color: "var(--text-secondary)" }}>
+            {e.vehicle ? `${e.vehicle.brand} ${e.vehicle.model} - ${e.vehicle.plateNumber}` : "—"}
+          </div>
+        </div>
+        <ChevronRight size={16} style={{ color: "var(--text-tertiary)", flexShrink: 0, marginTop: "4px" }} />
+      </div>
+
+      <div className={styles.mobileMetaGrid}>
+        <div className={styles.mobileMetaItem}>
+          <span className={styles.mobileMetaLabel}>{t("expenses.amount")}</span>
+          <span className={styles.mobileAmount}>{formatPrice(e.amount)}</span>
+        </div>
+        <div className={styles.mobileMetaItem}>
+          <span className={styles.mobileMetaLabel}>{t("expenses.category")}</span>
+          <span className={styles.mobileMetaValue}>{translateExpenseCategory(e.category, t)}</span>
+        </div>
+        <div className={styles.mobileMetaItem}>
+          <span className={styles.mobileMetaLabel}>{t("expenses.vehicle")}</span>
+          <span className={styles.mobileMetaValue}>
+            {e.vehicle ? `${e.vehicle.brand} ${e.vehicle.model}` : "—"}
+          </span>
+        </div>
+        <div className={styles.mobileMetaItem}>
+          <span className={styles.mobileMetaLabel}>{t("label.actions")}</span>
+          <span className={styles.mobileMetaValue}>{t("action.view")}</span>
+        </div>
+      </div>
+
+      <div className={styles.mobileFooter} onClick={(e) => e.stopPropagation()}>
+        <div style={{ fontSize: "0.8125rem", color: "var(--text-tertiary)" }}>
+          {t("label.date")}: {formatDate(e.date)}
+        </div>
+        <div className={styles.mobileActions}>
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={(ev) => handleEdit(e, ev)}
+            icon={<Pencil size={14} />}
+          >
+            {t("expenses.edit")}
+          </Button>
+          <Button
+            size="sm"
+            variant="danger"
+            loading={deletingId === e.id}
+            onClick={(ev) => handleDelete(e.id, ev)}
+            icon={<Trash2 size={14} />}
+          />
+        </div>
+      </div>
+    </Card>
+  ));
+
+  const categories = ["All", ...EXPENSE_CATEGORIES];
 
   return (
     <div className="animate-fade-in">
-      <div className="page-header">
+      <div className={`page-header ${styles.pageHeader}`}>
         <h1>
           <TrendingDown size={24} />
           {t("expenses.title")}
         </h1>
-        <div className="page-header-actions">
+        <div className={styles.headerActions}>
           <Button
             variant="secondary"
             icon={<Calculator size={16} />}
@@ -260,9 +320,9 @@ export default function ExpensesClient({ expenses, overallRevenue, vehicles }: E
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "24px", marginBottom: "32px" }}>
+      <div className={styles.statsGrid}>
         {/* Card: Total Charges */}
-        <div style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)", borderRadius: "12px", padding: "20px" }}>
+        <div className={styles.statCard}>
           <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "16px", color: "var(--error)" }}>
             <div style={{ padding: "10px", background: "rgba(239, 68, 68, 0.1)", borderRadius: "8px" }}>
               <CreditCard size={20} />
@@ -277,7 +337,7 @@ export default function ExpensesClient({ expenses, overallRevenue, vehicles }: E
         </div>
 
         {/* Card: Cash Amount (Overall Revenue from invoices) */}
-        <div style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)", borderRadius: "12px", padding: "20px" }}>
+        <div className={styles.statCard}>
           <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "16px", color: "var(--success)" }}>
             <div style={{ padding: "10px", background: "rgba(34, 197, 94, 0.1)", borderRadius: "8px" }}>
               <Wallet size={20} />
@@ -295,7 +355,7 @@ export default function ExpensesClient({ expenses, overallRevenue, vehicles }: E
         </div>
 
         {/* Card: Remainder = Revenue - Charges */}
-        <div style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)", borderRadius: "12px", padding: "20px" }}>
+        <div className={styles.statCard}>
           <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "16px", color: "var(--accent)" }}>
             <div style={{ padding: "10px", background: "var(--accent-muted)", borderRadius: "8px" }}>
               <Calculator size={20} />
@@ -310,19 +370,43 @@ export default function ExpensesClient({ expenses, overallRevenue, vehicles }: E
         </div>
       </div>
 
+      <div className={styles.mobileStatsPanel}>
+        <div className={styles.mobileStatsHeader}>
+          <div className={styles.mobileStatsIntro}>
+            <div className={styles.mobileStatsLabel}>{t("expenses.totalCharges")}</div>
+            <div className={styles.mobileStatsValue}>{formatPrice(totalCharges)}</div>
+            <div className={styles.mobileStatsSub}>{t("expenses.cashSubtitle")}</div>
+          </div>
+          <div style={{ padding: "8px 10px", borderRadius: "999px", background: "rgba(239, 68, 68, 0.12)", color: "var(--error)", fontSize: "0.75rem", fontWeight: 700 }}>
+            {formatPrice(reste)}
+          </div>
+        </div>
+
+        <div className={styles.mobileStatsList}>
+          <div className={styles.mobileStatsItem}>
+            <div className={styles.mobileStatsItemLabel}>
+              <span className={styles.mobileStatsDot} style={{ background: "var(--success)" }} />
+              {t("expenses.cashAmount")}
+            </div>
+            <div className={styles.mobileStatsItemValue} style={{ color: "var(--success)" }}>
+              {formatPrice(overallRevenue)}
+            </div>
+          </div>
+          <div className={styles.mobileStatsItem}>
+            <div className={styles.mobileStatsItemLabel}>
+              <span className={styles.mobileStatsDot} style={{ background: reste < 0 ? "var(--error)" : "var(--accent)" }} />
+              {t("expenses.remainder")}
+            </div>
+            <div className={styles.mobileStatsItemValue} style={{ color: reste < 0 ? "var(--error)" : "var(--accent)" }}>
+              {formatPrice(reste)}
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Filter Bar */}
-      <div style={{ 
-        background: "var(--bg-secondary)", 
-        border: "1px solid var(--border)", 
-        borderRadius: "12px", 
-        padding: "16px", 
-        marginBottom: "24px",
-        display: "flex",
-        flexWrap: "wrap",
-        gap: "16px",
-        alignItems: "flex-end"
-      }}>
-        <div style={{ flex: 1, minWidth: "200px" }}>
+      <div className={styles.filterBar}>
+        <div className={styles.filterField}>
           <label style={{ display: "block", marginBottom: "8px", fontSize: "0.75rem", fontWeight: 600, color: "var(--text-tertiary)", textTransform: "uppercase" }}>{t("action.search")}</label>
           <Input 
             placeholder={t("topbar.search")} 
@@ -332,7 +416,7 @@ export default function ExpensesClient({ expenses, overallRevenue, vehicles }: E
           />
         </div>
         
-        <div style={{ width: "180px" }}>
+        <div className={styles.filterFieldNarrow}>
           <label style={{ display: "block", marginBottom: "8px", fontSize: "0.75rem", fontWeight: 600, color: "var(--text-tertiary)", textTransform: "uppercase" }}>{t("expenses.category")}</label>
           <Select 
             value={categoryFilter} 
@@ -340,12 +424,12 @@ export default function ExpensesClient({ expenses, overallRevenue, vehicles }: E
             icon={<Filter size={16} />}
           >
             {categories.map(cat => (
-              <option key={cat} value={cat}>{cat === "All" ? t("label.all") : translateCategory(cat)}</option>
+              <option key={cat} value={cat}>{cat === "All" ? t("label.all") : translateExpenseCategory(cat, t)}</option>
             ))}
           </Select>
         </div>
 
-        <div style={{ width: "160px" }}>
+        <div className={styles.filterFieldNarrow}>
           <label style={{ display: "block", marginBottom: "8px", fontSize: "0.75rem", fontWeight: 600, color: "var(--text-tertiary)", textTransform: "uppercase" }}>{t("label.date")} ({t("label.to").split(' ')[0]})</label>
           <Input 
             type="date" 
@@ -354,7 +438,7 @@ export default function ExpensesClient({ expenses, overallRevenue, vehicles }: E
           />
         </div>
 
-        <div style={{ width: "160px" }}>
+        <div className={styles.filterFieldNarrow}>
           <label style={{ display: "block", marginBottom: "8px", fontSize: "0.75rem", fontWeight: 600, color: "var(--text-tertiary)", textTransform: "uppercase" }}>{t("label.date")} ({t("label.to")})</label>
           <Input 
             type="date" 
@@ -363,28 +447,43 @@ export default function ExpensesClient({ expenses, overallRevenue, vehicles }: E
           />
         </div>
 
-        <Button 
-          variant="ghost" 
-          onClick={() => {
-            setSearchQuery("");
-            setCategoryFilter("All");
-            setStartDate("");
-            setEndDate("");
-            setSortBy("date");
-            setSortOrder("desc");
-          }}
-        >
-          {t("calendar.clear")}
-        </Button>
+        <div className={styles.filterActions}>
+          <Button 
+            variant="ghost" 
+            onClick={() => {
+              setSearchQuery("");
+              setCategoryFilter("All");
+              setStartDate("");
+              setEndDate("");
+              setSortBy("date");
+              setSortOrder("desc");
+            }}
+          >
+            {t("calendar.clear")}
+          </Button>
+        </div>
       </div>
 
-      <Table
-        columns={columns}
-        data={processedExpenses}
-        keyExtractor={(e) => e.id}
-        onRowClick={(e) => router.push(`/expenses/${e.id}`)}
-        emptyMessage={t("expenses.noExpenses")}
-      />
+      <div className={styles.desktopTable}>
+        <Table
+          columns={columns}
+          data={processedExpenses}
+          keyExtractor={(e) => e.id}
+          onRowClick={(e) => router.push(`/expenses/${e.id}`)}
+          emptyMessage={t("expenses.noExpenses")}
+        />
+      </div>
+
+      <div className={styles.mobileList}>
+        {mobileCards}
+        {processedExpenses.length === 0 && (
+          <div className={`empty-state ${styles.mobileEmpty}`}>
+            <TrendingDown size={44} />
+            <h3>{t("expenses.noExpenses")}</h3>
+            <p>{t("topbar.search")}</p>
+          </div>
+        )}
+      </div>
 
       <AddExpenseModal
         isOpen={isModalOpen}

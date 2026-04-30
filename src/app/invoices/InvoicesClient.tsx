@@ -4,16 +4,18 @@ import { useSettings } from "@/lib/SettingsContext";
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { FileText, Search, User, Car, CheckCircle, XCircle, Trash2 } from "lucide-react";
+import { FileText, Search, User, Car, CheckCircle, XCircle, Trash2, ChevronRight, CreditCard } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Badge from "@/components/ui/Badge";
 import Table from "@/components/ui/Table";
+import Card from "@/components/ui/Card";
 import { useToast } from "@/components/ui/Toast";
 import Modal from "@/components/ui/Modal";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
 import { formatDate, getFullName } from "@/lib/utils";
 import { updatePaymentStatus, deleteInvoice } from "@/actions/invoices";
+import styles from "./invoices.module.css";
 
 const statusFilters = ["ALL", "UNPAID", "PENDING", "PARTIAL", "PAID"];
 
@@ -69,6 +71,7 @@ export default function InvoicesClient({ invoices }: InvoicesClientProps) {
     setProcessing(null);
     if (res.success) {
       toast(res.message, "success");
+      router.refresh();
     } else {
       toast(res.message, "error");
     }
@@ -196,42 +199,126 @@ export default function InvoicesClient({ invoices }: InvoicesClientProps) {
     },
   ];
 
+  const mobileCards = filtered.map((i) => (
+    <Card
+      key={i.id}
+      hover
+      padding="md"
+      className={styles.mobileCard}
+      onClick={() => router.push(`/invoices/${i.id}`)}
+    >
+      <div className={styles.mobileCardTop}>
+        <div className={styles.mobileTitle}>
+          <div className={styles.mobileNameRow}>
+            <span className={styles.mobileId}>{i.id.slice(0, 8).toUpperCase()}</span>
+            <Badge
+              variant={i.paymentStatus === "PAID" ? "success" : i.paymentStatus === "PARTIAL" ? "info" : "warning"}
+              size="sm"
+            >
+              {formatStatusT(i.paymentStatus)}
+            </Badge>
+          </div>
+          <div className={styles.mobileName}>
+            {getFullName(i.booking.customer.firstName, i.booking.customer.lastName)}
+          </div>
+          <div className={styles.mobileSubRow}>
+            <Car size={14} style={{ color: "var(--text-tertiary)" }} />
+            <span>{i.booking.vehicle.brand} {i.booking.vehicle.model}</span>
+          </div>
+        </div>
+        <ChevronRight size={16} style={{ color: "var(--text-tertiary)", flexShrink: 0, marginTop: "4px" }} />
+      </div>
+
+      <div className={styles.mobileMetaGrid}>
+        <div className={styles.mobileMetaItem}>
+          <span className={styles.mobileMetaLabel}>{t("invoices.dateCreated")}</span>
+          <span className={styles.mobileMetaValue}>{formatDate(i.createdAt)}</span>
+        </div>
+        <div className={styles.mobileMetaItem}>
+          <span className={styles.mobileMetaLabel}>{t("invoices.amountDue")}</span>
+          <span className={styles.mobileMetaValue} style={{ fontWeight: 700, color: i.paymentStatus === "PAID" ? "var(--success)" : "var(--accent)" }}>
+            {formatCurrency(i.amountDue)}
+          </span>
+        </div>
+        <div className={styles.mobileMetaItem}>
+          <span className={styles.mobileMetaLabel}>{t("label.total")}</span>
+          <span className={styles.mobileMetaValue}>{formatCurrency(i.totalAmount)}</span>
+        </div>
+        <div className={styles.mobileMetaItem}>
+          <span className={styles.mobileMetaLabel}>{t("bookings.broker")}</span>
+          <span className={styles.mobileMetaValue}>{getFullName(i.booking.customer.firstName, i.booking.customer.lastName)}</span>
+        </div>
+      </div>
+
+      <div className={styles.mobileFooter} onClick={(e) => e.stopPropagation()}>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px", color: "var(--text-tertiary)", fontSize: "0.8125rem" }}>
+          <FileText size={14} />
+          {t("invoices.invId")} {i.id.slice(0, 8).toUpperCase()}
+        </div>
+        <div className={styles.mobileActions}>
+          {i.paymentStatus !== "PAID" ? (
+            <Button
+              size="sm"
+              variant="success"
+              loading={processing === i.id}
+              onClick={(e) => handleMarkPaid(i.id, i.amountDue, e)}
+              icon={<CheckCircle size={14} />}
+            >
+              {t("invoices.pay")}
+            </Button>
+          ) : (
+            <Button
+              size="sm"
+              variant="secondary"
+              loading={processing === i.id}
+              onClick={(e) => handleMarkUnpaid(i.id, e)}
+              icon={<XCircle size={14} />}
+            >
+              {t("invoices.unpay")}
+            </Button>
+          )}
+          <Button
+            size="sm"
+            variant="danger"
+            loading={processing === i.id}
+            onClick={(e) => handleDelete(i.id, e)}
+            icon={<Trash2 size={14} />}
+          />
+          <Link href={`/invoices/${i.id}`} onClick={(e) => e.stopPropagation()} className={styles.mobileLink}>
+            {t("action.view")}
+          </Link>
+        </div>
+      </div>
+    </Card>
+  ));
+
   return (
     <div className="animate-fade-in">
-      <div className="page-header">
+      <div className={`page-header ${styles.pageHeader}`}>
         <h1>
           <FileText size={24} />
           {t("invoices.title")}
         </h1>
       </div>
 
-      <div style={{ display: "flex", gap: "16px", marginBottom: "24px", flexWrap: "wrap" }}>
-        <div style={{ position: "relative", flex: 1, minWidth: "250px", maxWidth: "400px" }}>
+      <div className={styles.toolbar}>
+        <div className={styles.searchWrap}>
           <Search size={16} style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "var(--text-tertiary)" }} />
           <input
             type="text"
             placeholder={t("invoices.searchPlaceholder")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            style={{ width: "100%", height: "40px", padding: "0 12px 0 36px", background: "var(--bg-secondary)", border: "1px solid var(--border)", borderRadius: "8px", color: "var(--text-primary)" }}
+            className={styles.searchInput}
           />
         </div>
 
-        <div style={{ display: "flex", gap: "4px", flexWrap: "wrap", alignItems: "center" }}>
+        <div className={styles.filterRow}>
           {statusFilters.map((s) => (
             <button
               key={s}
               onClick={() => setStatusFilter(s)}
-              style={{
-                padding: "6px 14px",
-                background: statusFilter === s ? "var(--accent-muted)" : "transparent",
-                color: statusFilter === s ? "var(--accent)" : "var(--text-secondary)",
-                border: `1px solid ${statusFilter === s ? "var(--accent)" : "var(--border)"}`,
-                borderRadius: "20px",
-                fontSize: "0.75rem",
-                fontWeight: 600,
-                cursor: "pointer",
-              }}
+              className={`${styles.filterButton} ${statusFilter === s ? styles.filterButtonActive : ""}`}
             >
               {s === "ALL" ? t("label.all") : formatStatusT(s)}
             </button>
@@ -239,13 +326,26 @@ export default function InvoicesClient({ invoices }: InvoicesClientProps) {
         </div>
       </div>
 
-      <Table
-        columns={columns}
-        data={filtered}
-        keyExtractor={(i) => i.id}
-        onRowClick={(i) => router.push(`/invoices/${i.id}`)}
-        emptyMessage={t("invoices.noInvoices")}
-      />
+      <div className={styles.desktopTable}>
+        <Table
+          columns={columns}
+          data={filtered}
+          keyExtractor={(i) => i.id}
+          onRowClick={(i) => router.push(`/invoices/${i.id}`)}
+          emptyMessage={t("invoices.noInvoices")}
+        />
+      </div>
+
+      <div className={styles.mobileList}>
+        {mobileCards}
+        {filtered.length === 0 && (
+          <div className={`empty-state ${styles.mobileEmpty}`}>
+            <FileText size={44} />
+            <h3>{t("invoices.noInvoices")}</h3>
+            <p>{t("invoices.searchPlaceholder")}</p>
+          </div>
+        )}
+      </div>
 
       <Modal
         isOpen={paymentModalOpen}

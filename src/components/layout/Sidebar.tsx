@@ -18,6 +18,7 @@ import {
   ClipboardCheck,
   Shield,
   ClipboardList,
+  Activity,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useSettings } from "@/lib/SettingsContext";
@@ -40,6 +41,7 @@ const navItems: { labelKey: TranslationKey; href: string; icon: LucideIcon; perm
   { labelKey: "nav.technicalInspection", href: "/technical-inspection", icon: ClipboardCheck, permissions: ["VIEW_TECHNICAL_INSPECTION", "MANAGE_TECHNICAL_INSPECTION"] },
   { labelKey: "nav.employees", href: "/employees", icon: BriefcaseBusiness, permissions: ["VIEW_EMPLOYEES", "MANAGE_EMPLOYEES"] },
   { labelKey: "nav.maintenance", href: "/maintenance", icon: Wrench, permissions: ["VIEW_MAINTENANCE", "MANAGE_MAINTENANCE"] },
+  { labelKey: "nav.logs", href: "/logs", icon: Activity, adminOnly: true },
   { labelKey: "nav.settings", href: "/settings", icon: Settings },
 ];
 
@@ -52,7 +54,7 @@ type AttentionCounts = {
 
 const attentionCacheTtl = 60 * 1000;
 
-export default function Sidebar() {
+export default function Sidebar({ inMobileDrawer = false }: { inMobileDrawer?: boolean } = {}) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const [session, setSession] = useState<{ id?: string; companyId?: string; role?: string; permissions?: string[]; companyName?: string } | null>(null);
@@ -160,7 +162,7 @@ export default function Sidebar() {
   }, [session, sessionLoaded]);
 
   return (
-    <aside className={`${styles.sidebar} ${collapsed ? styles.collapsed : ""}`}>
+    <aside className={`${styles.sidebar} ${collapsed ? styles.collapsed : ""} ${inMobileDrawer ? styles.drawer : ""}`}>
       {/* Logo */}
       <div className={styles.logo}>
         <div className={styles.logoIcon}>
@@ -179,7 +181,7 @@ export default function Sidebar() {
       {/* Navigation */}
       <nav className={styles.nav}>
         <div className={styles.navSection}>
-          {!collapsed && <span className={styles.navLabel}>{t("nav.menu")}</span>}
+          {!collapsed && !inMobileDrawer && <span className={styles.navLabel}>{t("nav.menu")}</span>}
           <ul className={styles.navList}>
             {navItems.map((item) => {
               if (item.adminOnly && session?.role !== "Administrator") return null;
@@ -233,13 +235,15 @@ export default function Sidebar() {
       </nav>
 
       {/* Collapse Toggle */}
-      <button
-        className={styles.collapseBtn}
-        onClick={() => setCollapsed(!collapsed)}
-        aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-      >
-        {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
-      </button>
+      {!inMobileDrawer && (
+        <button
+          className={styles.collapseBtn}
+          onClick={() => setCollapsed(!collapsed)}
+          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+        >
+          {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+        </button>
+      )}
     </aside>
   );
 }

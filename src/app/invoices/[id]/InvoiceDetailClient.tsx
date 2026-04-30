@@ -14,6 +14,7 @@ import Select from "@/components/ui/Select";
 import { useToast } from "@/components/ui/Toast";
 import { updatePaymentStatus, deleteInvoice } from "@/actions/invoices";
 import { formatDate, getFullName } from "@/lib/utils";
+import styles from "../invoices.module.css";
 
 export default function InvoiceDetailClient({ invoice }: { invoice: any }) {
   const { formatPrice: formatCurrency, t } = useSettings();
@@ -91,8 +92,8 @@ export default function InvoiceDetailClient({ invoice }: { invoice: any }) {
 
   return (
     <div className="animate-fade-in">
-      <div className="page-header">
-        <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+      <div className={`page-header ${styles.pageHeader}`}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "4px", minWidth: 0 }}>
           <h1 style={{ display: "flex", alignItems: "center", gap: "12px" }}>
             {t("invoices.details")}
             <Badge 
@@ -103,7 +104,7 @@ export default function InvoiceDetailClient({ invoice }: { invoice: any }) {
           </h1>
           <span style={{ fontSize: "0.8125rem", color: "var(--text-tertiary)" }}>ID: {invoice.id}</span>
         </div>
-        <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+        <div className={styles.detailActionRow}>
           {invoice.paymentStatus !== "PAID" && (
             <Button variant="success" icon={<CreditCard size={16} />} onClick={() => setPaymentModalOpen(true)}>
               {t("invoices.recordPayment")}
@@ -128,16 +129,16 @@ export default function InvoiceDetailClient({ invoice }: { invoice: any }) {
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: "24px" }}>
+      <div className={styles.detailGrid}>
         
         {/* Left Column */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+        <div className={styles.detailLeftCol}>
           <Card padding="lg">
             <h3 style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "16px", paddingBottom: "8px", borderBottom: "1px solid var(--border)" }}>
               <User size={16} /> {t("invoices.customerBooking")}
             </h3>
             
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "24px" }}>
+            <div className={styles.detailCustomerGrid}>
               <div>
                 <div style={{ fontSize: "0.75rem", color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "4px" }}>{t("bookings.broker")}</div>
                 <div style={{ fontWeight: 600, fontSize: "1.125rem" }}>{getFullName(invoice.booking.customer.firstName, invoice.booking.customer.lastName)}</div>
@@ -163,20 +164,20 @@ export default function InvoiceDetailClient({ invoice }: { invoice: any }) {
               </div>
             </div>
 
-            <div style={{ marginTop: "24px", paddingTop: "16px", borderTop: "1px dashed var(--border)", display: "flex", gap: "32px" }}>
-              <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+            <div className={styles.detailTimeline}>
+              <div className={styles.detailTimelineItem}>
                 <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "var(--text-secondary)", fontSize: "0.875rem" }}>
                   <Calendar size={14} /> {t("bookings.pickupDate")}
                 </div>
                 <div style={{ fontWeight: 600 }}>{formatDate(invoice.booking.startDate)}</div>
               </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+              <div className={styles.detailTimelineItem}>
                 <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "var(--text-secondary)", fontSize: "0.875rem" }}>
                   <Calendar size={14} /> {t("bookings.returnDate")}
                 </div>
                 <div style={{ fontWeight: 600 }}>{formatDate(invoice.booking.endDate)}</div>
               </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+              <div className={styles.detailTimelineItem}>
                 <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "var(--text-secondary)", fontSize: "0.875rem" }}>
                   <Clock size={14} /> {t("bookings.duration")}
                 </div>
@@ -219,13 +220,13 @@ export default function InvoiceDetailClient({ invoice }: { invoice: any }) {
         </div>
 
         {/* Right Column */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+        <div className={styles.detailRightCol}>
           <Card padding="lg">
             <h3 style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "16px", paddingBottom: "8px", borderBottom: "1px solid var(--border)" }}>
               <DollarSign size={16} /> {t("invoices.summary")}
             </h3>
             
-            <div style={{ display: "flex", flexDirection: "column", gap: "12px", fontSize: "0.875rem" }}>
+            <div className={styles.detailSummary}>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
                 <span style={{ color: "var(--text-secondary)" }}>{t("invoices.subtotal")}</span>
                 <span>{formatCurrency(invoice.subtotal)}</span>

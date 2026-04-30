@@ -8,6 +8,7 @@ import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
 import { formatDate, getStatusColor, getStatusBg, getFullName } from "@/lib/utils";
+import styles from "../customers.module.css";
 
 export default function CustomerDetailClient({ customer }: { customer: any }) {
   const { formatPrice: formatCurrency, t, formatStatusT } = useSettings();
@@ -16,9 +17,9 @@ export default function CustomerDetailClient({ customer }: { customer: any }) {
 
   return (
     <div className="animate-fade-in">
-      <div className="page-header">
+      <div className={`page-header ${styles.pageHeader}`}>
         <h1>{getFullName(customer.firstName, customer.lastName)}</h1>
-        <div style={{ display: "flex", gap: "12px" }}>
+        <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
           <Button variant="ghost" icon={<ArrowLeft size={16} />} onClick={() => router.back()}>
             {t("action.back")}
           </Button>
@@ -28,10 +29,10 @@ export default function CustomerDetailClient({ customer }: { customer: any }) {
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: "24px" }}>
+      <div className={styles.detailGrid}>
         
         {/* Sidebar Info */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+        <div className={styles.detailStack}>
           <Card padding="lg">
             <h3 style={{ marginBottom: "16px", paddingBottom: "8px", borderBottom: "1px solid var(--border)" }}>{t("customers.profile")}</h3>
             <div style={{ display: "flex", flexDirection: "column", gap: "12px", fontSize: "0.875rem" }}>
@@ -74,7 +75,7 @@ export default function CustomerDetailClient({ customer }: { customer: any }) {
         {/* Main Content (Bookings) */}
         <div>
           <Card padding="lg" style={{ minHeight: "100%" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", paddingBottom: "8px", borderBottom: "1px solid var(--border)" }}>
+            <div className={styles.detailHeaderRow} style={{ marginBottom: "16px", paddingBottom: "8px", borderBottom: "1px solid var(--border)" }}>
               <h3 style={{ display: "flex", alignItems: "center", gap: "8px" }}><CalendarDays size={16} /> {t("customers.bookingHistory")}</h3>
               <Link href="/bookings/new">
                 <Button size="sm" variant="ghost">{t("bookings.newBooking")}</Button>
@@ -86,12 +87,12 @@ export default function CustomerDetailClient({ customer }: { customer: any }) {
                 {t("customers.noBookings")}
               </div>
             ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+              <div className={styles.bookingList}>
                 {customer.bookings.map((b: any) => (
                   <Link href={`/bookings/${b.id}`} key={b.id} style={{ textDecoration: "none" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px", background: "var(--bg-tertiary)", borderRadius: "8px", border: "1px solid var(--border)", transition: "all 0.2s" }} className="hover-lift">
+                    <div className={`${styles.bookingItem} hover-lift`}>
                       
-                      <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                      <div className={styles.bookingText}>
                         <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>
                           {b.vehicle.brand} {b.vehicle.model}
                         </span>
@@ -100,7 +101,7 @@ export default function CustomerDetailClient({ customer }: { customer: any }) {
                         </span>
                       </div>
 
-                      <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "4px" }}>
+                      <div className={styles.bookingMeta}>
                         <span style={{ fontWeight: 700, color: "var(--text-primary)" }}>{formatCurrency(b.totalAmount)}</span>
                         <Badge color={getStatusColor(b.status)} bg={getStatusBg(b.status)} size="sm">
                           {formatStatusT(b.status)}

@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { requireCompanyId } from "@/lib/company";
 import { canPerform } from "@/lib/permissions";
 import { requireCompanyAdminAccess } from "@/actions/companyAuth";
+import { logAuditAction } from "@/lib/audit";
 
 export async function recordInsurancePayment(input: {
   vehicleId: string;
@@ -44,7 +45,7 @@ export async function recordInsurancePayment(input: {
             date: paidAt,
             category: "Assurance",
             amount,
-            description: input.notes || "Insurance payment",
+            description: input.notes || "Paiement assurance",
             vehicleId: input.vehicleId,
           },
         });
@@ -74,6 +75,14 @@ export async function recordInsurancePayment(input: {
     revalidatePath("/insurance");
     revalidatePath("/expenses");
     revalidatePath("/vehicles");
+    await logAuditAction({
+      actor: session,
+      action: "RECORD_INSURANCE_PAYMENT",
+      entityType: "InsurancePayment",
+      entityId: payment.id,
+      message: `${session.name} recorded insurance payment`,
+      metadata: { vehicleId: input.vehicleId, amount, endDate: input.endDate },
+    });
     return { success: true, message: "Insurance payment recorded", data: payment };
   } catch (error) {
     console.error("Failed to record insurance payment", error);

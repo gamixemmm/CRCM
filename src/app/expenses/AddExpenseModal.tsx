@@ -6,6 +6,8 @@ import Modal from "@/components/ui/Modal";
 import { logExpense, updateExpense } from "@/actions/expenses";
 import { useToast } from "@/components/ui/Toast";
 import { useSettings } from "@/lib/SettingsContext";
+import { CAR_EXPENSE_CATEGORIES, EXPENSE_CATEGORIES, normalizeExpenseCategory, translateExpenseCategory } from "@/lib/expenseCategories";
+import styles from "./expenses.module.css";
 
 interface AddExpenseModalProps {
   isOpen: boolean;
@@ -17,39 +19,6 @@ interface AddExpenseModalProps {
   initialDate?: string;
   onSuccess?: () => void;
 }
-
-const CATEGORY_KEY_MAP: Record<string, string> = {
-  "Maintenance": "expenses.cat.maintenance",
-  "Vignette": "expenses.cat.vignette",
-  "Assurance": "expenses.cat.insurance",
-  "Gasoil": "expenses.cat.fuel",
-  "Visite technique": "expenses.cat.inspection",
-  "Salaire": "expenses.cat.salary",
-  "CNSS": "expenses.cat.cnss",
-  "Loyer": "expenses.cat.rent",
-  "Comptabilité": "expenses.cat.accounting",
-  "Autre": "expenses.cat.other",
-};
-
-const CATEGORIES = [
-  "Maintenance",
-  "Vignette",
-  "Assurance",
-  "Gasoil",
-  "Visite technique",
-  "Salaire",
-  "CNSS",
-  "Loyer",
-  "Comptabilité",
-  "Autre",
-];
-
-const CAR_EXPENSE_CATEGORIES = [
-  "Vignette",
-  "Assurance",
-  "Gasoil",
-  "Visite technique",
-];
 
 const defaultForm = {
   date: new Date().toISOString().split("T")[0],
@@ -82,13 +51,13 @@ export default function AddExpenseModal({ isOpen, onClose, vehicles, editingExpe
           ? ["Vignette"]
           : isAccountingMode
             ? ["Comptabilité"]
-            : CATEGORIES;
+            : EXPENSE_CATEGORIES;
 
   useEffect(() => {
     if (editingExpense) {
       setFormData({
         date: new Date(editingExpense.date).toISOString().split("T")[0],
-        category: editingExpense.category,
+        category: normalizeExpenseCategory(editingExpense.category),
         amount: editingExpense.amount.toString(),
         description: editingExpense.description || "",
         vehicleId: editingExpense.vehicleId || "",
@@ -153,12 +122,6 @@ export default function AddExpenseModal({ isOpen, onClose, vehicles, editingExpe
     setLoading(false);
   };
 
-  const translateCategory = (cat: string) => {
-    const key = CATEGORY_KEY_MAP[cat];
-    if (key) return t(key as any);
-    return cat;
-  };
-
   const modalTitle = isEditMode
     ? t("expenses.modalTitleEdit")
     : isCnssMode
@@ -173,58 +136,58 @@ export default function AddExpenseModal({ isOpen, onClose, vehicles, editingExpe
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={modalTitle}>
-      <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+      <form onSubmit={handleSubmit} className={styles.modalForm}>
         {!isAccountingMode && (
         <div>
-          <label style={{ display: "block", marginBottom: "8px", fontSize: "0.875rem", fontWeight: 500, color: "var(--text-secondary)" }}>{t("label.date")}</label>
+          <label className={styles.modalLabel}>{t("label.date")}</label>
           <input
             type="date"
             required
             value={formData.date}
             onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-            style={{ width: "100%", height: "40px", padding: "0 12px", background: "var(--bg-secondary)", border: "1px solid var(--border)", borderRadius: "8px", color: "var(--text-primary)" }}
+            className={styles.modalInput}
           />
         </div>
         )}
 
         {!isAccountingMode && (
         <div>
-          <label style={{ display: "block", marginBottom: "8px", fontSize: "0.875rem", fontWeight: 500, color: "var(--text-secondary)" }}>{t("expenses.category")}</label>
+          <label className={styles.modalLabel}>{t("expenses.category")}</label>
           <select
             required
             value={formData.category}
             onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-            style={{ width: "100%", height: "40px", padding: "0 12px", background: "var(--bg-secondary)", border: "1px solid var(--border)", borderRadius: "8px", color: "var(--text-primary)" }}
+            className={styles.modalSelect}
           >
             {activeCategories.map((cat) => (
-              <option key={cat} value={cat}>{translateCategory(cat)}</option>
+              <option key={cat} value={cat}>{translateExpenseCategory(cat, t)}</option>
             ))}
           </select>
         </div>
         )}
 
         <div>
-          <label style={{ display: "block", marginBottom: "8px", fontSize: "0.875rem", fontWeight: 500, color: "var(--text-secondary)" }}>{t("expenses.amount")}</label>
+          <label className={styles.modalLabel}>{t("expenses.amount")}</label>
           <input
             type="number"
             step="0.01"
             required
             value={formData.amount}
             onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-            style={{ width: "100%", height: "40px", padding: "0 12px", background: "var(--bg-secondary)", border: "1px solid var(--border)", borderRadius: "8px", color: "var(--text-primary)" }}
+            className={styles.modalInput}
           />
         </div>
 
         {!isCnssMode && !isRentMode && !isAccountingMode && (
           <div>
-            <label style={{ display: "block", marginBottom: "8px", fontSize: "0.875rem", fontWeight: 500, color: "var(--text-secondary)" }}>
+            <label className={styles.modalLabel}>
               {isCarExpenseMode ? t("expenses.vehicleRequiredLabel") : t("expenses.vehicleOptional")}
             </label>
             <select
               required={isCarExpenseMode}
               value={formData.vehicleId}
               onChange={(e) => setFormData({ ...formData, vehicleId: e.target.value })}
-              style={{ width: "100%", height: "40px", padding: "0 12px", background: "var(--bg-secondary)", border: "1px solid var(--border)", borderRadius: "8px", color: "var(--text-primary)" }}
+              className={styles.modalSelect}
             >
               <option value="">{t("expenses.noVehicleSelected")}</option>
               {vehicles.map((v) => (
@@ -237,15 +200,15 @@ export default function AddExpenseModal({ isOpen, onClose, vehicles, editingExpe
         )}
 
         <div>
-          <label style={{ display: "block", marginBottom: "8px", fontSize: "0.875rem", fontWeight: 500, color: "var(--text-secondary)" }}>{t("expenses.descriptionOptional")}</label>
+          <label className={styles.modalLabel}>{t("expenses.descriptionOptional")}</label>
           <textarea
             value={formData.description}
             onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-            style={{ width: "100%", minHeight: "80px", padding: "12px", background: "var(--bg-secondary)", border: "1px solid var(--border)", borderRadius: "8px", color: "var(--text-primary)", resize: "vertical" }}
+            className={styles.modalTextarea}
           />
         </div>
 
-        <div style={{ display: "flex", justifyContent: "flex-end", gap: "12px", marginTop: "16px" }}>
+        <div className={styles.modalFooter}>
           <Button variant="ghost" onClick={onClose} type="button">{t("action.cancel")}</Button>
           <Button type="submit" loading={loading} variant="primary">
             {isEditMode ? t("expenses.saveEdit") : t("expenses.saveNew")}

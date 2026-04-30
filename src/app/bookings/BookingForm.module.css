@@ -1,0 +1,297 @@
+.page {
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.headerRow {
+  margin-bottom: 32px;
+  align-items: flex-start;
+}
+
+.stepper {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 40px;
+  position: relative;
+  padding: 0 10px;
+  gap: 12px;
+}
+
+.stepperLine {
+  position: absolute;
+  top: 20px;
+  left: 40px;
+  right: 40px;
+  height: 2px;
+  background: var(--border);
+  z-index: 0;
+}
+
+.stepperItem {
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1 1 0;
+}
+
+.stepperLabel {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-align: center;
+  line-height: 1.2;
+}
+
+.stepperLabelActive {
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.wizardSection {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.vehicleGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 20px;
+}
+
+.vehicleCard {
+  cursor: pointer;
+  border-radius: 16px;
+  border: 2px solid transparent;
+  background: var(--card-bg);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.vehicleCardSelected {
+  border-color: var(--accent);
+  transform: translateY(-4px);
+}
+
+.vehicleImage {
+  height: 160px;
+  background: var(--bg-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.vehicleImageBadge {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: rgba(255, 255, 255, 0.9);
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: black;
+}
+
+.detailsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 24px;
+}
+
+.detailsColumn {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  min-width: 0;
+}
+
+.companyGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+  margin-top: 20px;
+  padding: 16px;
+  background: var(--bg-tertiary);
+  border-radius: 12px;
+  border: 1px solid var(--border);
+}
+
+.brokerGrid {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.brokerField {
+  flex: 1;
+  min-width: 0;
+}
+
+.quickAddGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.summaryBox {
+  padding: 20px;
+  background: var(--bg-secondary);
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  margin-top: 8px;
+}
+
+.summaryRow {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+  font-size: 0.875rem;
+}
+
+.summaryTotalRow {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  font-weight: bold;
+}
+
+.driverGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 20px;
+}
+
+.driverHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+  gap: 12px;
+}
+
+.driverSecondary {
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 1px dashed var(--border);
+}
+
+.actionRow {
+  display: flex;
+  justify-content: space-between;
+  border-top: 1px solid var(--border);
+  padding-top: 24px;
+  gap: 12px;
+}
+
+.actionGroup {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.selectionSummary {
+  margin-top: 32px;
+  padding: 20px;
+  background: var(--bg-secondary);
+  border-radius: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+
+.navButtons {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 24px;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.mobileFullWidth {
+  min-width: 0;
+}
+
+@media (max-width: 768px) {
+  .headerRow {
+    margin-bottom: 24px;
+  }
+
+  .stepper {
+    margin-bottom: 28px;
+    padding: 0;
+    gap: 8px;
+  }
+
+  .stepperLine {
+    left: 28px;
+    right: 28px;
+  }
+
+  .stepperItem {
+    gap: 6px;
+  }
+
+  .stepperLabel {
+    font-size: 0.7rem;
+  }
+
+  .vehicleGrid,
+  .detailsGrid,
+  .quickAddGrid,
+  .driverGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .vehicleCard {
+    border-radius: 14px;
+  }
+
+  .vehicleImage {
+    height: 140px;
+  }
+
+  .brokerGrid {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .selectionSummary {
+    padding: 16px;
+    align-items: stretch;
+  }
+
+  .navButtons,
+  .actionRow,
+  .actionGroup {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .actionGroup > button,
+  .navButtons > button,
+  .mobileFullWidth {
+    width: 100%;
+  }
+
+  .driverHeader {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}

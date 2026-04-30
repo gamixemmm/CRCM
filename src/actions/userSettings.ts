@@ -2,6 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { getCompanyAdminSession } from "@/actions/companyAuth";
+import { logAuditAction } from "@/lib/audit";
 
 export type UserCurrencyCode = "MAD" | "EUR" | "USD";
 export type UserLanguageCode = "en" | "fr" | "ar";
@@ -80,6 +81,15 @@ export async function updateUserSettings(input: {
       data,
     });
   }
+
+  await logAuditAction({
+    actor: session,
+    action: "UPDATE_USER_SETTINGS",
+    entityType: "Account",
+    entityId: session.id,
+    message: `${session.name} updated user settings`,
+    metadata: data,
+  });
 
   return { success: true };
 }

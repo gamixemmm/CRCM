@@ -37,7 +37,21 @@
 }
 
 @media (max-width: 640px) {
+  .section {
+    padding: var(--space-md);
+  }
+
   .fieldGrid {
     grid-template-columns: 1fr;
+  }
+
+  .actions {
+    flex-direction: column-reverse;
+    align-items: stretch;
+  }
+
+  .actions :global(button) {
+    width: 100%;
+    justify-content: center;
   }
 }

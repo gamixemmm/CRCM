@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { requireCompanyId } from "@/lib/company";
 import { canPerform } from "@/lib/permissions";
 import { requireCompanyAdminAccess } from "@/actions/companyAuth";
+import { logAuditAction } from "@/lib/audit";
 
 export async function completeTechnicalInspection(input: {
   vehicleId: string;
@@ -50,7 +51,7 @@ export async function completeTechnicalInspection(input: {
             date: new Date(),
             category: "Visite technique",
             amount: cost,
-            description: input.notes || "Technical inspection",
+            description: input.notes || "Visite technique",
             vehicleId: input.vehicleId,
           },
         });
@@ -62,6 +63,14 @@ export async function completeTechnicalInspection(input: {
     revalidatePath("/technical-inspection");
     revalidatePath("/expenses");
     revalidatePath("/");
+    await logAuditAction({
+      actor: session,
+      action: "COMPLETE_TECHNICAL_INSPECTION",
+      entityType: "TechnicalInspection",
+      entityId: result.id,
+      message: `${session.name} completed technical inspection`,
+      metadata: { vehicleId: input.vehicleId, cost, nextDueDate: input.nextDueDate },
+    });
     return { success: true, message: "Technical inspection recorded", data: result };
   } catch (error) {
     console.error("Failed to record technical inspection", error);

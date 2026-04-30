@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { hashPassword, verifyPassword } from "@/lib/password";
+import { logAuditAction, type AuditActor } from "@/lib/audit";
 
 const companyAdminCookieName = "crmss.company_admin";
 
@@ -77,6 +78,7 @@ export async function companyAdminLogin(input: { email: string; password: string
   const password = input.password;
 
   let accountId = null;
+  let actor: AuditActor | null = null;
 
   const admin = await prisma.companyAdmin.findUnique({
     where: { email },
@@ -85,6 +87,7 @@ export async function companyAdminLogin(input: { email: string; password: string
 
   if (admin && admin.active && admin.company.active && verifyPassword(password, admin.passwordHash)) {
     accountId = admin.id;
+    actor = { id: admin.id, companyId: admin.companyId, name: admin.name, email: admin.email, role: "Administrator" };
     await prisma.companyAdmin.update({
       where: { id: admin.id },
       data: { lastLoginAt: new Date() },
@@ -97,6 +100,7 @@ export async function companyAdminLogin(input: { email: string; password: string
 
     if (employeeAcct && employeeAcct.active && employeeAcct.company.active && verifyPassword(password, employeeAcct.passwordHash)) {
       accountId = employeeAcct.id;
+      actor = { id: employeeAcct.id, companyId: employeeAcct.companyId, name: employeeAcct.name, email: employeeAcct.email, role: "Employee" };
       await prisma.employeeAccount.update({
         where: { id: employeeAcct.id },
         data: { lastLoginAt: new Date() },
@@ -117,10 +121,19 @@ export async function companyAdminLogin(input: { email: string; password: string
     maxAge: 60 * 60 * 12,
   });
 
+  await logAuditAction({
+    actor,
+    action: "LOGIN",
+    entityType: "Account",
+    entityId: accountId,
+    message: `${actor?.name || actor?.email || "User"} logged in`,
+  });
+
   return { success: true, message: "Access granted." };
 }
 
 export async function companyAdminLogout() {
+  const session = await getCompanyAdminSession();
   const cookieStore = await cookies();
   cookieStore.set(companyAdminCookieName, "", {
     httpOnly: true,
@@ -128,6 +141,13 @@ export async function companyAdminLogout() {
     secure: process.env.NODE_ENV === "production",
     path: "/",
     maxAge: 0,
+  });
+  await logAuditAction({
+    actor: session,
+    action: "LOGOUT",
+    entityType: "Account",
+    entityId: session?.id,
+    message: `${session?.name || session?.email || "User"} logged out`,
   });
 }
 
@@ -183,5 +203,13 @@ export async function upsertEmployeeAccount(input: {
       });
 
   revalidatePath("/employees");
+  await logAuditAction({
+    actor: session,
+    action: employee.account ? "UPDATE_EMPLOYEE_ACCOUNT" : "CREATE_EMPLOYEE_ACCOUNT",
+    entityType: "EmployeeAccount",
+    entityId: account.id,
+    message: `${session.name} ${employee.account ? "updated" : "created"} employee login for ${name}`,
+    metadata: { employeeId: input.employeeId, active: input.active },
+  });
   return { success: true, message: "Employee account saved.", data: account };
 }

@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { requireCompanyId } from "@/lib/company";
 import { canPerform } from "@/lib/permissions";
 import { requireCompanyAdminAccess } from "@/actions/companyAuth";
+import { logAuditAction } from "@/lib/audit";
 
 interface MaintenanceInput {
   vehicleId: string;
@@ -102,6 +103,14 @@ export async function updateMaintenance(id: string, input: Partial<MaintenanceIn
     revalidatePath(`/maintenance/${id}`);
     revalidatePath("/vehicles");
     revalidatePath(`/vehicles/${current.vehicleId}`);
+    await logAuditAction({
+      actor: session,
+      action: "UPDATE_MAINTENANCE",
+      entityType: "Maintenance",
+      entityId: updated.id,
+      message: `${session.name} updated maintenance log`,
+      metadata: { vehicleId: current.vehicleId },
+    });
 
     return { success: true, message: "Maintenance updated successfully", data: updated };
   } catch (error) {
@@ -213,6 +222,14 @@ export async function logMaintenance(input: MaintenanceInput) {
     revalidatePath("/vehicles");
     revalidatePath(`/vehicles/${input.vehicleId}`);
     revalidatePath("/");
+    await logAuditAction({
+      actor: session,
+      action: "CREATE_MAINTENANCE",
+      entityType: "Maintenance",
+      entityId: log.id,
+      message: `${session.name} created maintenance log`,
+      metadata: { vehicleId: input.vehicleId, type: input.type, cost: input.cost },
+    });
 
     return { success: true, message: "Maintenance logged successfully", data: log };
   } catch (error) {
@@ -251,6 +268,13 @@ export async function resolveMaintenance(id: string, returnDate?: string) {
     revalidatePath("/maintenance");
     revalidatePath("/vehicles");
     revalidatePath("/");
+    await logAuditAction({
+      actor: session,
+      action: "RESOLVE_MAINTENANCE",
+      entityType: "Maintenance",
+      entityId: id,
+      message: `${session.name} resolved maintenance log`,
+    });
 
     return { success: true, message: "Maintenance resolved, vehicle is available" };
   } catch (error) {
@@ -284,6 +308,13 @@ export async function unresolveMaintenance(id: string) {
     revalidatePath("/maintenance");
     revalidatePath("/vehicles");
     revalidatePath("/");
+    await logAuditAction({
+      actor: session,
+      action: "UNRESOLVE_MAINTENANCE",
+      entityType: "Maintenance",
+      entityId: id,
+      message: `${session.name} reopened maintenance log`,
+    });
 
     return { success: true, message: "Maintenance reverted to globally ACTIVE" };
   } catch (error) {
@@ -317,6 +348,13 @@ export async function deleteMaintenance(id: string) {
     revalidatePath("/maintenance");
     revalidatePath("/vehicles");
     revalidatePath("/");
+    await logAuditAction({
+      actor: session,
+      action: "DELETE_MAINTENANCE",
+      entityType: "Maintenance",
+      entityId: id,
+      message: `${session.name} deleted maintenance log`,
+    });
 
     return { success: true, message: "Maintenance log permanently deleted" };
   } catch (error) {

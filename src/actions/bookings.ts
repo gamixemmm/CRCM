@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { requireCompanyId } from "@/lib/company";
 import { canPerform } from "@/lib/permissions";
 import { requireCompanyAdminAccess } from "@/actions/companyAuth";
+import { logAuditAction } from "@/lib/audit";
 
 interface BookingInput {
   customerId: string;
@@ -166,6 +167,14 @@ export async function createBooking(input: BookingInput) {
     revalidatePath("/bookings");
     revalidatePath("/vehicles");
     revalidatePath("/");
+    await logAuditAction({
+      actor: session,
+      action: "CREATE_BOOKING",
+      entityType: "Booking",
+      entityId: booking.id,
+      message: `${session.name} created booking ${booking.id}`,
+      metadata: { vehicleId: input.vehicleId, customerId: input.customerId, totalAmount: input.totalAmount },
+    });
 
     return { success: true, message: "Booking created", data: booking };
   } catch (error) {
@@ -226,6 +235,14 @@ export async function updateBookingStatus(bookingId: string, newStatus: string) 
     revalidatePath("/bookings");
     revalidatePath("/vehicles");
     revalidatePath("/");
+    await logAuditAction({
+      actor: session,
+      action: "UPDATE_BOOKING_STATUS",
+      entityType: "Booking",
+      entityId: bookingId,
+      message: `${session.name} marked booking ${bookingId} as ${newStatus}`,
+      metadata: { status: newStatus },
+    });
 
     return { success: true, message: `Booking marked as ${newStatus}` };
   } catch (error) {
@@ -237,6 +254,10 @@ export async function updateBookingStatus(bookingId: string, newStatus: string) 
 // ─── Early Pickup ────────────────────────────────────────────────
 export async function handleEarlyPickup(bookingId: string, updateDate: boolean) {
   try {
+    const session = await requireCompanyAdminAccess();
+    if (!canPerform(session, ["MANAGE_BOOKINGS"])) {
+      return { success: false, message: "You do not have permission to manage bookings." };
+    }
     const companyId = await requireCompanyId();
     const booking = await prisma.booking.findFirst({
       where: { id: bookingId, companyId },
@@ -321,6 +342,14 @@ export async function handleEarlyPickup(bookingId: string, updateDate: boolean) 
     revalidatePath("/bookings");
     revalidatePath("/vehicles");
     revalidatePath("/");
+    await logAuditAction({
+      actor: session,
+      action: "EARLY_PICKUP",
+      entityType: "Booking",
+      entityId: bookingId,
+      message: `${session.name} processed early pickup for booking ${bookingId}`,
+      metadata: { updateDate },
+    });
 
     return { success: true, message: updateDate ? "Early pickup — date & invoice updated" : "Picked up early (dates unchanged)" };
   } catch (error) {
@@ -332,6 +361,10 @@ export async function handleEarlyPickup(bookingId: string, updateDate: boolean) 
 // ─── Return Vehicle ──────────────────────────────────────────────
 export async function handleReturn(bookingId: string, updateDate: boolean, newMileage: number) {
   try {
+    const session = await requireCompanyAdminAccess();
+    if (!canPerform(session, ["MANAGE_BOOKINGS"])) {
+      return { success: false, message: "You do not have permission to manage bookings." };
+    }
     const companyId = await requireCompanyId();
     const booking = await prisma.booking.findFirst({
       where: { id: bookingId, companyId },
@@ -414,6 +447,14 @@ export async function handleReturn(bookingId: string, updateDate: boolean, newMi
     revalidatePath("/vehicles");
     revalidatePath(`/vehicles/${booking.vehicleId}`);
     revalidatePath("/");
+    await logAuditAction({
+      actor: session,
+      action: "RETURN_BOOKING",
+      entityType: "Booking",
+      entityId: bookingId,
+      message: `${session.name} returned booking ${bookingId}`,
+      metadata: { updateDate, newMileage },
+    });
 
     return { success: true, message: updateDate ? "Vehicle returned — date & invoice updated to today" : "Vehicle returned successfully" };
   } catch (error) {
@@ -501,6 +542,14 @@ export async function updateBookingDates(bookingId: string, newStartDate: string
     revalidatePath("/bookings");
     revalidatePath("/vehicles");
     revalidatePath("/");
+    await logAuditAction({
+      actor: session,
+      action: "UPDATE_BOOKING_DATES",
+      entityType: "Booking",
+      entityId: bookingId,
+      message: `${session.name} updated booking dates for ${bookingId}`,
+      metadata: { newStartDate, newEndDate, newPricePerDay, totalAmount: newTotal },
+    });
 
     return { success: true, message: `Dates updated — ${newDays} days, total recalculated` };
   } catch (error) {

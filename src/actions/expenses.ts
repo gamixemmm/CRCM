@@ -5,6 +5,8 @@ import { revalidatePath } from "next/cache";
 import { requireCompanyId } from "@/lib/company";
 import { canPerform } from "@/lib/permissions";
 import { requireCompanyAdminAccess } from "@/actions/companyAuth";
+import { normalizeExpenseCategory } from "@/lib/expenseCategories";
+import { logAuditAction } from "@/lib/audit";
 
 interface ExpenseInput {
   date: string;
@@ -42,7 +44,7 @@ export async function logExpense(input: ExpenseInput) {
       data: {
         companyId,
         date: new Date(input.date),
-        category: input.category,
+        category: normalizeExpenseCategory(input.category),
         amount: input.amount,
         description: input.description,
         vehicleId: input.vehicleId || null,
@@ -51,6 +53,14 @@ export async function logExpense(input: ExpenseInput) {
 
     revalidatePath("/expenses");
     revalidatePath("/vignette");
+    await logAuditAction({
+      actor: session,
+      action: "CREATE_EXPENSE",
+      entityType: "Expense",
+      entityId: expense.id,
+      message: `${session.name} created expense ${normalizeExpenseCategory(input.category)} (${input.amount})`,
+      metadata: { category: normalizeExpenseCategory(input.category), amount: input.amount, vehicleId: input.vehicleId || null },
+    });
     return { success: true, message: "Expense logged successfully", data: expense };
   } catch (error) {
     console.error("Failed to log expense", error);
@@ -74,7 +84,7 @@ export async function updateExpense(id: string, input: ExpenseInput) {
       data: {
         companyId,
         date: new Date(input.date),
-        category: input.category,
+        category: normalizeExpenseCategory(input.category),
         amount: input.amount,
         description: input.description || null,
         vehicleId: input.vehicleId || null,
@@ -83,6 +93,14 @@ export async function updateExpense(id: string, input: ExpenseInput) {
 
     revalidatePath("/expenses");
     revalidatePath("/vignette");
+    await logAuditAction({
+      actor: session,
+      action: "UPDATE_EXPENSE",
+      entityType: "Expense",
+      entityId: expense.id,
+      message: `${session.name} updated expense ${normalizeExpenseCategory(input.category)} (${input.amount})`,
+      metadata: { category: normalizeExpenseCategory(input.category), amount: input.amount, vehicleId: input.vehicleId || null },
+    });
     return { success: true, message: "Expense updated successfully", data: expense };
   } catch (error) {
     console.error("Failed to update expense", error);
@@ -103,6 +121,13 @@ export async function deleteExpense(id: string) {
     }
     await prisma.expense.delete({ where: { id } });
     revalidatePath("/expenses");
+    await logAuditAction({
+      actor: session,
+      action: "DELETE_EXPENSE",
+      entityType: "Expense",
+      entityId: id,
+      message: `${session.name} deleted expense ${current.category} (${current.amount})`,
+    });
     return { success: true, message: "Expense deleted successfully" };
   } catch (error) {
     console.error("Failed to delete expense", error);
@@ -139,6 +164,14 @@ export async function updateCashRegister(amount: number) {
     });
 
     revalidatePath("/expenses");
+    await logAuditAction({
+      actor: session,
+      action: "UPDATE_CASH_REGISTER",
+      entityType: "GlobalSettings",
+      entityId: settings.id,
+      message: `${session.name} updated cash register to ${amount}`,
+      metadata: { amount },
+    });
     return { success: true, message: "Cash register updated", data: settings };
   } catch (error) {
     console.error("Failed to update cash register", error);

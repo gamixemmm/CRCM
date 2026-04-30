@@ -14,6 +14,7 @@ import { useToast } from "@/components/ui/Toast";
 import { createInvoice, updatePaymentStatus, deleteInvoice } from "@/actions/invoices";
 import { updateBookingStatus, handleEarlyPickup, handleReturn, updateBookingDates } from "@/actions/bookings";
 import { formatDate, formatStatus, getStatusColor, getStatusBg, getFullName } from "@/lib/utils";
+import styles from "../bookings.module.css";
 
 export default function BookingDetailClient({ booking }: { booking: any }) {
   const { formatPrice: formatCurrency, currency, t, formatStatusT } = useSettings();
@@ -103,13 +104,13 @@ export default function BookingDetailClient({ booking }: { booking: any }) {
   };
 
   return (
-    <div className="animate-fade-in">
+    <div className={`animate-fade-in ${styles.detailPage}`}>
       <div className="page-header">
-        <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "4px", minWidth: 0 }}>
           <h1>{t("bookings.details")}</h1>
           <span style={{ fontSize: "0.8125rem", color: "var(--text-tertiary)" }}>ID: {booking.id}</span>
         </div>
-        <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+        <div className={styles.detailTopRow}>
           <Badge color={getStatusColor(booking.status)} bg={getStatusBg(booking.status)} dot>
             {formatStatusT(booking.status)}
           </Badge>
@@ -125,12 +126,12 @@ export default function BookingDetailClient({ booking }: { booking: any }) {
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: "24px" }}>
+      <div className={styles.detailMainGrid}>
         
         {/* Left Col */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "24px", minWidth: 0 }}>
           
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "24px" }}>
+          <div className={styles.detailCardsGrid}>
             <Card padding="lg" hover onClick={() => router.push(`/customers/${booking.customerId}`)}>
               <h3 style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "16px", paddingBottom: "8px", borderBottom: "1px solid var(--border)" }}>
                 <User size={16} /> {t("bookings.broker")}
@@ -186,7 +187,7 @@ export default function BookingDetailClient({ booking }: { booking: any }) {
               )}
             </div>
             
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "var(--bg-tertiary)", padding: "16px", borderRadius: "8px" }}>
+            <div className={styles.detailPickupRow}>
               <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
                 <span style={{ fontSize: "0.75rem", color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "1px", fontWeight: 600 }}>{t("bookings.pickup")}</span>
                 <span style={{ fontWeight: 600, fontSize: "1.125rem" }}>{formatDate(booking.startDate)}</span>
@@ -235,7 +236,7 @@ export default function BookingDetailClient({ booking }: { booking: any }) {
           )}
 
           {/* Driver Info */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "24px" }}>
+          <div className={styles.detailDriversGrid}>
             <Card padding="lg">
               <h3 style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "16px", paddingBottom: "8px", borderBottom: "1px solid var(--border)" }}>
                 <User size={16} /> {t("bookings.primaryDriver")}
@@ -282,7 +283,7 @@ export default function BookingDetailClient({ booking }: { booking: any }) {
         </div>
 
         {/* Right Col */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+        <div className={styles.detailRightCol}>
           
           <Card padding="lg">
             <h3 style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "16px", paddingBottom: "8px", borderBottom: "1px solid var(--border)" }}>

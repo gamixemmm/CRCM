@@ -4,11 +4,14 @@ import { useMemo, useState } from "react";
 import { Car, CheckCircle2, ClipboardCheck, XCircle, Clock3, AlertTriangle, Search, Filter } from "lucide-react";
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
+import Card from "@/components/ui/Card";
 import Modal from "@/components/ui/Modal";
 import Table from "@/components/ui/Table";
 import { useToast } from "@/components/ui/Toast";
+import { useSettings } from "@/lib/SettingsContext";
 import { formatDate } from "@/lib/utils";
 import { completeTechnicalInspection } from "@/actions/technicalInspections";
+import styles from "./technical-inspection.module.css";
 
 type VehicleRow = {
   id: string;
@@ -56,6 +59,7 @@ function startOfToday() {
 
 export default function TechnicalInspectionClient({ vehicles }: { vehicles: VehicleRow[] }) {
   const { toast } = useToast();
+  const { t } = useSettings();
   const [selectedVehicle, setSelectedVehicle] = useState<EnrichedVehicle | null>(null);
   const [interval, setInterval] = useState<"6m" | "1y" | "custom">("1y");
   const [customDate, setCustomDate] = useState("");
@@ -119,11 +123,11 @@ export default function TechnicalInspectionClient({ vehicles }: { vehicles: Vehi
   }, [vehicleStatus, search, statusFilter]);
 
   const statusOptions = [
-    { value: "all", label: "All" },
-    { value: "overdue", label: "Overdue" },
-    { value: "dueSoon", label: "Due Soon" },
-    { value: "ok", label: "Up to Date" },
-    { value: "missing", label: "Missing" },
+    { value: "all", label: t("label.all") },
+    { value: "overdue", label: t("technicalInspection.overdue") },
+    { value: "dueSoon", label: t("technicalInspection.dueSoon") },
+    { value: "ok", label: t("technicalInspection.upToDate") },
+    { value: "missing", label: t("technicalInspection.missing") },
   ] as const;
 
   const openCompleteModal = (vehicle: EnrichedVehicle) => {
@@ -144,12 +148,12 @@ export default function TechnicalInspectionClient({ vehicles }: { vehicles: Vehi
     if (!selectedVehicle) return;
     const nextDueDate = getNextDueDate();
     if (!nextDueDate) {
-      toast("Please choose a next checkup date", "error");
+      toast(t("technicalInspection.chooseNextDate"), "error");
       return;
     }
     const parsedCost = cost.trim() ? Number(cost) : 0;
     if (Number.isNaN(parsedCost) || parsedCost < 0) {
-      toast("Please enter a valid amount", "error");
+      toast(t("expenses.invalidAmount"), "error");
       return;
     }
 
@@ -173,21 +177,21 @@ export default function TechnicalInspectionClient({ vehicles }: { vehicles: Vehi
 
   const renderStatus = (vehicle: EnrichedVehicle) => {
     if (vehicle.status === "missing") {
-      return <Badge variant="warning" icon={<AlertTriangle size={12} />}>No registration date</Badge>;
+      return <Badge variant="warning" icon={<AlertTriangle size={12} />}>{t("technicalInspection.noRegistrationDate")}</Badge>;
     }
     if (vehicle.status === "overdue") {
-      return <Badge variant="danger" icon={<XCircle size={12} />}>Overdue</Badge>;
+      return <Badge variant="danger" icon={<XCircle size={12} />}>{t("technicalInspection.overdue")}</Badge>;
     }
     if (vehicle.status === "dueSoon") {
-      return <Badge variant="warning" icon={<Clock3 size={12} />}>Due in {vehicle.daysUntilDue} days</Badge>;
+      return <Badge variant="warning" icon={<Clock3 size={12} />}>{t("technicalInspection.dueIn")} {vehicle.daysUntilDue} {t("label.days")}</Badge>;
     }
-    return <Badge variant="success" icon={<CheckCircle2 size={12} />}>Up to date</Badge>;
+    return <Badge variant="success" icon={<CheckCircle2 size={12} />}>{t("technicalInspection.upToDate")}</Badge>;
   };
 
   const columns = [
     {
       key: "vehicle",
-      label: "Vehicle",
+      label: t("expenses.vehicle"),
       render: (v: EnrichedVehicle) => (
         <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
           <div style={{ width: "40px", height: "40px", background: "var(--bg-tertiary)", borderRadius: "8px", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--accent)" }}>
@@ -202,92 +206,121 @@ export default function TechnicalInspectionClient({ vehicles }: { vehicles: Vehi
     },
     {
       key: "registration",
-      label: "Registration Date",
+      label: t("technicalInspection.registrationDate"),
       render: (v: EnrichedVehicle) => v.circulationDate ? formatDate(v.circulationDate) : "-",
     },
     {
       key: "lastInspection",
-      label: "Last Checkup",
+      label: t("technicalInspection.lastCheckup"),
       render: (v: EnrichedVehicle) => v.lastInspectionDate ? formatDate(v.lastInspectionDate) : "-",
     },
     {
       key: "nextDue",
-      label: "Next Checkup",
+      label: t("technicalInspection.nextCheckup"),
       render: (v: EnrichedVehicle) => v.nextDueDate ? formatDate(v.nextDueDate) : "-",
     },
     {
       key: "status",
-      label: "Status",
+      label: t("label.status"),
       render: renderStatus,
     },
     {
       key: "actions",
-      label: "Actions",
+      label: t("label.actions"),
       align: "right" as const,
       render: (v: EnrichedVehicle) => (
         <Button size="sm" variant="secondary" icon={<CheckCircle2 size={14} />} onClick={() => openCompleteModal(v)}>
-          Checkup Done
+          {t("technicalInspection.checkupDone")}
         </Button>
       ),
     },
   ];
 
+  const mobileCards = filteredVehicles.map((v) => (
+    <Card
+      key={v.id}
+      hover
+      padding="md"
+      className={styles.mobileCard}
+      onClick={() => openCompleteModal(v)}
+    >
+      <div className={styles.mobileCardTop}>
+        <div className={styles.mobileVehicle}>
+          <div className={styles.mobileVehicleName}>{v.brand} {v.model}</div>
+          <div className={styles.mobileVehiclePlate}>{v.plateNumber}</div>
+        </div>
+        {renderStatus(v)}
+      </div>
+      <div className={styles.mobileMetaGrid}>
+        <div className={styles.mobileMetaItem}>
+          <span className={styles.mobileMetaLabel}>{t("technicalInspection.nextCheckup")}</span>
+          <span className={styles.mobileMetaValue}>{v.nextDueDate ? formatDate(v.nextDueDate) : "-"}</span>
+        </div>
+        <div className={styles.mobileMetaItem}>
+          <span className={styles.mobileMetaLabel}>{t("technicalInspection.lastCheckup")}</span>
+          <span className={styles.mobileMetaValue}>{v.lastInspectionDate ? formatDate(v.lastInspectionDate) : "-"}</span>
+        </div>
+      </div>
+      <div className={styles.mobileFooter} onClick={(e) => e.stopPropagation()}>
+        <div style={{ color: "var(--text-tertiary)", fontSize: "0.8125rem" }}>
+          {v.circulationDate ? `${t("technicalInspection.registrationDate")}: ${formatDate(v.circulationDate)}` : "-"}
+        </div>
+        <div className={styles.mobileActions}>
+          <Button size="sm" variant="secondary" icon={<CheckCircle2 size={14} />} onClick={() => openCompleteModal(v)}>
+            {t("technicalInspection.checkupDone")}
+          </Button>
+        </div>
+      </div>
+    </Card>
+  ));
+
   return (
     <div className="animate-fade-in">
-      <div className="page-header">
+      <div className={`page-header ${styles.pageHeader}`}>
         <h1>
           <ClipboardCheck size={24} />
-          La Visite Technique
+          {t("nav.technicalInspection")}
         </h1>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "16px", marginBottom: "24px" }}>
-        <div style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)", borderRadius: "12px", padding: "18px" }}>
-          <div style={{ color: "var(--text-secondary)", fontSize: "0.875rem" }}>Total Vehicles</div>
+      <div className={styles.statsGrid}>
+        <div className={styles.statCard}>
+          <div style={{ color: "var(--text-secondary)", fontSize: "0.875rem" }}>{t("dashboard.totalVehicles")}</div>
           <div style={{ fontSize: "1.75rem", fontWeight: 800 }}>{stats.total}</div>
         </div>
-        <div style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)", borderRadius: "12px", padding: "18px" }}>
-          <div style={{ color: "var(--danger)", fontSize: "0.875rem" }}>Overdue</div>
+        <div className={styles.statCard}>
+          <div style={{ color: "var(--danger)", fontSize: "0.875rem" }}>{t("technicalInspection.overdue")}</div>
           <div style={{ fontSize: "1.75rem", fontWeight: 800, color: "var(--danger)" }}>{stats.overdue}</div>
         </div>
-        <div style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)", borderRadius: "12px", padding: "18px" }}>
-          <div style={{ color: "var(--warning)", fontSize: "0.875rem" }}>Due Within 10 Days</div>
+        <div className={styles.statCard}>
+          <div style={{ color: "var(--warning)", fontSize: "0.875rem" }}>{t("technicalInspection.dueWithin10")}</div>
           <div style={{ fontSize: "1.75rem", fontWeight: 800, color: "var(--warning)" }}>{stats.dueSoon}</div>
         </div>
-        <div style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)", borderRadius: "12px", padding: "18px" }}>
-          <div style={{ color: "var(--success)", fontSize: "0.875rem" }}>Up to Date</div>
+        <div className={styles.statCard}>
+          <div style={{ color: "var(--success)", fontSize: "0.875rem" }}>{t("technicalInspection.upToDate")}</div>
           <div style={{ fontSize: "1.75rem", fontWeight: 800, color: "var(--success)" }}>{stats.ok}</div>
         </div>
       </div>
 
-      <div style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)", borderRadius: "12px", padding: "14px", marginBottom: "20px", display: "flex", flexWrap: "wrap", gap: "12px", alignItems: "center" }}>
-        <div style={{ position: "relative", flex: 1, minWidth: "220px" }}>
+      <div className={styles.filterBar}>
+        <div className={styles.searchWrap}>
           <Search size={16} style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "var(--text-tertiary)" }} />
           <input
             type="search"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search vehicle or plate"
-            style={{ width: "100%", height: "40px", padding: "0 12px 0 38px", background: "var(--bg-primary)", border: "1px solid var(--border)", borderRadius: "8px", color: "var(--text-primary)" }}
+            placeholder={t("technicalInspection.searchPlaceholder")}
+            className={styles.searchInput}
           />
         </div>
-        <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center" }}>
+        <div className={styles.statusRow}>
           <Filter size={14} style={{ color: "var(--text-tertiary)" }} />
           {statusOptions.map((option) => (
             <button
               key={option.value}
               type="button"
               onClick={() => setStatusFilter(option.value)}
-              style={{
-                padding: "8px 12px",
-                borderRadius: "8px",
-                border: `1px solid ${statusFilter === option.value ? "var(--accent)" : "var(--border)"}`,
-                background: statusFilter === option.value ? "var(--accent-muted)" : "var(--bg-primary)",
-                color: statusFilter === option.value ? "var(--accent)" : "var(--text-secondary)",
-                fontSize: "0.8125rem",
-                fontWeight: 700,
-                cursor: "pointer",
-              }}
+              className={`${styles.statusButton} ${statusFilter === option.value ? styles.statusButtonActive : ""}`}
             >
               {option.label}
             </button>
@@ -295,30 +328,37 @@ export default function TechnicalInspectionClient({ vehicles }: { vehicles: Vehi
         </div>
       </div>
 
-      <Table
-        columns={columns}
-        data={filteredVehicles}
-        keyExtractor={(v) => v.id}
-        emptyMessage="No vehicles found."
-      />
+      <div className={styles.desktopTable}>
+        <Table columns={columns} data={filteredVehicles} keyExtractor={(v) => v.id} emptyMessage={t("vehicles.noVehicles")} />
+      </div>
+
+      <div className={styles.mobileList}>
+        {mobileCards}
+        {filteredVehicles.length === 0 && (
+          <div className={`empty-state ${styles.mobileEmpty}`}>
+            <ClipboardCheck size={44} />
+            <h3>{t("vehicles.noVehicles")}</h3>
+          </div>
+        )}
+      </div>
 
       <Modal
         isOpen={!!selectedVehicle}
         onClose={() => setSelectedVehicle(null)}
-        title="Checkup Done"
+        title={t("technicalInspection.checkupDone")}
         size="sm"
       >
-        <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+        <div className={styles.modalForm}>
           <p>
-            Choose the next technical inspection date for{" "}
+            {t("technicalInspection.chooseNextFor")}{" "}
             <strong>{selectedVehicle?.brand} {selectedVehicle?.model}</strong>.
           </p>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "8px" }}>
+          <div className={styles.modalButtons}>
             {[
-              { value: "6m", label: "6 months" },
-              { value: "1y", label: "1 year" },
-              { value: "custom", label: "Custom" },
+              { value: "6m", label: t("insurance.sixMonths") },
+              { value: "1y", label: t("insurance.oneYear") },
+              { value: "custom", label: t("insurance.custom") },
             ].map((option) => (
               <button
                 key={option.value}
@@ -340,45 +380,45 @@ export default function TechnicalInspectionClient({ vehicles }: { vehicles: Vehi
           </div>
 
           {interval === "custom" && (
-            <div>
-              <label style={{ display: "block", marginBottom: "8px", fontSize: "0.875rem", fontWeight: 500, color: "var(--text-secondary)" }}>Custom next checkup date</label>
+            <div className={styles.modalField}>
+              <label className={styles.modalLabel}>{t("technicalInspection.customNextDate")}</label>
               <input
                 type="date"
                 value={customDate}
                 onChange={(e) => setCustomDate(e.target.value)}
-                style={{ width: "100%", height: "40px", padding: "0 12px", background: "var(--bg-secondary)", border: "1px solid var(--border)", borderRadius: "8px", color: "var(--text-primary)" }}
+                className={styles.modalInput}
               />
             </div>
           )}
 
-          <div>
-            <label style={{ display: "block", marginBottom: "8px", fontSize: "0.875rem", fontWeight: 500, color: "var(--text-secondary)" }}>Amount spent optional</label>
+          <div className={styles.modalField}>
+            <label className={styles.modalLabel}>{t("insurance.amountSpentOptional")}</label>
             <input
               type="number"
               min="0"
               step="0.01"
               value={cost}
               onChange={(e) => setCost(e.target.value)}
-              placeholder="Leave empty if no expense"
-              style={{ width: "100%", height: "40px", padding: "0 12px", background: "var(--bg-secondary)", border: "1px solid var(--border)", borderRadius: "8px", color: "var(--text-primary)" }}
+              placeholder={t("insurance.noExpensePlaceholder")}
+              className={styles.modalInput}
             />
           </div>
 
-          <div>
-            <label style={{ display: "block", marginBottom: "8px", fontSize: "0.875rem", fontWeight: 500, color: "var(--text-secondary)" }}>Notes optional</label>
+          <div className={styles.modalField}>
+            <label className={styles.modalLabel}>{t("insurance.notesOptional")}</label>
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              style={{ width: "100%", minHeight: "80px", padding: "12px", background: "var(--bg-secondary)", border: "1px solid var(--border)", borderRadius: "8px", color: "var(--text-primary)", resize: "vertical" }}
+              className={styles.modalTextarea}
             />
           </div>
 
-          <div style={{ display: "flex", justifyContent: "flex-end", gap: "12px" }}>
+          <div className={styles.modalFooter}>
             <Button type="button" variant="ghost" onClick={() => setSelectedVehicle(null)}>
-              Cancel
+              {t("action.cancel")}
             </Button>
             <Button type="button" loading={loading} onClick={handleComplete}>
-              Save
+              {t("action.save")}
             </Button>
           </div>
         </div>

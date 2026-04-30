@@ -21,6 +21,7 @@ import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
 import { formatDate, formatStatus, getStatusColor, getStatusBg, getFullName } from "@/lib/utils";
+import { translateMaintenanceText } from "@/lib/maintenanceDetails";
 import styles from "./dashboard.module.css";
 
 interface BookingRow {
@@ -290,7 +291,7 @@ export default function DashboardClient({
                       {t("dashboard.toShop")}: {m.vehicle.brand} {m.vehicle.model}
                     </span>
                     <span className={styles.activitySub}>
-                      {m.description}
+                      {translateMaintenanceText(m.description, t)}
                     </span>
                   </div>
                   <Badge variant="warning" size="sm">{getDayLabel(m.serviceDate)}</Badge>
@@ -304,7 +305,7 @@ export default function DashboardClient({
                       {t("dashboard.fromShop")}: {m.vehicle.brand} {m.vehicle.model}
                     </span>
                     <span className={styles.activitySub}>
-                      {m.description}
+                      {translateMaintenanceText(m.description, t)}
                     </span>
                   </div>
                   <Badge variant="success" size="sm">{getDayLabel(m.returnDate)}</Badge>

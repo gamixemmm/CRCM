@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { requireCompanyAdminAccess } from "@/actions/companyAuth";
 import { requireCompanyId } from "@/lib/company";
 import { canPerform } from "@/lib/permissions";
+import { logAuditAction } from "@/lib/audit";
 
 interface EmployeeInput {
   firstName: string;
@@ -106,6 +107,13 @@ export async function createEmployee(input: EmployeeInput) {
 
     revalidatePath("/employees");
     revalidatePath("/");
+    await logAuditAction({
+      actor: session,
+      action: "CREATE_EMPLOYEE",
+      entityType: "Employee",
+      entityId: employee.id,
+      message: `${session.name} created employee ${getEmployeeName(employee)}`,
+    });
     return { success: true, message: "Employee added", data: employee };
   } catch (error) {
     console.error("Failed to create employee", error);
@@ -149,10 +157,55 @@ export async function updateEmployee(id: string, input: EmployeeInput) {
 
     revalidatePath("/employees");
     revalidatePath("/");
+    await logAuditAction({
+      actor: session,
+      action: "UPDATE_EMPLOYEE",
+      entityType: "Employee",
+      entityId: employee.id,
+      message: `${session.name} updated employee ${getEmployeeName(employee)}`,
+    });
     return { success: true, message: "Employee updated", data: employee };
   } catch (error) {
     console.error("Failed to update employee", error);
     return { success: false, message: "Failed to update employee" };
+  }
+}
+
+export async function deleteEmployee(id: string) {
+  try {
+    const session = await requireCompanyAdminAccess();
+    if (!canPerform(session, ["MANAGE_EMPLOYEES"])) {
+      return { success: false, message: "You do not have permission to manage employees." };
+    }
+
+    const companyId = await requireCompanyId();
+    const employee = await prisma.employee.findFirst({
+      where: { id, companyId },
+      include: { account: true },
+    });
+
+    if (!employee) return { success: false, message: "Employee not found" };
+
+    await prisma.$transaction(async (tx) => {
+      if (employee.account) {
+        await tx.employeeAccount.delete({ where: { id: employee.account.id } });
+      }
+      await tx.employee.delete({ where: { id } });
+    });
+
+    revalidatePath("/employees");
+    revalidatePath("/");
+    await logAuditAction({
+      actor: session,
+      action: "DELETE_EMPLOYEE",
+      entityType: "Employee",
+      entityId: id,
+      message: `${session.name} deleted employee ${getEmployeeName(employee)}`,
+    });
+    return { success: true, message: "Employee deleted" };
+  } catch (error) {
+    console.error("Failed to delete employee", error);
+    return { success: false, message: "Failed to delete employee" };
   }
 }
 
@@ -183,7 +236,7 @@ export async function confirmEmployeeSalary(employeeId: string, status: "PAID" |
             date: paidAt!,
             category: "Salaire",
             amount: salary,
-            description: `Salary payment - ${getEmployeeName(employee)} - ${month}/${year}`,
+            description: `Paiement salaire - ${getEmployeeName(employee)} - ${month}/${year}`,
           },
         });
         expenseId = expense.id;
@@ -220,6 +273,14 @@ export async function confirmEmployeeSalary(employeeId: string, status: "PAID" |
     revalidatePath("/employees");
     revalidatePath("/expenses");
     revalidatePath("/");
+    await logAuditAction({
+      actor: session,
+      action: status === "PAID" ? "PAY_SALARY" : "MARK_SALARY_UNPAID",
+      entityType: "EmployeeSalaryPayment",
+      entityId: result.id,
+      message: `${session.name} ${status === "PAID" ? "confirmed salary payment for" : "marked salary unpaid for"} ${getEmployeeName(employee)}`,
+      metadata: { employeeId, amount: salary, month, year, expenseId: result.expenseId },
+    });
     return { success: true, message: status === "PAID" ? "Salary marked paid" : "Salary marked unpaid", data: result };
   } catch (error) {
     console.error("Failed to confirm salary", error);
@@ -251,6 +312,14 @@ export async function createEmployeeRole(name: string, permissions: string[] = [
     });
     revalidatePath("/settings");
     revalidatePath("/employees");
+    await logAuditAction({
+      actor: session,
+      action: "CREATE_EMPLOYEE_ROLE",
+      entityType: "EmployeeRole",
+      entityId: role.id,
+      message: `${session.name} created employee role ${trimmed}`,
+      metadata: { permissions },
+    });
     return { success: true, message: "Role added", data: role };
   } catch (error) {
     console.error("Failed to create employee role", error);
@@ -271,6 +340,14 @@ export async function updateEmployeeRole(id: string, name: string, permissions: 
     const role = await prisma.employeeRole.update({ where: { id }, data: { name: trimmed, permissions } });
     revalidatePath("/settings");
     revalidatePath("/employees");
+    await logAuditAction({
+      actor: session,
+      action: "UPDATE_EMPLOYEE_ROLE",
+      entityType: "EmployeeRole",
+      entityId: role.id,
+      message: `${session.name} updated employee role ${trimmed}`,
+      metadata: { permissions },
+    });
     return { success: true, message: "Role updated", data: role };
   } catch (error) {
     console.error("Failed to update employee role", error);
@@ -297,6 +374,13 @@ export async function deleteEmployeeRole(id: string) {
 
     revalidatePath("/settings");
     revalidatePath("/employees");
+    await logAuditAction({
+      actor: session,
+      action: "DELETE_EMPLOYEE_ROLE",
+      entityType: "EmployeeRole",
+      entityId: id,
+      message: `${session.name} deleted employee role ${current.name}`,
+    });
     return { success: true, message: "Role deleted" };
   } catch (error) {
     console.error("Failed to delete employee role", error);

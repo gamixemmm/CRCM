@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { requireCompanyId } from "@/lib/company";
 import { canPerform } from "@/lib/permissions";
 import { requireCompanyAdminAccess } from "@/actions/companyAuth";
+import { logAuditAction } from "@/lib/audit";
 
 // ─── Types ───────────────────────────────────────────────────────
 interface VehicleInput {
@@ -231,6 +232,13 @@ export async function createVehicle(input: VehicleInput): Promise<ActionResult> 
 
     revalidatePath("/vehicles");
     revalidatePath("/");
+    await logAuditAction({
+      actor: session,
+      action: "CREATE_VEHICLE",
+      entityType: "Vehicle",
+      entityId: vehicle.id,
+      message: `${session.name} created vehicle ${vehicle.plateNumber}`,
+    });
 
     return { success: true, message: "Vehicle added successfully", data: vehicle };
   } catch (error) {
@@ -290,6 +298,13 @@ export async function updateVehicle(id: string, input: Partial<VehicleInput>): P
     revalidatePath("/vehicles");
     revalidatePath(`/vehicles/${id}`);
     revalidatePath("/");
+    await logAuditAction({
+      actor: session,
+      action: "UPDATE_VEHICLE",
+      entityType: "Vehicle",
+      entityId: vehicle.id,
+      message: `${session.name} updated vehicle ${vehicle.plateNumber}`,
+    });
 
     return { success: true, message: "Vehicle updated successfully", data: vehicle };
   } catch (error) {
@@ -322,10 +337,17 @@ export async function deleteVehicle(id: string): Promise<ActionResult> {
       };
     }
 
-    await prisma.vehicle.delete({ where: { id } });
+    const vehicle = await prisma.vehicle.delete({ where: { id } });
 
     revalidatePath("/vehicles");
     revalidatePath("/");
+    await logAuditAction({
+      actor: session,
+      action: "DELETE_VEHICLE",
+      entityType: "Vehicle",
+      entityId: id,
+      message: `${session.name} deleted vehicle ${vehicle.plateNumber}`,
+    });
 
     return { success: true, message: "Vehicle deleted successfully" };
   } catch (error) {

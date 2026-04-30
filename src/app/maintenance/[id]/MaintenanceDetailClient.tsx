@@ -10,7 +10,8 @@ import { updateMaintenance } from "@/actions/maintenance";
 import { useSettings } from "@/lib/SettingsContext";
 import { useToast } from "@/components/ui/Toast";
 import { formatDate } from "@/lib/utils";
-import { parseMaintenanceDetails } from "@/lib/maintenanceDetails";
+import { parseMaintenanceDetails, translateMaintenanceText, translateMaintenanceValue } from "@/lib/maintenanceDetails";
+import styles from "../maintenance.module.css";
 
 export default function MaintenanceDetailClient({ log }: { log: any }) {
   const router = useRouter();
@@ -52,10 +53,10 @@ export default function MaintenanceDetailClient({ log }: { log: any }) {
   };
 
   return (
-    <div className="animate-fade-in" style={{ maxWidth: "980px" }}>
-      <div className="page-header">
+    <div className={`animate-fade-in ${styles.detailPage}`}>
+      <div className={`page-header ${styles.detailHeader}`}>
         <h1>{t("maintenance.title")}</h1>
-        <div className="page-header-actions">
+        <div className={styles.detailActions}>
           <Button variant="ghost" icon={<ArrowLeft size={16} />} onClick={() => router.back()}>{t("action.back")}</Button>
           {editing ? (
             <Button icon={<Save size={16} />} loading={saving} onClick={save}>{t("action.save")}</Button>
@@ -65,7 +66,7 @@ export default function MaintenanceDetailClient({ log }: { log: any }) {
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "18px", marginBottom: "18px" }}>
+      <div className={styles.detailTopGrid}>
         <Card padding="lg">
           <h3 style={{ marginBottom: "16px" }}>{t("bookings.vehicle")}</h3>
           <div style={{ display: "grid", gap: "8px" }}>
@@ -87,12 +88,12 @@ export default function MaintenanceDetailClient({ log }: { log: any }) {
       <Card padding="lg">
         {!editing && detailGroups.length > 0 && (
           <div style={{ marginBottom: "18px" }}>
-            <h3 style={{ marginBottom: "12px" }}>Services & components</h3>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "12px" }}>
+            <h3 style={{ marginBottom: "12px" }}>{t("maintenance.servicesComponents")}</h3>
+            <div className={styles.detailCardGrid}>
               {detailGroups.map((group) => (
                 <div key={group.intervention} style={{ padding: "14px", border: "1px solid var(--border)", borderRadius: "8px", background: "var(--bg-primary)" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", gap: "10px", marginBottom: "10px" }}>
-                    <strong style={{ color: "var(--accent)" }}>{group.intervention}</strong>
+                    <strong style={{ color: "var(--accent)" }}>{translateMaintenanceValue(group.intervention, t)}</strong>
                     {group.cost !== undefined && (
                       <span style={{ fontWeight: 800 }}>{formatPrice(group.cost)}</span>
                     )}
@@ -101,19 +102,19 @@ export default function MaintenanceDetailClient({ log }: { log: any }) {
                     <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
                       {group.items.map((item) => (
                         <span key={item} style={{ padding: "5px 8px", borderRadius: "999px", border: "1px solid var(--border)", background: "var(--bg-secondary)", fontSize: "0.78rem", fontWeight: 600 }}>
-                          {item}
+                          {translateMaintenanceValue(item, t)}
                         </span>
                       ))}
                     </div>
                   ) : (
-                    <span style={{ color: "var(--text-secondary)", fontSize: "0.875rem" }}>No components selected</span>
+                    <span style={{ color: "var(--text-secondary)", fontSize: "0.875rem" }}>{t("maintenance.noComponents")}</span>
                   )}
                 </div>
               ))}
             </div>
           </div>
         )}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "16px" }}>
+        <div className={styles.detailInfoGrid}>
           {editing ? (
             <>
               <Input label={t("maintenance.serviceDate")} type="date" value={form.serviceDate} onChange={(e) => setForm({ ...form, serviceDate: e.target.value })} />
@@ -132,12 +133,12 @@ export default function MaintenanceDetailClient({ log }: { log: any }) {
             <>
               <Info label={t("maintenance.serviceDate")} value={formatDate(log.serviceDate)} />
               <Info label={t("bookings.returnDate")} value={log.returnDate ? formatDate(log.returnDate) : t("maintenance.stillInShop")} />
-              <Info label={t("maintenance.interventionType")} value={log.type} />
+              <Info label={t("maintenance.interventionType")} value={translateMaintenanceText(log.type, t)} />
               <Info label={t("maintenance.shopName")} value={log.serviceProvider || "-"} />
               <Info label={t("vehicles.mileage")} value={`${(log.mileageAtService || 0).toLocaleString()} km`} />
-              <Info label={t("maintenance.serviceDesc")} value={log.description || "-"} />
+              <Info label={t("maintenance.serviceDesc")} value={log.description ? translateMaintenanceText(log.description, t) : "-"} />
               {detailGroups.length === 0 && (
-                <Info label={t("maintenance.partsUsed")} value={log.partsUsed?.length ? log.partsUsed.join(", ") : "-"} wide />
+                <Info label={t("maintenance.partsUsed")} value={log.partsUsed?.length ? log.partsUsed.map((item: string) => translateMaintenanceText(item, t)).join(", ") : "-"} wide />
               )}
               <Info label={t("maintenance.secondaryNotes")} value={log.notes || "-"} wide />
             </>

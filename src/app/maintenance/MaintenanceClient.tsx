@@ -1,6 +1,5 @@
 "use client";
 import { useSettings } from "@/lib/SettingsContext";
-
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -8,10 +7,12 @@ import { Wrench, Plus, Search, CheckCircle, Car, XCircle, Trash2 } from "lucide-
 import Button from "@/components/ui/Button";
 import Badge from "@/components/ui/Badge";
 import Table from "@/components/ui/Table";
+import Card from "@/components/ui/Card";
 import { useToast } from "@/components/ui/Toast";
 import { formatDate } from "@/lib/utils";
-import { formatMaintenanceEntries } from "@/lib/maintenanceDetails";
+import { formatMaintenanceEntries, translateMaintenanceText } from "@/lib/maintenanceDetails";
 import { resolveMaintenance, unresolveMaintenance, deleteMaintenance } from "@/actions/maintenance";
+import styles from "./maintenance.module.css";
 
 const statusFilters = ["ALL", "ACTIVE", "COMPLETED"];
 
@@ -109,11 +110,11 @@ export default function MaintenanceClient({ logs }: MaintenanceClientProps) {
       label: t("maintenance.serviceDesc"),
       render: (log: any) => (
         <div style={{ display: "flex", flexDirection: "column" }}>
-          <span style={{ fontWeight: 600, color: "var(--accent)" }}>{log.type}</span>
-          <span style={{ fontWeight: 500 }}>{log.description}</span>
+          <span style={{ fontWeight: 600, color: "var(--accent)" }}>{translateMaintenanceText(log.type, t)}</span>
+          <span style={{ fontWeight: 500 }}>{translateMaintenanceText(log.description, t)}</span>
           {log.partsUsed && log.partsUsed.length > 0 && (
             <span style={{ fontSize: "0.75rem", color: "var(--text-secondary)", marginTop: "4px" }}>
-              {t("maintenance.parts")} {formatMaintenanceEntries(log.partsUsed, "")}
+              {t("maintenance.parts")} {formatMaintenanceEntries(log.partsUsed, "", t)}
             </span>
           )}
           {log.serviceProvider && (
@@ -201,47 +202,98 @@ export default function MaintenanceClient({ logs }: MaintenanceClientProps) {
     },
   ];
 
+  const mobileCards = filtered.map((log) => {
+    const isActive = !log.returnDate;
+    return (
+      <Card
+        key={log.id}
+        hover
+        padding="md"
+        className={styles.mobileCard}
+        onClick={() => router.push(`/maintenance/${log.id}`)}
+      >
+        <div className={styles.mobileCardTop}>
+          <div className={styles.mobileVehicle}>
+            <div className={styles.mobileVehicleName}>{log.vehicle.brand} {log.vehicle.model}</div>
+            <div className={styles.mobileVehiclePlate}>{log.vehicle.plateNumber}</div>
+          </div>
+          <Badge color={!isActive ? "var(--success)" : "var(--warning)"} bg={!isActive ? "rgba(34, 197, 94, 0.1)" : "rgba(234, 179, 8, 0.1)"} dot>
+            {!isActive ? t("status.completed").toUpperCase() : t("status.active").toUpperCase()}
+          </Badge>
+        </div>
+        <div style={{ fontWeight: 700, color: "var(--accent)" }}>{translateMaintenanceText(log.type, t)}</div>
+        <div style={{ fontSize: "0.875rem", color: "var(--text-secondary)" }}>{translateMaintenanceText(log.description, t)}</div>
+        <div className={styles.mobileMetaGrid}>
+          <div className={styles.mobileMetaItem}>
+            <span className={styles.mobileMetaLabel}>{t("maintenance.in")}</span>
+            <span className={styles.mobileMetaValue}>{formatDate(log.serviceDate)}</span>
+          </div>
+          <div className={styles.mobileMetaItem}>
+            <span className={styles.mobileMetaLabel}>{t("maintenance.out")}</span>
+            <span className={styles.mobileMetaValue}>{log.returnDate ? formatDate(log.returnDate) : t("maintenance.stillInShop")}</span>
+          </div>
+          <div className={styles.mobileMetaItem}>
+            <span className={styles.mobileMetaLabel}>{t("maintenance.repairCost")}</span>
+            <span className={styles.mobileMetaValue}>{formatCurrency(log.cost)}</span>
+          </div>
+          <div className={styles.mobileMetaItem}>
+            <span className={styles.mobileMetaLabel}>{t("label.actions")}</span>
+            <span className={styles.mobileMetaValue}>{t("action.view")}</span>
+          </div>
+        </div>
+        <div className={styles.mobileFooter} onClick={(e) => e.stopPropagation()}>
+          <div style={{ color: "var(--text-tertiary)", fontSize: "0.8125rem" }}>
+            {log.serviceProvider ? `${t("maintenance.by")} ${log.serviceProvider}` : ""}
+          </div>
+          <div className={styles.mobileActions}>
+            {!isActive ? (
+              <Button size="sm" variant="secondary" loading={resolving === log.id} icon={<XCircle size={14} />} onClick={(e) => handleUnresolve(log.id, e)}>
+                {t("maintenance.unresolve")}
+              </Button>
+            ) : (
+              <Button size="sm" variant="success" loading={resolving === log.id} icon={<CheckCircle size={14} />} onClick={(e) => handleResolve(log.id, e)}>
+                {t("maintenance.resolve")}
+              </Button>
+            )}
+            <Button size="sm" variant="danger" loading={resolving === log.id} icon={<Trash2 size={14} />} onClick={(e) => handleDelete(log.id, e)} />
+          </div>
+        </div>
+      </Card>
+    );
+  });
+
   return (
     <div className="animate-fade-in">
-      <div className="page-header">
+      <div className={`page-header ${styles.pageHeader}`}>
         <h1>
           <Wrench size={24} />
           {t("maintenance.title")}
         </h1>
-        <div className="page-header-actions">
+        <div className={styles.detailActions}>
           <Link href="/maintenance/new">
             <Button icon={<Plus size={16} />}>{t("maintenance.addRecord")}</Button>
           </Link>
         </div>
       </div>
 
-      <div style={{ display: "flex", gap: "16px", marginBottom: "24px", flexWrap: "wrap" }}>
-        <div style={{ position: "relative", flex: 1, minWidth: "250px", maxWidth: "400px" }}>
+      <div className={styles.toolbar}>
+        <div className={styles.searchWrap}>
           <Search size={16} style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "var(--text-tertiary)" }} />
           <input
             type="text"
             placeholder={t("maintenance.searchPlaceholder")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            style={{ width: "100%", height: "40px", padding: "0 12px 0 36px", background: "var(--bg-secondary)", border: "1px solid var(--border)", borderRadius: "8px", color: "var(--text-primary)" }}
+            className={styles.searchInput}
           />
         </div>
 
-        <div style={{ display: "flex", gap: "4px", flexWrap: "wrap", alignItems: "center" }}>
+        <div className={styles.filterRow}>
           {statusFilters.map((s) => (
             <button
               key={s}
               onClick={() => setStatusFilter(s)}
-              style={{
-                padding: "6px 14px",
-                background: statusFilter === s ? "var(--accent-muted)" : "transparent",
-                color: statusFilter === s ? "var(--accent)" : "var(--text-secondary)",
-                border: `1px solid ${statusFilter === s ? "var(--accent)" : "var(--border)"}`,
-                borderRadius: "20px",
-                fontSize: "0.75rem",
-                fontWeight: 600,
-                cursor: "pointer",
-              }}
+              className={`${styles.filterButton} ${statusFilter === s ? styles.filterButtonActive : ""}`}
             >
               {s === "ALL" ? t("label.all") : formatStatusT(s)}
             </button>
@@ -249,13 +301,25 @@ export default function MaintenanceClient({ logs }: MaintenanceClientProps) {
         </div>
       </div>
 
-      <Table
-        columns={columns}
-        data={filtered}
-        keyExtractor={(log) => log.id}
-        onRowClick={(log) => router.push(`/maintenance/${log.id}`)}
-        emptyMessage={t("maintenance.noRecords")}
-      />
+      <div className={styles.desktopTable}>
+        <Table
+          columns={columns}
+          data={filtered}
+          keyExtractor={(log) => log.id}
+          onRowClick={(log) => router.push(`/maintenance/${log.id}`)}
+          emptyMessage={t("maintenance.noRecords")}
+        />
+      </div>
+
+      <div className={styles.mobileList}>
+        {mobileCards}
+        {filtered.length === 0 && (
+          <div className={`empty-state ${styles.mobileEmpty}`}>
+            <Wrench size={44} />
+            <h3>{t("maintenance.noRecords")}</h3>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

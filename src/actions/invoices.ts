@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { requireCompanyId } from "@/lib/company";
 import { canPerform } from "@/lib/permissions";
 import { requireCompanyAdminAccess } from "@/actions/companyAuth";
+import { logAuditAction } from "@/lib/audit";
 
 interface InvoiceInput {
   bookingId: string;
@@ -104,6 +105,14 @@ export async function createInvoice(input: InvoiceInput) {
     revalidatePath("/invoices");
     revalidatePath(`/bookings/${input.bookingId}`);
     revalidatePath("/");
+    await logAuditAction({
+      actor: session,
+      action: "CREATE_INVOICE",
+      entityType: "Invoice",
+      entityId: invoice.id,
+      message: `${session.name} created invoice for booking ${input.bookingId}`,
+      metadata: { bookingId: input.bookingId, totalAmount: invoice.totalAmount },
+    });
 
     return { success: true, message: "Invoice generated successfully", data: invoice };
   } catch (error) {
@@ -181,6 +190,14 @@ export async function updatePaymentStatus(id: string, status: "PENDING" | "PAID"
     revalidatePath(`/invoices/${id}`);
     revalidatePath(`/bookings/${invoice.bookingId}`);
     revalidatePath("/");
+    await logAuditAction({
+      actor: session,
+      action: "UPDATE_INVOICE_PAYMENT",
+      entityType: "Invoice",
+      entityId: id,
+      message: `${session.name} updated invoice payment to ${status}`,
+      metadata: { status, amountPaid, paymentMethod },
+    });
 
     return { success: true, message: `Invoice marked as ${status}` };
   } catch (error) {
@@ -207,7 +224,15 @@ export async function deleteInvoice(id: string) {
     revalidatePath("/invoices");
     revalidatePath(`/bookings/${invoice.bookingId}`);
     revalidatePath("/");
-    
+    await logAuditAction({
+      actor: session,
+      action: "DELETE_INVOICE",
+      entityType: "Invoice",
+      entityId: id,
+      message: `${session.name} deleted invoice ${id}`,
+      metadata: { bookingId: invoice.bookingId },
+    });
+
     return { success: true, message: "Invoice deleted successfully" };
   } catch (error) {
     console.error("Failed to delete invoice", error);

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { BriefcaseBusiness, CheckCircle, Pencil, Plus, UserCog, UserRound, XCircle } from "lucide-react";
+import { BriefcaseBusiness, CheckCircle, ChevronRight, Pencil, Plus, Trash2, UserCog, UserRound, XCircle } from "lucide-react";
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
@@ -11,7 +11,7 @@ import Modal from "@/components/ui/Modal";
 import Select from "@/components/ui/Select";
 import Table from "@/components/ui/Table";
 import { useToast } from "@/components/ui/Toast";
-import { createEmployee, updateEmployee, confirmEmployeeSalary } from "@/actions/employees";
+import { createEmployee, updateEmployee, deleteEmployee, confirmEmployeeSalary } from "@/actions/employees";
 import { upsertEmployeeAccount } from "@/actions/companyAuth";
 import { useSettings } from "@/lib/SettingsContext";
 import { canPerform } from "@/lib/permissions";
@@ -105,6 +105,7 @@ export default function EmployeesClient({
   const [salaryPromptOpen, setSalaryPromptOpen] = useState(() => dueEmployees.length > 0 && canManageEmployees);
   const [pendingSalaryEmployees, setPendingSalaryEmployees] = useState(dueEmployees);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [accountModalOpen, setAccountModalOpen] = useState(false);
   const [accountEmployee, setAccountEmployee] = useState<Employee | null>(null);
   const [accountForm, setAccountForm] = useState({
@@ -228,6 +229,22 @@ export default function EmployeesClient({
     }
   };
 
+  const handleDeleteEmployee = async (employee: Employee, event: React.MouseEvent) => {
+    event.stopPropagation();
+    if (!confirm(t("employees.deleteConfirm"))) return;
+
+    setDeletingId(employee.id);
+    const result = await deleteEmployee(employee.id);
+    setDeletingId(null);
+
+    if (result.success) {
+      toast(t("employees.deleted"), "success");
+      router.refresh();
+    } else {
+      toast(result.message, "error");
+    }
+  };
+
   const columns = [
     {
       key: "name",
@@ -318,6 +335,13 @@ export default function EmployeesClient({
               >
                 {t("action.edit")}
               </Button>
+              <Button
+                size="sm"
+                variant="danger"
+                icon={<Trash2 size={14} />}
+                loading={deletingId === employee.id}
+                onClick={(e) => handleDeleteEmployee(employee, e)}
+              />
             </>
           )}
         </div>
@@ -325,9 +349,110 @@ export default function EmployeesClient({
     },
   ];
 
+  const mobileCards = employees.map((employee) => {
+    const payment = employee.salaryPayments[0];
+    const paymentLabel = !employee.hasSalary
+      ? t("employees.noSalary")
+      : !payment
+        ? t("status.pending")
+        : payment.status === "PAID"
+          ? t("status.paid")
+          : t("employees.notPaid");
+
+    return (
+      <Card
+        key={employee.id}
+        hover
+        padding="md"
+        className={styles.mobileCard}
+        onClick={() => {
+          if (canManageEmployees) openEdit(employee);
+        }}
+      >
+        <div className={styles.mobileCardHeader}>
+          <div className={styles.mobileNameBlock}>
+            <div className={styles.mobileNameLine}>
+              <div className={styles.mobileAvatar}>
+                {employee.firstName.charAt(0)}
+                {employee.lastName.charAt(0)}
+              </div>
+              <div className={styles.mobileName}>{getName(employee)}</div>
+            </div>
+            {employee.role && <div className={styles.mobileRole}>{employee.role}</div>}
+          </div>
+          <ChevronRight size={16} style={{ color: "var(--text-tertiary)", flexShrink: 0, marginTop: "4px" }} />
+        </div>
+
+        <div className={styles.mobileMetaGrid}>
+          <div className={styles.mobileMetaItem}>
+            <span className={styles.mobileMetaLabel}>{t("employees.salary")}</span>
+            <span className={styles.mobileMetaValue}>
+              {employee.hasSalary && employee.salary ? formatPrice(employee.salary) : "—"}
+            </span>
+          </div>
+          <div className={styles.mobileMetaItem}>
+            <span className={styles.mobileMetaLabel}>{t("employees.payDay")}</span>
+            <span className={styles.mobileMetaValue}>
+              {employee.hasSalary && employee.payDay ? `${employee.payDay}` : "—"}
+            </span>
+          </div>
+          <div className={styles.mobileMetaItem}>
+            <span className={styles.mobileMetaLabel}>{t("label.status")}</span>
+            <span className={styles.mobileMetaValue}>
+              {employee.active ? t("status.active") : t("employees.inactive")}
+            </span>
+          </div>
+          <div className={styles.mobileMetaItem}>
+            <span className={styles.mobileMetaLabel}>{t("employees.thisMonth")}</span>
+            <span className={styles.mobileMetaValue}>{paymentLabel}</span>
+          </div>
+        </div>
+
+        <div className={styles.mobileFooter} onClick={(e) => e.stopPropagation()}>
+          <div style={{ color: "var(--text-tertiary)", fontSize: "0.8125rem" }}>
+            {employee.account ? employee.account.email : "No account"}
+          </div>
+          {canManageEmployees && (
+            <div className={styles.mobileActions}>
+              <Button
+                size="sm"
+                variant="secondary"
+                icon={<UserCog size={14} />}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  openAccountModal(employee);
+                }}
+              >
+                Account
+              </Button>
+              <Button
+                size="sm"
+                variant="secondary"
+                icon={<Pencil size={14} />}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  openEdit(employee);
+                }}
+              >
+                {t("action.edit")}
+              </Button>
+              <Button
+                size="sm"
+                variant="danger"
+                icon={<Trash2 size={14} />}
+                loading={deletingId === employee.id}
+                onClick={(e) => handleDeleteEmployee(employee, e)}
+              />
+            </div>
+          )}
+        </div>
+      </Card>
+    );
+  });
+
   return (
     <div className="animate-fade-in">
-      <div className="page-header">
+      <div className={`page-header ${styles.pageHeader}`}>
         <h1>
           <BriefcaseBusiness size={24} />
           {t("employees.title")}
@@ -385,12 +510,24 @@ export default function EmployeesClient({
         </Card>
       )}
 
-      <Table
-        columns={columns}
-        data={employees}
-        keyExtractor={(employee) => employee.id}
-        emptyMessage={t("employees.noEmployees")}
-      />
+      <div className={styles.desktopTable}>
+        <Table
+          columns={columns}
+          data={employees}
+          keyExtractor={(employee) => employee.id}
+          emptyMessage={t("employees.noEmployees")}
+        />
+      </div>
+
+      <div className={styles.mobileList}>
+        {mobileCards}
+        {employees.length === 0 && (
+          <div className="empty-state">
+            <BriefcaseBusiness size={44} />
+            <h3>{t("employees.noEmployees")}</h3>
+          </div>
+        )}
+      </div>
 
       <Modal
         isOpen={isFormOpen}

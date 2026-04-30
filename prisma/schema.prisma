@@ -157,6 +157,27 @@ model Expense {
   company     Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
 }
 
+model AuditLog {
+  id          String   @id @default(cuid())
+  companyId   String?
+  actorId     String?
+  actorName   String?
+  actorEmail  String?
+  actorRole   String?
+  action      String
+  entityType  String?
+  entityId    String?
+  message     String
+  metadata    Json?
+  createdAt   DateTime @default(now())
+
+  company     Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, createdAt])
+  @@index([companyId, action])
+  @@index([companyId, actorId])
+}
+
 model TechnicalInspection {
   id             String   @id @default(cuid())
   companyId      String?
@@ -300,6 +321,7 @@ model Company {
   employeeRoles     EmployeeRole[]
   salaryPayments    EmployeeSalaryPayment[]
   globalSettings    GlobalSettings[]
+  auditLogs         AuditLog[]
 }
 
 model CompanyAdmin {

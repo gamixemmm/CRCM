@@ -9,6 +9,7 @@ import Input, { Textarea } from "@/components/ui/Input";
 import { useToast } from "@/components/ui/Toast";
 import { createCustomer } from "@/actions/customers";
 import { useSettings } from "@/lib/SettingsContext";
+import styles from "./customers.module.css";
 
 export default function CustomerForm() {
   const router = useRouter();
@@ -51,14 +52,14 @@ export default function CustomerForm() {
         </Button>
       </div>
 
-      <form onSubmit={handleSubmit} style={{ display: "flex", gap: "24px", flexDirection: "column" }}>
+      <form onSubmit={handleSubmit} className={styles.formPage}>
         
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "24px" }}>
+        <div className={styles.formGrid}>
           
           <Card padding="lg">
             <h3 style={{ marginBottom: "16px", paddingBottom: "8px", borderBottom: "1px solid var(--border)" }}>{t("customers.brokerInfo")}</h3>
-            <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-              <div style={{ display: "flex", gap: "16px" }}>
+            <div className={styles.formCardStack}>
+              <div className={styles.formNameRow}>
                 <Input
                   label={t("customers.firstName")}
                   required
@@ -122,7 +123,7 @@ export default function CustomerForm() {
           />
         </Card>
 
-        <div style={{ display: "flex", justifyContent: "flex-end", gap: "12px", borderTop: "1px solid var(--border)", paddingTop: "24px" }}>
+        <div className={styles.formActions}>
           <Button variant="secondary" type="button" onClick={() => router.back()}>{t("action.cancel")}</Button>
           <Button type="submit" loading={loading} icon={<Save size={16} />}>{t("customers.saveBroker")}</Button>
         </div>

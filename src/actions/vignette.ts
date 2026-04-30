@@ -3,6 +3,8 @@
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { requireCompanyId } from "@/lib/company";
+import { requireCompanyAdminAccess } from "@/actions/companyAuth";
+import { logAuditAction } from "@/lib/audit";
 
 export async function markVignettePaid(input: {
   vehicleId: string;
@@ -11,6 +13,7 @@ export async function markVignettePaid(input: {
   notes?: string;
 }) {
   try {
+    const session = await requireCompanyAdminAccess();
     const companyId = await requireCompanyId();
     if (!input.vehicleId || !input.year) {
       return { success: false, message: "Vehicle and year are required" };
@@ -69,6 +72,14 @@ export async function markVignettePaid(input: {
 
     revalidatePath("/vignette");
     revalidatePath("/expenses");
+    await logAuditAction({
+      actor: session,
+      action: "MARK_VIGNETTE_PAID",
+      entityType: "VignettePayment",
+      entityId: payment.id,
+      message: `${session.name} marked vignette ${input.year} as paid`,
+      metadata: { vehicleId: input.vehicleId, year: input.year, amount },
+    });
     return { success: true, message: "Vignette marked as paid", data: payment };
   } catch (error) {
     console.error("Failed to mark vignette paid", error);

@@ -13,6 +13,7 @@ import { useToast } from "@/components/ui/Toast";
 import { logMaintenance } from "@/actions/maintenance";
 import { useSettings } from "@/lib/SettingsContext";
 import { makeMaintenanceCostEntry, makeMaintenanceDetailEntry } from "@/lib/maintenanceDetails";
+import type { TranslationKey } from "@/lib/translations";
 import styles from "./MaintenanceForm.module.css";
 
 type OtherService = {
@@ -26,6 +27,78 @@ const createOtherService = (): OtherService => ({
   name: "",
   price: "",
 });
+
+const MAINTENANCE_VALUE_KEYS: Record<string, TranslationKey> = {
+  "Vidange": "maintenance.value.oilChange",
+  "Changement des pneus": "maintenance.value.tireChange",
+  "Plaquettes de frein (avant / arriÃ¨re)": "maintenance.value.brakePads",
+  "Disques de frein": "maintenance.value.brakeDiscs",
+  "Ã‰quilibrage & parallÃ©lisme": "maintenance.value.alignment",
+  "RÃ©paration aprÃ¨s accident": "maintenance.value.accidentRepair",
+  "Autre": "maintenance.value.other",
+  "Filtres changÃ©s": "maintenance.value.changedFilters",
+  "Pneus changÃ©s": "maintenance.value.changedTires",
+  "Roues concernÃ©es": "maintenance.value.affectedWheels",
+  "Disques changÃ©s": "maintenance.value.changedDiscs",
+  "Ã‰lÃ©ments Ã  rÃ©parer": "maintenance.value.itemsToRepair",
+  "Filtre Ã  huile": "maintenance.value.oilFilter",
+  "Filtre diesel": "maintenance.value.dieselFilter",
+  "Filtre Ã  air": "maintenance.value.airFilter",
+  "Filtre habitacle": "maintenance.value.cabinFilter",
+  "Pneu avant gauche": "maintenance.value.frontLeftTire",
+  "Pneu avant droit": "maintenance.value.frontRightTire",
+  "Pneu arriÃ¨re gauche": "maintenance.value.rearLeftTire",
+  "Pneu arriÃ¨re droit": "maintenance.value.rearRightTire",
+  "Roue avant gauche": "maintenance.value.frontLeftWheel",
+  "Roue avant droite": "maintenance.value.frontRightWheel",
+  "Roue arriÃ¨re gauche": "maintenance.value.rearLeftWheel",
+  "Roue arriÃ¨re droite": "maintenance.value.rearRightWheel",
+  "Disque avant gauche": "maintenance.value.frontLeftDisc",
+  "Disque avant droit": "maintenance.value.frontRightDisc",
+  "Disque arriÃ¨re gauche": "maintenance.value.rearLeftDisc",
+  "Disque arriÃ¨re droit": "maintenance.value.rearRightDisc",
+  "Pare-chocs avant": "maintenance.value.frontBumper",
+  "Pare-chocs arriÃ¨re": "maintenance.value.rearBumper",
+  "Aile avant gauche": "maintenance.value.frontLeftFender",
+  "Aile avant droite": "maintenance.value.frontRightFender",
+  "Aile arriÃ¨re gauche": "maintenance.value.rearLeftFender",
+  "Aile arriÃ¨re droite": "maintenance.value.rearRightFender",
+  "Capot": "maintenance.value.hood",
+  "Coffre": "maintenance.value.trunk",
+  "PortiÃ¨re gauche": "maintenance.value.leftDoor",
+  "PortiÃ¨re droite": "maintenance.value.rightDoor",
+  "Phare avant": "maintenance.value.headlight",
+  "Feu arriÃ¨re": "maintenance.value.tailLight",
+  "RÃ©troviseur": "maintenance.value.mirror",
+  "Pare-brise": "maintenance.value.windshield",
+  "Radiateur": "maintenance.value.radiator",
+  "Suspension": "maintenance.value.suspension",
+  "Jante": "maintenance.value.rim",
+  "Peinture": "maintenance.value.paint",
+  "Plaquettes de frein (avant / arrière)": "maintenance.value.brakePads",
+  "Équilibrage & parallélisme": "maintenance.value.alignment",
+  "Réparation après accident": "maintenance.value.accidentRepair",
+  "Filtres changés": "maintenance.value.changedFilters",
+  "Pneus changés": "maintenance.value.changedTires",
+  "Roues concernées": "maintenance.value.affectedWheels",
+  "Disques changés": "maintenance.value.changedDiscs",
+  "Éléments à réparer": "maintenance.value.itemsToRepair",
+  "Filtre à huile": "maintenance.value.oilFilter",
+  "Filtre à air": "maintenance.value.airFilter",
+  "Pneu arrière gauche": "maintenance.value.rearLeftTire",
+  "Pneu arrière droit": "maintenance.value.rearRightTire",
+  "Roue arrière gauche": "maintenance.value.rearLeftWheel",
+  "Roue arrière droite": "maintenance.value.rearRightWheel",
+  "Disque arrière gauche": "maintenance.value.rearLeftDisc",
+  "Disque arrière droit": "maintenance.value.rearRightDisc",
+  "Pare-chocs arrière": "maintenance.value.rearBumper",
+  "Aile arrière gauche": "maintenance.value.rearLeftFender",
+  "Aile arrière droite": "maintenance.value.rearRightFender",
+  "Portière gauche": "maintenance.value.leftDoor",
+  "Portière droite": "maintenance.value.rightDoor",
+  "Feu arrière": "maintenance.value.tailLight",
+  "Rétroviseur": "maintenance.value.mirror",
+};
 
 export default function MaintenanceForm({
   vehicles,
@@ -170,6 +243,10 @@ export default function MaintenanceForm({
     makeMaintenanceCostEntry(`Autre - ${service.name}`, service.price)
   );
   const currentMileage = selectedVehicle?.mileage || 0;
+  const maintenanceLabel = (value: string) => {
+    const key = MAINTENANCE_VALUE_KEYS[value];
+    return key ? t(key) : value;
+  };
 
   const buildPayload = (mileageAtService: number) => ({
     ...form,
@@ -280,7 +357,7 @@ export default function MaintenanceForm({
             opacity: serviceProviders.length === 0 ? 0.5 : 1,
           }}
         >
-          Existing
+          {t("maintenance.existingProvider")}
         </button>
         <button
           type="button"
@@ -300,7 +377,7 @@ export default function MaintenanceForm({
             cursor: "pointer",
           }}
         >
-          Add new
+          {t("maintenance.addNewProvider")}
         </button>
       </div>
       {providerMode === "existing" ? (
@@ -311,13 +388,13 @@ export default function MaintenanceForm({
             value: provider,
             label: provider,
           }))}
-          placeholder="Select service provider..."
+          placeholder={t("maintenance.selectServiceProvider")}
         />
       ) : (
         <Input
           value={form.serviceProvider}
           onChange={(e) => setForm({ ...form, serviceProvider: e.target.value })}
-          placeholder="Enter new service provider..."
+          placeholder={t("maintenance.enterServiceProvider")}
         />
       )}
     </div>
@@ -401,7 +478,7 @@ export default function MaintenanceForm({
                   </div>
                   <div className={styles.vehicleSummaryGrid}>
                     <div>
-                      <span>Status</span>
+                      <span>{t("label.status")}</span>
                       <strong>{selectedVehicle.status}</strong>
                     </div>
                     <div>
@@ -428,7 +505,7 @@ export default function MaintenanceForm({
                 </>
               ) : (
                 <div style={{ color: "var(--text-secondary)", fontSize: "0.875rem", lineHeight: 1.5 }}>
-                  Select a vehicle to show fleet details here.
+                  {t("maintenance.selectVehicleHint")}
                 </div>
               )}
             </aside>
@@ -516,7 +593,7 @@ export default function MaintenanceForm({
                         >
                           <Check size={13} strokeWidth={3} />
                         </span>
-                        <span style={{ lineHeight: 1.25 }}>{type}</span>
+                        <span style={{ lineHeight: 1.25 }}>{maintenanceLabel(type)}</span>
                       </label>
                     );
                   })}
@@ -558,12 +635,12 @@ export default function MaintenanceForm({
                         }}
                       >
                         <label style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", fontSize: "0.875rem", fontWeight: 700, color: "var(--text-primary)" }}>
-                          <span>{detailConfig.title}</span>
-                          <span style={{ color: "var(--text-secondary)", fontSize: "0.75rem", fontWeight: 600 }}>{type}</span>
+                          <span>{maintenanceLabel(detailConfig.title)}</span>
+                          <span style={{ color: "var(--text-secondary)", fontSize: "0.75rem", fontWeight: 600 }}>{maintenanceLabel(type)}</span>
                         </label>
                         <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
                           <label style={{ color: "var(--text-secondary)", fontSize: "0.75rem", fontWeight: 700 }}>
-                            Amount spent ({currency})
+                            {t("maintenance.amountSpent")} ({currency})
                           </label>
                           <input
                             type="number"
@@ -616,7 +693,7 @@ export default function MaintenanceForm({
                                 });
                               }}
                             >
-                              Avant
+                              {t("maintenance.front")}
                             </button>
                             <button
                               type="button"
@@ -637,7 +714,7 @@ export default function MaintenanceForm({
                                 });
                               }}
                             >
-                              Arrière
+                              {t("maintenance.rear")}
                             </button>
                             <div
                               aria-hidden="true"
@@ -663,8 +740,8 @@ export default function MaintenanceForm({
                                 <button
                                   key={option}
                                   type="button"
-                                  aria-label={option}
-                                  title={option}
+                                  aria-label={maintenanceLabel(option)}
+                                  title={maintenanceLabel(option)}
                                   className={`${styles.wheelButton} ${positionClass} ${checked ? styles.wheelSelected : ""}`}
                                   onClick={() => {
                                     const nextDetails = checked
@@ -750,7 +827,7 @@ export default function MaintenanceForm({
                                   >
                                     <Check size={13} strokeWidth={3} />
                                   </span>
-                                  <span style={{ lineHeight: 1.25 }}>{option}</span>
+                                  <span style={{ lineHeight: 1.25 }}>{maintenanceLabel(option)}</span>
                                 </label>
                               );
                             })}
@@ -775,7 +852,7 @@ export default function MaintenanceForm({
                                     });
                                     setNewAccidentRepairItem("");
                                   }}
-                                  placeholder="Ajouter un élément..."
+                                  placeholder={t("maintenance.addItemPlaceholder")}
                                   style={{
                                     flex: 1,
                                     minWidth: 0,
@@ -813,7 +890,7 @@ export default function MaintenanceForm({
                                     cursor: "pointer",
                                   }}
                                 >
-                                  Add
+                                  {t("action.add")}
                                 </button>
                               </div>
                             )}

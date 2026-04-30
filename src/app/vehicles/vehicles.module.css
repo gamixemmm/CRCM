@@ -1,6 +1,100 @@
 /* Vehicles page styles */
 
 /* Stats */
+.desktopStats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--space-md);
+  margin-bottom: var(--space-lg);
+}
+
+.mobileStats {
+  display: none;
+  margin-bottom: var(--space-lg);
+}
+
+.mobileStatsCard {
+  background: linear-gradient(180deg, var(--bg-secondary) 0%, var(--bg-primary) 100%);
+}
+
+.mobileStatsTop {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-md);
+}
+
+.mobileStatsLabel {
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0;
+  color: var(--text-tertiary);
+  font-weight: 700;
+}
+
+.mobileStatsValue {
+  font-size: 2rem;
+  line-height: 1;
+  font-weight: 800;
+  margin-top: 4px;
+}
+
+.mobileStatsIcon {
+  color: var(--accent);
+  opacity: 0.9;
+}
+
+.mobileStatsBar {
+  display: flex;
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--bg-tertiary);
+  margin-top: var(--space-md);
+}
+
+.mobileStatsBar span {
+  min-width: 1px;
+}
+
+.mobileStatsGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-top: var(--space-md);
+}
+
+.mobileStatsItem {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-secondary);
+  min-width: 0;
+}
+
+.mobileStatsItemLabel {
+  display: block;
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0;
+  color: var(--text-tertiary);
+  font-weight: 700;
+}
+
+.mobileStatsItemValue {
+  display: block;
+  margin-top: 4px;
+  font-size: 1rem;
+  color: var(--text-primary);
+}
+
+.mobileStatsFooter {
+  margin-top: var(--space-sm);
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
 .statCard {
   display: flex;
   align-items: center;
@@ -265,21 +359,155 @@
   grid-column: 1 / -1;
 }
 
+.desktopList {
+  display: block;
+}
+
+.mobileList {
+  display: none;
+}
+
+.mobileVehicleCard {
+  display: block;
+}
+
+.mobileCardHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-md);
+}
+
+.mobileMetaGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: var(--space-md);
+}
+
+.mobileMetaItem {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-secondary);
+  min-width: 0;
+}
+
+.mobileMetaItem span {
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0;
+  color: var(--text-tertiary);
+  font-weight: 700;
+}
+
+.mobileMetaItem strong {
+  font-size: 0.875rem;
+  color: var(--text-primary);
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mobileBookingLink {
+  display: inline-flex;
+  margin-top: var(--space-md);
+  color: var(--accent);
+  text-decoration: none;
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.mobileWarning {
+  margin-top: var(--space-md);
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--error);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
 @media (max-width: 768px) {
+  .desktopStats {
+    display: none;
+  }
+
+  .mobileStats {
+    display: block;
+  }
+
   .toolbar {
     flex-direction: column;
     align-items: stretch;
+    gap: var(--space-sm);
   }
 
   .searchWrap {
     max-width: none;
+    min-width: 0;
+  }
+
+  .filters {
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    scrollbar-width: none;
+  }
+
+  .filters::-webkit-scrollbar {
+    display: none;
+  }
+
+  .filterBtn {
+    flex: 0 0 auto;
   }
 
   .viewToggle {
     margin-left: 0;
+    align-self: flex-start;
   }
 
   .grid {
     grid-template-columns: 1fr;
+  }
+
+  .desktopList {
+    display: none;
+  }
+
+  .mobileList {
+    display: grid;
+    gap: var(--space-md);
+  }
+
+  .mobileVehicleCard {
+    padding: var(--space-md);
+  }
+
+  .mobileMetaGrid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .mobileStatsGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .mobileCardHeader {
+    flex-direction: column;
+  }
+
+  .mobileMetaGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .viewToggle {
+    width: fit-content;
   }
 }

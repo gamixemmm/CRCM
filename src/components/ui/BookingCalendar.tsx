@@ -162,15 +162,17 @@ export default function BookingCalendar({
       display: "flex",
       alignItems: "center",
       justifyContent: "center",
-      width: "40px",
-      height: "40px",
-      borderRadius: "10px",
-      fontSize: "0.8125rem",
+      width: "100%",
+      maxWidth: "36px",
+      margin: "0 auto",
+      aspectRatio: "1",
+      borderRadius: "8px",
+      fontSize: "0.75rem",
       fontWeight: 500,
       cursor: "default",
       transition: "all 0.15s ease",
       position: "relative",
-      border: "2px solid transparent",
+      border: "1px solid transparent",
     };
 
     if (!inMonth) {
@@ -185,7 +187,6 @@ export default function BookingCalendar({
         color: "#fff",
         fontWeight: 700,
         cursor: "pointer",
-        borderRadius: "10px",
         boxShadow: "0 2px 8px rgba(99,102,241,0.35)",
       };
     }
@@ -223,7 +224,7 @@ export default function BookingCalendar({
     if (isToday) {
       return {
         ...base,
-        border: "2px solid var(--accent)",
+        border: "1px solid var(--accent)",
         color: "var(--accent)",
         fontWeight: 600,
         cursor: "pointer",
@@ -245,7 +246,7 @@ export default function BookingCalendar({
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          marginBottom: "16px",
+          marginBottom: "12px",
         }}
       >
         <button
@@ -271,7 +272,7 @@ export default function BookingCalendar({
         <span
           style={{
             fontWeight: 700,
-            fontSize: "1rem",
+            fontSize: "0.875rem",
             color: "var(--text-primary)",
           }}
         >
@@ -304,8 +305,8 @@ export default function BookingCalendar({
         style={{
           display: "grid",
           gridTemplateColumns: "repeat(7, 1fr)",
-          gap: "4px",
-          marginBottom: "8px",
+          gap: "2px",
+          marginBottom: "4px",
         }}
       >
         {WEEKDAYS.map((wd) => (
@@ -331,7 +332,7 @@ export default function BookingCalendar({
         style={{
           display: "grid",
           gridTemplateColumns: "repeat(7, 1fr)",
-          gap: "4px",
+          gap: "2px",
         }}
       >
         {calendarDays.map((d, idx) => {
@@ -373,11 +374,12 @@ export default function BookingCalendar({
       <div
         style={{
           display: "flex",
-          gap: "16px",
-          marginTop: "16px",
-          paddingTop: "12px",
+          flexWrap: "wrap",
+          gap: "8px",
+          marginTop: "12px",
+          paddingTop: "10px",
           borderTop: "1px solid var(--border)",
-          fontSize: "0.75rem",
+          fontSize: "0.6875rem",
           color: "var(--text-secondary)",
         }}
       >
@@ -432,17 +434,17 @@ export default function BookingCalendar({
       {/* Selection status */}
       <div
         style={{
-          marginTop: "12px",
-          padding: "10px 14px",
-          background: "var(--bg-tertiary)",
-          borderRadius: "8px",
-          fontSize: "0.8125rem",
+          marginTop: "10px",
+          padding: "8px 10px",
+          background: "var(--bg-secondary)",
+          borderRadius: "12px",
+          fontSize: "0.75rem",
           display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
+          flexDirection: "column",
+          gap: "12px",
         }}
       >
-        <div style={{ display: "flex", gap: "16px" }}>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "16px", justifyContent: "space-between" }}>
           {mode === "single" ? (
             <span>
               <span style={{ color: "var(--text-tertiary)" }}>{t("calendar.selectedDate")} </span>
@@ -477,10 +479,13 @@ export default function BookingCalendar({
             style={{
               fontSize: "0.75rem",
               color: "var(--danger)",
-              background: "none",
+              background: "var(--danger-muted)",
+              padding: "6px 12px",
+              borderRadius: "6px",
               border: "none",
               cursor: "pointer",
               fontWeight: 600,
+              alignSelf: "flex-end"
             }}
           >
             {t("calendar.clear")}

@@ -18,7 +18,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     <div className="app-shell">
       <Sidebar />
       <MobileNav isOpen={mobileOpen} onClose={() => setMobileOpen(false)}>
-        <Sidebar />
+        <Sidebar inMobileDrawer />
       </MobileNav>
       <div className="app-main">
         <Topbar onMenuClick={() => setMobileOpen(true)} />

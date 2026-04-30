@@ -78,6 +78,12 @@ export default function VehiclesClient({ vehicles, stats }: VehiclesClientProps)
     { label: t("status.rented"), value: stats.rented, color: "var(--accent)", icon: <Car size={20} /> },
     { label: t("status.inMaintenance"), value: stats.maintenance, color: "var(--warning)", icon: <Car size={20} /> },
   ];
+  const statusBreakdown = [
+    { label: t("status.available"), value: stats.available, color: "var(--success)" },
+    { label: t("status.rented"), value: stats.rented, color: "var(--accent)" },
+    { label: t("status.inMaintenance"), value: stats.maintenance, color: "var(--warning)" },
+  ];
+  const statusTotal = statusBreakdown.reduce((sum, item) => sum + item.value, 0);
 
   const columns = [
     {
@@ -156,10 +162,70 @@ export default function VehiclesClient({ vehicles, stats }: VehiclesClientProps)
     },
   ];
 
+  const mobileCards = filtered.map((v) => (
+    <Card
+      key={v.id}
+      hover
+      onClick={() => router.push(`/vehicles/${v.id}`)}
+      padding="md"
+      className={styles.mobileVehicleCard}
+    >
+      <div className={styles.mobileCardHeader}>
+        <div className={styles.vehicleCell}>
+          <div className={styles.vehicleIcon} style={{ background: `${getStatusBg(v.status)}` }}>
+            <Car size={18} style={{ color: getStatusColor(v.status) }} />
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
+            <div className={styles.vehicleName}>{v.brand} {v.model}</div>
+            <div className={styles.vehicleSub}>{v.year} · {v.color}</div>
+          </div>
+        </div>
+        <Badge color={getStatusColor(v.status)} bg={getStatusBg(v.status)} dot>
+          {formatStatusT(v.status)}
+        </Badge>
+      </div>
+
+      <div className={styles.mobileMetaGrid}>
+        <div className={styles.mobileMetaItem}>
+          <span>{t("vehicles.plate")}</span>
+          <strong>{v.plateNumber}</strong>
+        </div>
+        <div className={styles.mobileMetaItem}>
+          <span>{t("vehicles.type")}</span>
+          <strong>{v.transmission}</strong>
+        </div>
+        <div className={styles.mobileMetaItem}>
+          <span>{t("vehicles.mileage")}</span>
+          <strong>{formatMileage(v.mileage)}</strong>
+        </div>
+        <div className={styles.mobileMetaItem}>
+          <span>{t("nav.bookings")}</span>
+          <strong>{v._count.bookings}</strong>
+        </div>
+      </div>
+
+      {v.status === "RENTED" && v.bookings && v.bookings.length > 0 && (
+        <Link
+          href={`/bookings/${v.bookings[0].id}`}
+          onClick={(e) => e.stopPropagation()}
+          className={styles.mobileBookingLink}
+        >
+          {t("vehicles.viewBooking")}
+        </Link>
+      )}
+
+      {v.maintenance && v.maintenance[0]?.mileageAtService && v.mileage >= v.maintenance[0].mileageAtService + 10000 && (
+        <div className={styles.mobileWarning}>
+          {t("maintenance.oilChangeRequired")} ({t("maintenance.lastOilChange")} {v.maintenance[0].mileageAtService} km)
+        </div>
+      )}
+    </Card>
+  ));
+
   return (
     <div className="animate-fade-in">
       {/* Stats */}
-      <div className="stats-grid">
+      <div className={styles.desktopStats}>
         {statCards.map((s) => (
           <Card key={s.label} padding="md">
             <div className={styles.statCard}>
@@ -175,6 +241,42 @@ export default function VehiclesClient({ vehicles, stats }: VehiclesClientProps)
             </div>
           </Card>
         ))}
+      </div>
+      <div className={styles.mobileStats}>
+        <Card padding="md" className={styles.mobileStatsCard}>
+          <div className={styles.mobileStatsTop}>
+            <div>
+              <div className={styles.mobileStatsLabel}>{t("dashboard.totalVehicles")}</div>
+              <div className={styles.mobileStatsValue}>{stats.total}</div>
+            </div>
+            <Car size={28} className={styles.mobileStatsIcon} />
+          </div>
+
+          <div className={styles.mobileStatsBar} aria-hidden="true">
+            {statusBreakdown.map((item) => (
+              <span
+                key={item.label}
+                style={{
+                  flex: item.value > 0 ? item.value : 0.001,
+                  background: item.color,
+                }}
+              />
+            ))}
+          </div>
+
+          <div className={styles.mobileStatsGrid}>
+            {statusBreakdown.map((item) => (
+              <div key={item.label} className={styles.mobileStatsItem}>
+                <span className={styles.mobileStatsItemLabel}>{item.label}</span>
+                <strong className={styles.mobileStatsItemValue}>{item.value}</strong>
+              </div>
+            ))}
+          </div>
+
+          <div className={styles.mobileStatsFooter}>
+            {statusTotal > 0 ? `${Math.round((stats.available / statusTotal) * 100)}% ${t("status.available").toLowerCase()}` : t("label.status")}
+          </div>
+        </Card>
       </div>
 
       {/* Header */}
@@ -298,13 +400,27 @@ export default function VehiclesClient({ vehicles, stats }: VehiclesClientProps)
           )}
         </div>
       ) : (
-        <Table
-          columns={columns}
-          data={filtered}
-          keyExtractor={(v) => v.id}
-          onRowClick={(v) => router.push(`/vehicles/${v.id}`)}
-          emptyMessage={t("vehicles.noVehicles")}
-        />
+        <>
+          <div className={styles.desktopList}>
+            <Table
+              columns={columns}
+              data={filtered}
+              keyExtractor={(v) => v.id}
+              onRowClick={(v) => router.push(`/vehicles/${v.id}`)}
+              emptyMessage={t("vehicles.noVehicles")}
+            />
+          </div>
+          <div className={styles.mobileList}>
+            {mobileCards}
+            {filtered.length === 0 && (
+              <div className={`empty-state ${styles.emptyFull}`}>
+                <Car size={44} />
+                <h3>{t("vehicles.noVehiclesFound")}</h3>
+                <p>{t("vehicles.tryAdjusting")}</p>
+              </div>
+            )}
+          </div>
+        </>
       )}
     </div>
   );
