@@ -2,6 +2,9 @@
 
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { requireCompanyId } from "@/lib/company";
+import { canPerform } from "@/lib/permissions";
+import { requireCompanyAdminAccess } from "@/actions/companyAuth";
 
 interface CustomerInput {
   firstName: string;
@@ -15,7 +18,9 @@ interface CustomerInput {
 }
 
 export async function getCustomers(params?: { search?: string }) {
-  const where: any = {};
+  const companyId = await requireCompanyId();
+  const where: Record<string, unknown> = {};
+  where.companyId = companyId;
   if (params?.search) {
     where.OR = [
       { firstName: { contains: params.search, mode: "insensitive" } },
@@ -36,8 +41,9 @@ export async function getCustomers(params?: { search?: string }) {
 }
 
 export async function getCustomer(id: string) {
-  return prisma.customer.findUnique({
-    where: { id },
+  const companyId = await requireCompanyId();
+  return prisma.customer.findFirst({
+    where: { id, companyId },
     include: {
       bookings: {
         orderBy: { startDate: "desc" },
@@ -50,13 +56,18 @@ export async function getCustomer(id: string) {
 
 export async function createCustomer(input: CustomerInput) {
   try {
+    const session = await requireCompanyAdminAccess();
+    if (!canPerform(session, ["ADD_BROKERS"])) {
+      return { success: false, message: "You do not have permission to add brokers." };
+    }
+    const companyId = await requireCompanyId();
     if (!input.firstName || !input.lastName) {
       return { success: false, message: "First name and last name are required" };
     }
 
     if (input.licenseNumber) {
       const existing = await prisma.customer.findUnique({
-        where: { licenseNumber: input.licenseNumber.trim() },
+        where: { companyId_licenseNumber: { companyId, licenseNumber: input.licenseNumber.trim() } },
       });
       if (existing) {
         return { success: false, message: "A broker with this license number already exists" };
@@ -69,6 +80,7 @@ export async function createCustomer(input: CustomerInput) {
         lastName: input.lastName.trim(),
         phone: input.phone?.trim() || null,
         email: input.email?.trim() || null,
+        companyId,
         licenseNumber: input.licenseNumber?.trim() || null,
         licenseExpiry: input.licenseExpiry ? new Date(input.licenseExpiry) : null,
         address: input.address?.trim() || null,

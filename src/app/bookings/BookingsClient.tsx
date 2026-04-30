@@ -31,6 +31,8 @@ export default function BookingsClient({ bookings }: BookingsClientProps) {
       !search ||
       b.customer.firstName.toLowerCase().includes(term) ||
       b.customer.lastName.toLowerCase().includes(term) ||
+      (b.driverFirstName?.toLowerCase().includes(term) ?? false) ||
+      (b.driverLastName?.toLowerCase().includes(term) ?? false) ||
       b.vehicle.plateNumber.toLowerCase().includes(term);
     return matchesStatus && matchesSearch;
   });
@@ -52,12 +54,26 @@ export default function BookingsClient({ bookings }: BookingsClientProps) {
       ),
     },
     {
+      key: "broker",
+      label: t("bookings.broker"),
+      render: (b: any) => (
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <User size={14} style={{ color: "var(--text-tertiary)" }} />
+          <span>{getFullName(b.customer.firstName, b.customer.lastName)}</span>
+        </div>
+      ),
+    },
+    {
       key: "customer",
       label: t("bookings.customer"),
       render: (b: any) => (
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
           <User size={14} style={{ color: "var(--text-tertiary)" }} />
-          <span>{getFullName(b.customer.firstName, b.customer.lastName)}</span>
+          <span>
+            {b.driverFirstName || b.driverLastName
+              ? getFullName(b.driverFirstName || "", b.driverLastName || "")
+              : "-"}
+          </span>
         </div>
       ),
     },

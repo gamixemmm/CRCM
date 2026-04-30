@@ -2,6 +2,9 @@
 
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { requireCompanyAdminAccess } from "@/actions/companyAuth";
+import { requireCompanyId } from "@/lib/company";
+import { canPerform } from "@/lib/permissions";
 
 interface EmployeeInput {
   firstName: string;
@@ -30,11 +33,28 @@ function getEmployeeName(employee: { firstName: string; lastName: string }) {
 }
 
 export async function getEmployees() {
+  const session = await requireCompanyAdminAccess();
+  if (!canPerform(session, ["VIEW_EMPLOYEES"])) {
+    return { employees: [], dueEmployees: [], month: getCurrentPayrollPeriod().month, year: getCurrentPayrollPeriod().year };
+  }
+  const companyId = await requireCompanyId();
   const { month, year, day } = getCurrentPayrollPeriod();
 
   const employees = await prisma.employee.findMany({
+    where: { companyId },
     orderBy: [{ active: "desc" }, { firstName: "asc" }, { lastName: "asc" }],
     include: {
+      account: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          active: true,
+          lastLoginAt: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      },
       salaryPayments: {
         where: { month, year },
         take: 1,
@@ -51,6 +71,9 @@ export async function getEmployees() {
 
 export async function createEmployee(input: EmployeeInput) {
   try {
+    const session = await requireCompanyAdminAccess();
+    if (!canPerform(session, ["ADD_EMPLOYEES"])) return { success: false, message: "You do not have permission to add employees." };
+    const companyId = await requireCompanyId();
     if (!input.firstName.trim() || !input.lastName.trim()) {
       return { success: false, message: "Employee name is required" };
     }
@@ -67,6 +90,7 @@ export async function createEmployee(input: EmployeeInput) {
 
     const employee = await prisma.employee.create({
       data: {
+        companyId,
         firstName: input.firstName.trim(),
         lastName: input.lastName.trim(),
         phone: input.phone?.trim() || null,
@@ -91,6 +115,8 @@ export async function createEmployee(input: EmployeeInput) {
 
 export async function updateEmployee(id: string, input: EmployeeInput) {
   try {
+    const session = await requireCompanyAdminAccess();
+    if (!canPerform(session, ["MANAGE_EMPLOYEES"])) return { success: false, message: "You do not have permission to manage employees." };
     if (!input.firstName.trim() || !input.lastName.trim()) {
       return { success: false, message: "Employee name is required" };
     }
@@ -132,7 +158,12 @@ export async function updateEmployee(id: string, input: EmployeeInput) {
 
 export async function confirmEmployeeSalary(employeeId: string, status: "PAID" | "NOT_PAID") {
   try {
-    const employee = await prisma.employee.findUnique({ where: { id: employeeId } });
+    const session = await requireCompanyAdminAccess();
+    if (!canPerform(session, ["MANAGE_EMPLOYEES"])) {
+      return { success: false, message: "You do not have permission to manage employees." };
+    }
+    const companyId = await requireCompanyId();
+    const employee = await prisma.employee.findFirst({ where: { id: employeeId, companyId } });
     if (!employee) return { success: false, message: "Employee not found" };
     if (!employee.hasSalary || !employee.salary) {
       return { success: false, message: "This employee has no salary configured" };
@@ -148,6 +179,7 @@ export async function confirmEmployeeSalary(employeeId: string, status: "PAID" |
       if (status === "PAID") {
         const expense = await tx.expense.create({
           data: {
+            companyId,
             date: paidAt!,
             category: "Salaire",
             amount: salary,
@@ -159,7 +191,8 @@ export async function confirmEmployeeSalary(employeeId: string, status: "PAID" |
 
       return tx.employeeSalaryPayment.upsert({
         where: {
-          employeeId_month_year: {
+          companyId_employeeId_month_year: {
+            companyId,
             employeeId,
             month,
             year,
@@ -172,6 +205,7 @@ export async function confirmEmployeeSalary(employeeId: string, status: "PAID" |
           expenseId,
         },
         create: {
+          companyId,
           employeeId,
           month,
           year,
@@ -194,15 +228,27 @@ export async function confirmEmployeeSalary(employeeId: string, status: "PAID" |
 }
 
 export async function getEmployeeRoles() {
-  return prisma.employeeRole.findMany({ orderBy: { name: "asc" } });
+  const companyId = await requireCompanyId();
+  return prisma.employeeRole.findMany({ where: { companyId }, orderBy: { name: "asc" } });
 }
 
-export async function createEmployeeRole(name: string) {
+export async function createEmployeeRole(name: string, permissions: string[] = []) {
   try {
+    const session = await requireCompanyAdminAccess();
+    if (!canPerform(session, ["ADD_ROLES"])) return { success: false, message: "You do not have permission to add roles." };
     const trimmed = name.trim();
     if (!trimmed) return { success: false, message: "Role name is required" };
 
-    const role = await prisma.employeeRole.create({ data: { name: trimmed } });
+    const companyId = await requireCompanyId();
+    const role = await prisma.employeeRole.create({
+      data: {
+        name: trimmed,
+        permissions,
+        company: {
+          connect: { id: companyId },
+        },
+      },
+    });
     revalidatePath("/settings");
     revalidatePath("/employees");
     return { success: true, message: "Role added", data: role };
@@ -212,17 +258,48 @@ export async function createEmployeeRole(name: string) {
   }
 }
 
-export async function updateEmployeeRole(id: string, name: string) {
+export async function updateEmployeeRole(id: string, name: string, permissions: string[] = []) {
   try {
+    const session = await requireCompanyAdminAccess();
+    if (!canPerform(session, ["MANAGE_ROLES"])) return { success: false, message: "You do not have permission to manage roles." };
     const trimmed = name.trim();
     if (!trimmed) return { success: false, message: "Role name is required" };
 
-    const role = await prisma.employeeRole.update({ where: { id }, data: { name: trimmed } });
+    const companyId = await requireCompanyId();
+    const current = await prisma.employeeRole.findFirst({ where: { id, companyId } });
+    if (!current) return { success: false, message: "Role not found" };
+    const role = await prisma.employeeRole.update({ where: { id }, data: { name: trimmed, permissions } });
     revalidatePath("/settings");
     revalidatePath("/employees");
     return { success: true, message: "Role updated", data: role };
   } catch (error) {
     console.error("Failed to update employee role", error);
     return { success: false, message: "Failed to update employee role" };
+  }
+}
+
+export async function deleteEmployeeRole(id: string) {
+  try {
+    const session = await requireCompanyAdminAccess();
+    if (!canPerform(session, ["MANAGE_ROLES"])) return { success: false, message: "You do not have permission to manage roles." };
+
+    const companyId = await requireCompanyId();
+    const current = await prisma.employeeRole.findFirst({ where: { id, companyId } });
+    if (!current) return { success: false, message: "Role not found" };
+
+    await prisma.$transaction([
+      prisma.employee.updateMany({
+        where: { companyId, role: current.name },
+        data: { role: null },
+      }),
+      prisma.employeeRole.delete({ where: { id } }),
+    ]);
+
+    revalidatePath("/settings");
+    revalidatePath("/employees");
+    return { success: true, message: "Role deleted" };
+  } catch (error) {
+    console.error("Failed to delete employee role", error);
+    return { success: false, message: "Failed to delete employee role" };
   }
 }

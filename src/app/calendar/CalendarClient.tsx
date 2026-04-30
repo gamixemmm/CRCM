@@ -6,10 +6,11 @@ import { CalendarDays, ChevronLeft, ChevronRight, Car, Wrench, Filter } from "lu
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import { getCalendarEvents } from "@/actions/calendar";
-import { formatDate } from "@/lib/utils";
+import { useSettings } from "@/lib/SettingsContext";
 
 export default function CalendarClient() {
   const router = useRouter();
+  const { language, t } = useSettings();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [events, setEvents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -34,8 +35,11 @@ export default function CalendarClient() {
   const prevMonth = () => setCurrentDate(new Date(year, month - 1, 1));
   const nextMonth = () => setCurrentDate(new Date(year, month + 1, 1));
 
-  const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-  const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const locale = language === "fr" ? "fr-FR" : language === "ar" ? "ar-MA" : "en-US";
+  const monthLabel = new Intl.DateTimeFormat(locale, { month: "long", year: "numeric" }).format(currentDate);
+  const dayNames = Array.from({ length: 7 }, (_, index) =>
+    new Intl.DateTimeFormat(locale, { weekday: "short" }).format(new Date(2024, 0, index + 7))
+  );
 
   // Build grid
   const days = [];
@@ -73,7 +77,7 @@ export default function CalendarClient() {
       <div className="page-header" style={{ flexShrink: 0 }}>
         <h1>
           <CalendarDays size={24} />
-          Master Calendar
+          {t("calendar.masterTitle")}
         </h1>
         <div className="page-header-actions">
           <div style={{ display: "flex", gap: "8px", background: "var(--bg-secondary)", padding: "4px", borderRadius: "8px" }}>
@@ -81,19 +85,19 @@ export default function CalendarClient() {
               onClick={() => setFilter("ALL")}
               style={{ padding: "6px 12px", background: filter === "ALL" ? "var(--bg-elevated)" : "transparent", color: filter === "ALL" ? "var(--text-primary)" : "var(--text-secondary)", border: "none", borderRadius: "6px", cursor: "pointer", fontWeight: 600, fontSize: "0.875rem" }}
             >
-              All Events
+              {t("calendar.allEvents")}
             </button>
             <button 
               onClick={() => setFilter("BOOKING")}
               style={{ display: "flex", alignItems: "center", gap: "6px", padding: "6px 12px", background: filter === "BOOKING" ? "var(--accent-muted)" : "transparent", color: filter === "BOOKING" ? "var(--accent)" : "var(--text-secondary)", border: "none", borderRadius: "6px", cursor: "pointer", fontWeight: 600, fontSize: "0.875rem" }}
             >
-              <Car size={14} /> Rentals
+              <Car size={14} /> {t("calendar.rentals")}
             </button>
             <button 
               onClick={() => setFilter("MAINTENANCE")}
               style={{ display: "flex", alignItems: "center", gap: "6px", padding: "6px 12px", background: filter === "MAINTENANCE" ? "var(--warning-muted)" : "transparent", color: filter === "MAINTENANCE" ? "var(--warning)" : "var(--text-secondary)", border: "none", borderRadius: "6px", cursor: "pointer", fontWeight: 600, fontSize: "0.875rem" }}
             >
-              <Wrench size={14} /> Shop
+              <Wrench size={14} /> {t("calendar.shop")}
             </button>
           </div>
         </div>
@@ -104,11 +108,11 @@ export default function CalendarClient() {
         {/* Calendar Controls */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
           <h2 style={{ margin: 0, fontSize: "1.5rem" }}>
-            {monthNames[month]} {year}
+            {monthLabel}
           </h2>
           <div style={{ display: "flex", gap: "8px" }}>
             <Button variant="secondary" icon={<ChevronLeft size={16} />} onClick={prevMonth} />
-            <Button variant="secondary" onClick={() => setCurrentDate(new Date())}>Today</Button>
+            <Button variant="secondary" onClick={() => setCurrentDate(new Date())}>{t("calendar.today")}</Button>
             <Button variant="secondary" icon={<ChevronRight size={16} />} onClick={nextMonth} />
           </div>
         </div>
@@ -125,7 +129,7 @@ export default function CalendarClient() {
         {/* Grid Area */}
         {loading ? (
           <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-tertiary)" }}>
-            Loading schedule...
+            {t("calendar.loadingSchedule")}
           </div>
         ) : (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gridAutoRows: "minmax(120px, 1fr)", gap: "8px", flex: 1, overflowY: "auto", paddingRight: "4px" }}>
@@ -157,13 +161,21 @@ export default function CalendarClient() {
 
                       let displayLabel = ev.title;
                       if (isStart && isEnd) {
-                        displayLabel = ev.type === "BOOKING" ? `Same-Day: ${ev.title}` : `Quick Fix: ${ev.title}`;
+                        displayLabel = ev.type === "BOOKING"
+                          ? `${t("calendar.sameDay")}: ${ev.title}`
+                          : `${t("calendar.quickFix")}: ${ev.title}`;
                       } else if (isStart) {
-                        displayLabel = ev.type === "BOOKING" ? `Pickup: ${ev.title}` : `To Shop: ${ev.title}`;
+                        displayLabel = ev.type === "BOOKING"
+                          ? `${t("calendar.pickup")}: ${ev.title}`
+                          : `${t("calendar.toShop")}: ${ev.title}`;
                       } else if (isEnd) {
-                        displayLabel = ev.type === "BOOKING" ? `Return: ${ev.title}` : `Out of Shop: ${ev.title}`;
+                        displayLabel = ev.type === "BOOKING"
+                          ? `${t("calendar.returnEvent")}: ${ev.title}`
+                          : `${t("calendar.outOfShop")}: ${ev.title}`;
                       } else {
-                        displayLabel = ev.type === "BOOKING" ? `Rented: ${ev.title}` : `In Shop: ${ev.title}`;
+                        displayLabel = ev.type === "BOOKING"
+                          ? `${t("calendar.rented")}: ${ev.title}`
+                          : `${t("calendar.inShop")}: ${ev.title}`;
                       }
 
                       return (

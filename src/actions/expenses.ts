@@ -2,6 +2,9 @@
 
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { requireCompanyId } from "@/lib/company";
+import { canPerform } from "@/lib/permissions";
+import { requireCompanyAdminAccess } from "@/actions/companyAuth";
 
 interface ExpenseInput {
   date: string;
@@ -12,23 +15,32 @@ interface ExpenseInput {
 }
 
 export async function getExpenses() {
+  const companyId = await requireCompanyId();
   return prisma.expense.findMany({
+    where: { companyId },
     orderBy: { date: "desc" },
     include: { vehicle: true },
   });
 }
 
 export async function getExpense(id: string) {
-  return prisma.expense.findUnique({
-    where: { id },
+  const companyId = await requireCompanyId();
+  return prisma.expense.findFirst({
+    where: { id, companyId },
     include: { vehicle: true },
   });
 }
 
 export async function logExpense(input: ExpenseInput) {
   try {
+    const session = await requireCompanyAdminAccess();
+    if (!canPerform(session, ["ADD_EXPENSE_PAYMENTS"])) {
+      return { success: false, message: "You do not have permission to add expense payments." };
+    }
+    const companyId = await requireCompanyId();
     const expense = await prisma.expense.create({
       data: {
+        companyId,
         date: new Date(input.date),
         category: input.category,
         amount: input.amount,
@@ -48,9 +60,19 @@ export async function logExpense(input: ExpenseInput) {
 
 export async function updateExpense(id: string, input: ExpenseInput) {
   try {
+    const session = await requireCompanyAdminAccess();
+    if (!canPerform(session, ["MANAGE_EXPENSES"])) {
+      return { success: false, message: "You do not have permission to manage expenses." };
+    }
+    const companyId = await requireCompanyId();
+    const current = await prisma.expense.findFirst({ where: { id, companyId } });
+    if (!current) {
+      return { success: false, message: "Expense not found" };
+    }
     const expense = await prisma.expense.update({
       where: { id },
       data: {
+        companyId,
         date: new Date(input.date),
         category: input.category,
         amount: input.amount,
@@ -70,6 +92,15 @@ export async function updateExpense(id: string, input: ExpenseInput) {
 
 export async function deleteExpense(id: string) {
   try {
+    const session = await requireCompanyAdminAccess();
+    if (!canPerform(session, ["MANAGE_EXPENSES"])) {
+      return { success: false, message: "You do not have permission to manage expenses." };
+    }
+    const companyId = await requireCompanyId();
+    const current = await prisma.expense.findFirst({ where: { id, companyId } });
+    if (!current) {
+      return { success: false, message: "Expense not found" };
+    }
     await prisma.expense.delete({ where: { id } });
     revalidatePath("/expenses");
     return { success: true, message: "Expense deleted successfully" };
@@ -80,13 +111,14 @@ export async function deleteExpense(id: string) {
 }
 
 export async function getGlobalSettings() {
-  let settings = await prisma.globalSettings.findUnique({
-    where: { id: "global" },
+  const companyId = await requireCompanyId();
+  let settings = await prisma.globalSettings.findFirst({
+    where: { companyId },
   });
 
   if (!settings) {
     settings = await prisma.globalSettings.create({
-      data: { id: "global", cashRegister: 0 },
+      data: { id: "global", companyId, cashRegister: 0 },
     });
   }
 
@@ -95,10 +127,15 @@ export async function getGlobalSettings() {
 
 export async function updateCashRegister(amount: number) {
   try {
+    const session = await requireCompanyAdminAccess();
+    if (!canPerform(session, ["MANAGE_EXPENSES"])) {
+      return { success: false, message: "You do not have permission to manage expenses." };
+    }
+    const companyId = await requireCompanyId();
     const settings = await prisma.globalSettings.upsert({
-      where: { id: "global" },
+      where: { companyId },
       update: { cashRegister: amount },
-      create: { id: "global", cashRegister: amount },
+      create: { id: "global", companyId, cashRegister: amount },
     });
 
     revalidatePath("/expenses");

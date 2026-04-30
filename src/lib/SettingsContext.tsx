@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { getTranslation, TranslationKey } from "./translations";
+import { getUserSettings, updateUserSettings } from "@/actions/userSettings";
 
 export type CurrencyCode = "MAD" | "EUR" | "USD";
 export type LanguageCode = "en" | "fr" | "ar";
@@ -22,8 +23,10 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   const [currency, setCurrencyState] = useState<CurrencyCode>("MAD");
   const [language, setLanguageState] = useState<LanguageCode>("en");
   const [mounted, setMounted] = useState(false);
+  const [loadedUserSettings, setLoadedUserSettings] = useState(false);
 
   useEffect(() => {
+    let cancelled = false;
     setMounted(true);
     const stored = localStorage.getItem("crms_currency") as CurrencyCode;
     if (stored && ["MAD", "EUR", "USD"].includes(stored)) {
@@ -33,16 +36,37 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     if (storedLang && ["en", "fr", "ar"].includes(storedLang)) {
       setLanguageState(storedLang);
     }
+
+    getUserSettings().then((settings) => {
+      if (cancelled || !settings) return;
+      setCurrencyState(settings.currency);
+      setLanguageState(settings.language);
+      localStorage.setItem("crms_currency", settings.currency);
+      localStorage.setItem("crms_language", settings.language);
+      setLoadedUserSettings(true);
+    }).catch(() => {
+      if (!cancelled) setLoadedUserSettings(true);
+    });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const setCurrency = (c: CurrencyCode) => {
     setCurrencyState(c);
     localStorage.setItem("crms_currency", c);
+    if (loadedUserSettings) {
+      updateUserSettings({ currency: c });
+    }
   };
 
   const setLanguage = (l: LanguageCode) => {
     setLanguageState(l);
     localStorage.setItem("crms_language", l);
+    if (loadedUserSettings) {
+      updateUserSettings({ language: l });
+    }
   };
 
   const t = (key: TranslationKey): string => {

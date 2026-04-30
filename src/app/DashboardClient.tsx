@@ -1,5 +1,6 @@
 "use client";
 import { useSettings } from "@/lib/SettingsContext";
+import { hasPermission } from "@/lib/permissions";
 
 import Link from "next/link";
 import {
@@ -14,6 +15,7 @@ import {
   CheckCircle,
   Key,
   CreditCard,
+  Calculator,
 } from "lucide-react";
 import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
@@ -41,12 +43,14 @@ interface DashboardClientProps {
     totalCustomers: number;
     overallRevenue: number;
     pendingRevenue: number;
+    remainder: number;
   };
   recentBookings: BookingRow[];
   todayPickups: BookingRow[];
   todayReturns: BookingRow[];
   todayMaintenanceIn: any[];
   todayMaintenanceOut: any[];
+  session: { role?: string; permissions?: string[] } | null;
 }
 
 export default function DashboardClient({
@@ -56,6 +60,7 @@ export default function DashboardClient({
   todayReturns,
   todayMaintenanceIn,
   todayMaintenanceOut,
+  session,
 }: DashboardClientProps) {
   const { formatPrice: formatCurrency, t, formatStatusT } = useSettings();
 
@@ -72,7 +77,7 @@ export default function DashboardClient({
     return t("dashboard.tomorrow");
   };
 
-  const statCards = [
+  const statCards: { label: string; value: string | number; icon: React.ReactNode; color: string; bg: string; href: string }[] = [
     {
       label: t("dashboard.totalVehicles"),
       value: stats.vehicleCount,
@@ -97,23 +102,40 @@ export default function DashboardClient({
       bg: "var(--warning-muted)",
       href: "/vehicles?status=RENTED",
     },
-    {
+  ];
+
+  if (hasPermission(session, "VIEW_OVERALL_REVENUE")) {
+    statCards.push({
       label: t("dashboard.overallRevenue"),
       value: formatCurrency(stats.overallRevenue),
       icon: <DollarSign size={22} />,
       color: "var(--info)",
       bg: "var(--info-muted)",
       href: "/invoices",
-    },
-    {
+    });
+  }
+
+  if (hasPermission(session, "VIEW_PENDING_REVENUE")) {
+    statCards.push({
       label: t("dashboard.howMuchRevenue"),
       value: formatCurrency(stats.pendingRevenue),
       icon: <CreditCard size={22} />,
       color: "var(--danger)",
       bg: "var(--danger-muted)",
       href: "/invoices?status=UNPAID",
-    },
-  ];
+    });
+  }
+
+  if (hasPermission(session, "VIEW_EXPENSES") || hasPermission(session, "MANAGE_EXPENSES")) {
+    statCards.push({
+      label: t("expenses.remainder"),
+      value: formatCurrency(stats.remainder),
+      icon: <Calculator size={22} />,
+      color: stats.remainder < 0 ? "var(--danger)" : "var(--success)",
+      bg: stats.remainder < 0 ? "var(--danger-muted)" : "var(--success-muted)",
+      href: "/expenses",
+    });
+  }
 
   return (
     <div className="animate-fade-in">
@@ -140,8 +162,8 @@ export default function DashboardClient({
       {/* Stats Grid */}
       <div className="stats-grid">
         {statCards.map((s) => (
-          <Link href={s.href} key={s.label} style={{ textDecoration: "none" }}>
-            <Card hover padding="md">
+          <Link href={s.href} key={s.label} className={styles.statLink}>
+            <Card hover padding="md" className={styles.statTicker}>
               <div className={styles.statCard}>
                 <div className={styles.statIcon} style={{ color: s.color, background: s.bg }}>
                   {s.icon}

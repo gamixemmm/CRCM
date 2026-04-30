@@ -61,6 +61,7 @@ interface VehicleFormProps {
     circulationDate: Date | null;
     insuranceExpiry: Date | null;
     registrationExpiry: Date | null;
+    technicalInspectionDueDate: Date | null;
     notes: string | null;
   };
 }
@@ -93,6 +94,9 @@ export default function VehicleForm({ vehicle }: VehicleFormProps) {
       : "",
     registrationExpiry: vehicle?.registrationExpiry
       ? new Date(vehicle.registrationExpiry).toISOString().split("T")[0]
+      : "",
+    technicalInspectionDueDate: vehicle?.technicalInspectionDueDate
+      ? new Date(vehicle.technicalInspectionDueDate).toISOString().split("T")[0]
       : "",
     notes: vehicle?.notes || "",
   });
@@ -201,6 +205,21 @@ export default function VehicleForm({ vehicle }: VehicleFormProps) {
                 value={form.circulationDate}
                 onChange={handleChange}
                 hint="Mise en circulation"
+              />
+              <Input
+                label="Next Technical Inspection"
+                name="technicalInspectionDueDate"
+                type="date"
+                value={form.technicalInspectionDueDate}
+                onChange={handleChange}
+                hint="La visite technique scheduled date"
+              />
+              <Input
+                label="Insurance Expiry"
+                name="insuranceExpiry"
+                type="date"
+                value={form.insuranceExpiry}
+                onChange={handleChange}
               />
               <Select
                 label="Transmission"

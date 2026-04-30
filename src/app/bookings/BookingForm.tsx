@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Save, Building2, User, Plus, X } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Save, Building2, User, Plus, X } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import Input from "@/components/ui/Input";
@@ -11,10 +11,12 @@ import BookingCalendar from "@/components/ui/BookingCalendar";
 import { useToast } from "@/components/ui/Toast";
 import { createBooking } from "@/actions/bookings";
 import { createCustomer } from "@/actions/customers";
+import { useSettings } from "@/lib/SettingsContext";
 
 export default function BookingForm({ vehicles, customers: initialCustomers }: { vehicles: any[]; customers: any[] }) {
   const router = useRouter();
   const { toast } = useToast();
+  const { formatPrice } = useSettings();
   const [loading, setLoading] = useState(false);
   const [customers, setCustomers] = useState(initialCustomers);
   const [showNewBroker, setShowNewBroker] = useState(false);
@@ -39,7 +41,7 @@ export default function BookingForm({ vehicles, customers: initialCustomers }: {
     driver2LastName: "",
     driver2CIN: "",
     driver2License: "",
-    pricePerDay: 0,
+    pricePerDay: "",
     pickupLocation: "",
     returnLocation: "",
     notes: "",
@@ -49,9 +51,27 @@ export default function BookingForm({ vehicles, customers: initialCustomers }: {
   const selectedVehicle = vehicles.find((v) => v.id === form.vehicleId);
   const start = form.startDate ? new Date(form.startDate) : null;
   const end = form.endDate ? new Date(form.endDate) : null;
+
+  const normalizeDate = (date: Date) => {
+    const normalized = new Date(date);
+    normalized.setHours(0, 0, 0, 0);
+    return normalized;
+  };
+
+  const dateWithinRange = (date: Date, rangeStart: Date, rangeEnd: Date) => {
+    const value = normalizeDate(date).getTime();
+    return value >= normalizeDate(rangeStart).getTime() && value <= normalizeDate(rangeEnd).getTime();
+  };
+
+  const addYears = (date: Date, years: number) => {
+    const next = new Date(date);
+    next.setFullYear(next.getFullYear() + years);
+    return next;
+  };
   
   // Auto-set price per day when vehicle changes
-  const effectiveRate = form.pricePerDay > 0 ? form.pricePerDay : (selectedVehicle?.dailyRate || 0);
+  const enteredRate = Number(form.pricePerDay);
+  const effectiveRate = enteredRate > 0 ? enteredRate : (selectedVehicle?.dailyRate || 0);
 
   let days = 0;
   if (start && end && end >= start) {
@@ -60,6 +80,50 @@ export default function BookingForm({ vehicles, customers: initialCustomers }: {
   }
   
   const estimatedTotal = days * effectiveRate;
+
+  const bookingWarnings = useMemo(() => {
+    if (!selectedVehicle || !start || !end || end < start) return [];
+
+    const warnings: string[] = [];
+    const latestInsurance = selectedVehicle.insurancePayments?.[0];
+    const insuranceEndDate = latestInsurance?.endDate
+      ? new Date(latestInsurance.endDate)
+      : selectedVehicle.insuranceExpiry
+        ? new Date(selectedVehicle.insuranceExpiry)
+        : null;
+
+    if (insuranceEndDate && dateWithinRange(insuranceEndDate, start, end)) {
+      warnings.push(`Insurance expires during this booking on ${insuranceEndDate.toLocaleDateString()}.`);
+    }
+
+    const latestInspection = selectedVehicle.technicalInspections?.[0];
+    const technicalDueDate = latestInspection?.nextDueDate
+      ? new Date(latestInspection.nextDueDate)
+      : selectedVehicle.technicalInspectionDueDate
+        ? new Date(selectedVehicle.technicalInspectionDueDate)
+        : selectedVehicle.circulationDate
+          ? addYears(new Date(selectedVehicle.circulationDate), 1)
+          : null;
+
+    if (technicalDueDate && dateWithinRange(technicalDueDate, start, end)) {
+      warnings.push(`Technical inspection is due during this booking on ${technicalDueDate.toLocaleDateString()}.`);
+    }
+
+    const paidVignetteYears = new Set([
+      ...(selectedVehicle.vignettePayments || []).map((payment: any) => payment.year),
+      ...(selectedVehicle.expenses || []).map((expense: any) => new Date(expense.date).getFullYear()),
+    ]);
+    for (let year = start.getFullYear(); year <= end.getFullYear(); year += 1) {
+      const deadline = new Date(year, 0, 30);
+      const bookingTouchesYear = normalizeDate(start).getFullYear() <= year && normalizeDate(end).getFullYear() >= year;
+      const deadlineApplies = bookingTouchesYear && normalizeDate(end).getTime() >= deadline.getTime();
+      if (deadlineApplies && !paidVignetteYears.has(year)) {
+        warnings.push(`Vignette for ${year} is not marked paid. Deadline is ${deadline.toLocaleDateString()}.`);
+      }
+    }
+
+    return warnings;
+  }, [selectedVehicle, start, end]);
 
   // Filter vehicles by availability when dates are selected
   const isVehicleAvailable = (vehicle: any): boolean => {
@@ -88,7 +152,7 @@ export default function BookingForm({ vehicles, customers: initialCustomers }: {
     setForm({
       ...form,
       vehicleId,
-      pricePerDay: v?.dailyRate || 0,
+      pricePerDay: v?.dailyRate ? String(v.dailyRate) : "",
     });
   };
 
@@ -353,6 +417,20 @@ export default function BookingForm({ vehicles, customers: initialCustomers }: {
                   }))}
                 placeholder="Select a vehicle..."
               />
+
+              {bookingWarnings.length > 0 && (
+                <div style={{ background: "var(--warning-muted)", border: "1px solid var(--warning)", borderRadius: "10px", padding: "14px", display: "flex", gap: "12px", alignItems: "flex-start" }}>
+                  <AlertTriangle size={20} style={{ color: "var(--warning)", flexShrink: 0, marginTop: "2px" }} />
+                  <div>
+                    <div style={{ fontWeight: 700, color: "var(--warning)", marginBottom: "6px" }}>Vehicle needs attention during this booking</div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "4px", color: "var(--text-secondary)", fontSize: "0.875rem" }}>
+                      {bookingWarnings.map((warning) => (
+                        <div key={warning}>{warning}</div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </Card>
 
@@ -366,7 +444,7 @@ export default function BookingForm({ vehicles, customers: initialCustomers }: {
                 min={0}
                 required
                 value={form.pricePerDay}
-                onChange={(e) => setForm({ ...form, pricePerDay: Number(e.target.value) })}
+                onChange={(e) => setForm({ ...form, pricePerDay: e.target.value })}
                 hint="Auto-filled from vehicle, edit to override"
               />
 
@@ -389,11 +467,11 @@ export default function BookingForm({ vehicles, customers: initialCustomers }: {
                 </div>
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px", fontSize: "0.875rem" }}>
                   <span style={{ color: "var(--text-secondary)" }}>Price/Day:</span>
-                  <span>${effectiveRate}</span>
+                  <span>{form.pricePerDay || selectedVehicle ? formatPrice(effectiveRate) : ""}</span>
                 </div>
                 <div style={{ display: "flex", justifyContent: "space-between", paddingTop: "8px", borderTop: "1px solid var(--border)", fontWeight: "bold" }}>
                   <span>Total Payment:</span>
-                  <span style={{ color: "var(--accent)", fontSize: "1.25rem" }}>${estimatedTotal.toFixed(2)}</span>
+                  <span style={{ color: "var(--accent)", fontSize: "1.25rem" }}>{formatPrice(estimatedTotal)}</span>
                 </div>
               </div>
             </div>

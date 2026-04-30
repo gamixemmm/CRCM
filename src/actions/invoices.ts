@@ -2,6 +2,9 @@
 
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { requireCompanyId } from "@/lib/company";
+import { canPerform } from "@/lib/permissions";
+import { requireCompanyAdminAccess } from "@/actions/companyAuth";
 
 interface InvoiceInput {
   bookingId: string;
@@ -14,7 +17,9 @@ interface InvoiceInput {
 }
 
 export async function getInvoices(params?: { status?: string; search?: string }) {
-  const where: any = {};
+  const companyId = await requireCompanyId();
+  const where: Record<string, unknown> = {};
+  where.companyId = companyId;
 
   if (params?.status && params.status !== "ALL") {
     where.paymentStatus = params.status;
@@ -43,8 +48,9 @@ export async function getInvoices(params?: { status?: string; search?: string })
 }
 
 export async function getInvoice(id: string) {
-  return prisma.invoice.findUnique({
-    where: { id },
+  const companyId = await requireCompanyId();
+  return prisma.invoice.findFirst({
+    where: { id, companyId },
     include: {
       booking: {
         include: {
@@ -58,8 +64,13 @@ export async function getInvoice(id: string) {
 
 export async function createInvoice(input: InvoiceInput) {
   try {
-    const existing = await prisma.invoice.findUnique({
-      where: { bookingId: input.bookingId },
+    const session = await requireCompanyAdminAccess();
+    if (!canPerform(session, ["MANAGE_INVOICES"])) {
+      return { success: false, message: "You do not have permission to manage invoices." };
+    }
+    const companyId = await requireCompanyId();
+    const existing = await prisma.invoice.findFirst({
+      where: { bookingId: input.bookingId, companyId },
     });
 
     if (existing) {
@@ -76,6 +87,7 @@ export async function createInvoice(input: InvoiceInput) {
     const invoice = await prisma.invoice.create({
       data: {
         bookingId: input.bookingId,
+        companyId,
         subtotal: input.subtotal,
         extraCharges: input.extraCharges || 0,
         extraChargeDesc: input.extraChargeDesc || null,
@@ -102,8 +114,13 @@ export async function createInvoice(input: InvoiceInput) {
 
 export async function updatePaymentStatus(id: string, status: "PENDING" | "PAID" | "PARTIAL", amountPaid: number = 0, markBookingCompleted = false, paymentMethod?: string) {
   try {
+    const session = await requireCompanyAdminAccess();
+    if (!canPerform(session, ["ADD_INVOICE_PAYMENTS"])) {
+      return { success: false, message: "You do not have permission to add invoice payments." };
+    }
+    const companyId = await requireCompanyId();
     const invoice = await prisma.$transaction(async (tx) => {
-      const current = await tx.invoice.findUnique({ where: { id } });
+      const current = await tx.invoice.findFirst({ where: { id, companyId } });
       if (!current) throw new Error("Not found");
       
       let newAmountDue = current.amountDue;
@@ -148,7 +165,7 @@ export async function updatePaymentStatus(id: string, status: "PENDING" | "PAID"
           data: { status: "COMPLETED" },
         });
 
-        const booking = await tx.booking.findUnique({ where: { id: inv.bookingId } });
+        const booking = await tx.booking.findFirst({ where: { id: inv.bookingId, companyId } });
         if (booking && booking.vehicleId) {
           await tx.vehicle.update({
             where: { id: booking.vehicleId },
@@ -174,6 +191,15 @@ export async function updatePaymentStatus(id: string, status: "PENDING" | "PAID"
 
 export async function deleteInvoice(id: string) {
   try {
+    const session = await requireCompanyAdminAccess();
+    if (!canPerform(session, ["MANAGE_INVOICES"])) {
+      return { success: false, message: "You do not have permission to manage invoices." };
+    }
+    const companyId = await requireCompanyId();
+    const current = await prisma.invoice.findFirst({ where: { id, companyId } });
+    if (!current) {
+      return { success: false, message: "Invoice not found" };
+    }
     const invoice = await prisma.invoice.delete({
       where: { id },
     });

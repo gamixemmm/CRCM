@@ -9,10 +9,11 @@ datasource db {
 
 model Vehicle {
   id                 String        @id @default(cuid())
+  companyId          String?
   brand              String
   model              String
   year               Int
-  plateNumber        String        @unique
+  plateNumber        String
   color              String        @default("Black")
   transmission       String        @default("Automatic")
   fuelType           String        @default("Gasoline")
@@ -23,6 +24,7 @@ model Vehicle {
   circulationDate    DateTime?
   insuranceExpiry    DateTime?
   registrationExpiry DateTime?
+  technicalInspectionDueDate DateTime?
   notes              String?
   createdAt          DateTime      @default(now())
   updatedAt          DateTime      @updatedAt
@@ -30,10 +32,18 @@ model Vehicle {
   bookings           Booking[]
   maintenance        Maintenance[]
   expenses           Expense[]
+  technicalInspections TechnicalInspection[]
+  vignettePayments   VignettePayment[]
+  insurancePayments   InsurancePayment[]
+
+  company            Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, plateNumber])
 }
 
 model Customer {
   id            String    @id @default(cuid())
+  companyId     String?
   firstName     String
   lastName      String
   phone         String?
@@ -46,10 +56,15 @@ model Customer {
   updatedAt     DateTime  @updatedAt
 
   bookings      Booking[]
+
+  company       Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, licenseNumber])
 }
 
 model Booking {
   id              String   @id @default(cuid())
+  companyId       String?
   customerId      String
   vehicleId       String
   startDate       DateTime
@@ -79,10 +94,13 @@ model Booking {
   customer        Customer @relation(fields: [customerId], references: [id])
   vehicle         Vehicle  @relation(fields: [vehicleId], references: [id])
   invoice         Invoice?
+
+  company         Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
 }
 
 model Invoice {
   id              String   @id @default(cuid())
+  companyId       String?
   bookingId       String   @unique
   subtotal        Float
   extraCharges    Float    @default(0)
@@ -98,10 +116,13 @@ model Invoice {
   updatedAt       DateTime @updatedAt
 
   booking         Booking  @relation(fields: [bookingId], references: [id])
+
+  company         Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
 }
 
 model Maintenance {
   id              String    @id @default(cuid())
+  companyId       String?
   vehicleId       String
   serviceDate     DateTime
   returnDate      DateTime?
@@ -116,10 +137,13 @@ model Maintenance {
   updatedAt       DateTime  @updatedAt
 
   vehicle         Vehicle   @relation(fields: [vehicleId], references: [id])
+
+  company         Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
 }
 
 model Expense {
   id          String   @id @default(cuid())
+  companyId   String?
   date        DateTime @default(now())
   category    String
   amount      Float
@@ -129,10 +153,64 @@ model Expense {
   updatedAt   DateTime @updatedAt
 
   vehicle     Vehicle? @relation(fields: [vehicleId], references: [id])
+
+  company     Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
+}
+
+model TechnicalInspection {
+  id             String   @id @default(cuid())
+  companyId      String?
+  vehicleId      String
+  inspectionDate DateTime @default(now())
+  nextDueDate    DateTime
+  notes          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  vehicle        Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+
+  company        Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
+}
+
+model VignettePayment {
+  id        String   @id @default(cuid())
+  companyId String?
+  vehicleId String
+  year      Int
+  paidAt    DateTime @default(now())
+  amount    Float    @default(0)
+  expenseId String?
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  vehicle   Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+
+  company   Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, vehicleId, year])
+}
+
+model InsurancePayment {
+  id        String   @id @default(cuid())
+  companyId String?
+  vehicleId String
+  paidAt    DateTime @default(now())
+  endDate   DateTime
+  amount    Float    @default(0)
+  expenseId String?
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  vehicle   Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+
+  company   Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
 }
 
 model Employee {
   id             String                  @id @default(cuid())
+  companyId      String?
   firstName      String
   lastName       String
   phone          String?
@@ -147,17 +225,27 @@ model Employee {
   updatedAt      DateTime                @updatedAt
 
   salaryPayments EmployeeSalaryPayment[]
+  account        EmployeeAccount?
+
+  company        Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
 }
 
 model EmployeeRole {
-  id        String   @id @default(cuid())
-  name      String   @unique
-  createdAt DateTime @default(now())
+  id          String   @id @default(cuid())
+  companyId   String?
+  name        String
+  permissions String[] @default([])
+  createdAt   DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  company   Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, name])
 }
 
 model EmployeeSalaryPayment {
   id         String   @id @default(cuid())
+  companyId  String?
   employeeId String
   month      Int
   year       Int
@@ -171,10 +259,79 @@ model EmployeeSalaryPayment {
 
   employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 
-  @@unique([employeeId, month, year])
+  company    Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, employeeId, month, year])
 }
 
 model GlobalSettings {
   id            String @id @default("global")
+  companyId     String?
   cashRegister  Float  @default(0)
+
+  company       Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId])
+}
+
+model Company {
+  id           String    @id @default(cuid())
+  name         String
+  slug         String    @unique
+  contactEmail String?
+  active       Boolean   @default(true)
+  disabledAt   DateTime?
+  notes        String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  admin             CompanyAdmin?
+  employeeAccounts  EmployeeAccount[]
+  vehicles          Vehicle[]
+  customers         Customer[]
+  bookings          Booking[]
+  invoices          Invoice[]
+  maintenance       Maintenance[]
+  expenses          Expense[]
+  technicalInspections TechnicalInspection[]
+  vignettePayments  VignettePayment[]
+  insurancePayments InsurancePayment[]
+  employees         Employee[]
+  employeeRoles     EmployeeRole[]
+  salaryPayments    EmployeeSalaryPayment[]
+  globalSettings    GlobalSettings[]
+}
+
+model CompanyAdmin {
+  id           String   @id @default(cuid())
+  companyId    String   @unique
+  name         String
+  email        String   @unique
+  passwordHash String
+  preferredCurrency String @default("MAD")
+  preferredLanguage String @default("en")
+  active       Boolean  @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  company      Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+}
+
+model EmployeeAccount {
+  id           String   @id @default(cuid())
+  companyId    String
+  employeeId   String   @unique
+  name         String
+  email        String   @unique
+  passwordHash String
+  preferredCurrency String @default("MAD")
+  preferredLanguage String @default("en")
+  active       Boolean  @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  company      Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  employee     Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 }

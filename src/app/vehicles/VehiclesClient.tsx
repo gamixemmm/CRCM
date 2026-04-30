@@ -47,7 +47,7 @@ interface VehiclesClientProps {
 }
 
 export default function VehiclesClient({ vehicles, stats }: VehiclesClientProps) {
-  const { formatPrice: formatCurrency, t, formatStatusT } = useSettings();
+  const { t, formatStatusT } = useSettings();
 
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -116,13 +116,6 @@ export default function VehiclesClient({ vehicles, stats }: VehiclesClientProps)
       key: "mileage",
       label: t("vehicles.mileage"),
       render: (v: VehicleRow) => <span className={styles.meta}>{formatMileage(v.mileage)}</span>,
-    },
-    {
-      key: "dailyRate",
-      label: t("vehicles.dailyRate"),
-      render: (v: VehicleRow) => (
-        <span className={styles.rate}>{formatCurrency(v.dailyRate)}</span>
-      ),
     },
     {
       key: "status",
@@ -292,10 +285,6 @@ export default function VehiclesClient({ vehicles, stats }: VehiclesClientProps)
                     ⚠️ {t("maintenance.oilChangeRequired")} ({t("maintenance.lastOilChange")} {v.maintenance[0].mileageAtService} km)
                   </div>
                 )}
-                <div className={styles.cardFooter}>
-                  <span className={styles.cardRate}>{formatCurrency(v.dailyRate)}</span>
-                  <span className={styles.cardRateLabel}>{t("vehicles.perDay")}</span>
-                </div>
               </div>
             </Card>
           ))}

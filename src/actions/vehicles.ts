@@ -2,6 +2,9 @@
 
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { requireCompanyId } from "@/lib/company";
+import { canPerform } from "@/lib/permissions";
+import { requireCompanyAdminAccess } from "@/actions/companyAuth";
 
 // ─── Types ───────────────────────────────────────────────────────
 interface VehicleInput {
@@ -19,6 +22,7 @@ interface VehicleInput {
   circulationDate?: string;
   insuranceExpiry?: string;
   registrationExpiry?: string;
+  technicalInspectionDueDate?: string;
   notes?: string;
 }
 
@@ -34,7 +38,9 @@ export async function getVehicles(params?: {
   status?: string;
   search?: string;
 }) {
+  const companyId = await requireCompanyId();
   const where: Record<string, unknown> = {};
+  where.companyId = companyId;
 
   if (params?.status && params.status !== "ALL") {
     where.status = params.status;
@@ -74,8 +80,10 @@ export async function getVehicles(params?: {
 
 // ─── Get All Vehicles With Their Bookings (for booking calendar) ──
 export async function getVehiclesWithBookings() {
+  const companyId = await requireCompanyId();
   const vehicles = await prisma.vehicle.findMany({
     where: {
+      companyId,
       status: { not: "MAINTENANCE" },
     },
     orderBy: { createdAt: "desc" },
@@ -90,6 +98,33 @@ export async function getVehiclesWithBookings() {
           status: true,
         },
       },
+      insurancePayments: {
+        orderBy: { paidAt: "desc" },
+        take: 1,
+        select: {
+          endDate: true,
+        },
+      },
+      technicalInspections: {
+        orderBy: { inspectionDate: "desc" },
+        take: 1,
+        select: {
+          nextDueDate: true,
+        },
+      },
+      vignettePayments: {
+        select: {
+          year: true,
+        },
+      },
+      expenses: {
+        where: {
+          category: "Vignette",
+        },
+        select: {
+          date: true,
+        },
+      },
     },
   });
 
@@ -98,7 +133,9 @@ export async function getVehiclesWithBookings() {
 
 // ─── Get All Vehicles With Their Bookings (for maintenance calendar) ──
 export async function getVehiclesForMaintenance() {
+  const companyId = await requireCompanyId();
   const vehicles = await prisma.vehicle.findMany({
+    where: { companyId },
     orderBy: { createdAt: "desc" },
     include: {
       bookings: {
@@ -119,8 +156,9 @@ export async function getVehiclesForMaintenance() {
 
 // ─── Get Single Vehicle ──────────────────────────────────────────
 export async function getVehicle(id: string) {
-  return prisma.vehicle.findUnique({
-    where: { id },
+  const companyId = await requireCompanyId();
+  return prisma.vehicle.findFirst({
+    where: { id, companyId },
     include: {
       bookings: {
         orderBy: { startDate: "desc" },
@@ -138,6 +176,11 @@ export async function getVehicle(id: string) {
 // ─── Create Vehicle ──────────────────────────────────────────────
 export async function createVehicle(input: VehicleInput): Promise<ActionResult> {
   try {
+    const session = await requireCompanyAdminAccess();
+    if (!canPerform(session, ["ADD_VEHICLES"])) {
+      return { success: false, message: "You do not have permission to add vehicles." };
+    }
+    const companyId = await requireCompanyId();
     // Validate required fields
     if (!input.brand || !input.model || !input.plateNumber) {
       return {
@@ -153,7 +196,7 @@ export async function createVehicle(input: VehicleInput): Promise<ActionResult> 
 
     // Check plate uniqueness
     const existing = await prisma.vehicle.findUnique({
-      where: { plateNumber: input.plateNumber.toUpperCase().trim() },
+      where: { companyId_plateNumber: { companyId, plateNumber: input.plateNumber.toUpperCase().trim() } },
     });
 
     if (existing) {
@@ -176,10 +219,12 @@ export async function createVehicle(input: VehicleInput): Promise<ActionResult> 
         dailyRate: input.dailyRate || 0,
         mileage: input.mileage || 0,
         status: input.status || "AVAILABLE",
+        companyId,
         imageUrl: input.imageUrl || null,
         circulationDate: input.circulationDate ? new Date(input.circulationDate) : null,
         insuranceExpiry: input.insuranceExpiry ? new Date(input.insuranceExpiry) : null,
         registrationExpiry: input.registrationExpiry ? new Date(input.registrationExpiry) : null,
+        technicalInspectionDueDate: input.technicalInspectionDueDate ? new Date(input.technicalInspectionDueDate) : null,
         notes: input.notes || null,
       },
     });
@@ -197,10 +242,16 @@ export async function createVehicle(input: VehicleInput): Promise<ActionResult> 
 // ─── Update Vehicle ──────────────────────────────────────────────
 export async function updateVehicle(id: string, input: Partial<VehicleInput>): Promise<ActionResult> {
   try {
+    const session = await requireCompanyAdminAccess();
+    if (!canPerform(session, ["MANAGE_VEHICLES"])) {
+      return { success: false, message: "You do not have permission to manage vehicles." };
+    }
+    const companyId = await requireCompanyId();
     // Check plate uniqueness if changing
     if (input.plateNumber) {
       const existing = await prisma.vehicle.findFirst({
         where: {
+          companyId,
           plateNumber: input.plateNumber.toUpperCase().trim(),
           id: { not: id },
         },
@@ -228,6 +279,7 @@ export async function updateVehicle(id: string, input: Partial<VehicleInput>): P
     if (input.circulationDate !== undefined) data.circulationDate = input.circulationDate ? new Date(input.circulationDate) : null;
     if (input.insuranceExpiry !== undefined) data.insuranceExpiry = input.insuranceExpiry ? new Date(input.insuranceExpiry) : null;
     if (input.registrationExpiry !== undefined) data.registrationExpiry = input.registrationExpiry ? new Date(input.registrationExpiry) : null;
+    if (input.technicalInspectionDueDate !== undefined) data.technicalInspectionDueDate = input.technicalInspectionDueDate ? new Date(input.technicalInspectionDueDate) : null;
     if (input.notes !== undefined) data.notes = input.notes || null;
 
     const vehicle = await prisma.vehicle.update({
@@ -249,9 +301,15 @@ export async function updateVehicle(id: string, input: Partial<VehicleInput>): P
 // ─── Delete Vehicle ──────────────────────────────────────────────
 export async function deleteVehicle(id: string): Promise<ActionResult> {
   try {
+    const session = await requireCompanyAdminAccess();
+    if (!canPerform(session, ["MANAGE_VEHICLES"])) {
+      return { success: false, message: "You do not have permission to manage vehicles." };
+    }
+    const companyId = await requireCompanyId();
     // Check for active bookings
     const activeBookings = await prisma.booking.count({
       where: {
+        companyId,
         vehicleId: id,
         status: { in: ["PENDING", "CONFIRMED", "ACTIVE"] },
       },
@@ -278,11 +336,12 @@ export async function deleteVehicle(id: string): Promise<ActionResult> {
 
 // ─── Get Vehicle Stats ───────────────────────────────────────────
 export async function getVehicleStats() {
+  const companyId = await requireCompanyId();
   const [total, available, rented, maintenance] = await Promise.all([
-    prisma.vehicle.count(),
-    prisma.vehicle.count({ where: { status: "AVAILABLE" } }),
-    prisma.vehicle.count({ where: { status: "RENTED" } }),
-    prisma.vehicle.count({ where: { status: "MAINTENANCE" } }),
+    prisma.vehicle.count({ where: { companyId } }),
+    prisma.vehicle.count({ where: { companyId, status: "AVAILABLE" } }),
+    prisma.vehicle.count({ where: { companyId, status: "RENTED" } }),
+    prisma.vehicle.count({ where: { companyId, status: "MAINTENANCE" } }),
   ]);
 
   return { total, available, rented, maintenance };

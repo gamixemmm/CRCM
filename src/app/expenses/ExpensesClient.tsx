@@ -39,7 +39,7 @@ export default function ExpensesClient({ expenses, overallRevenue, vehicles }: E
   
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [expenseMode, setExpenseMode] = useState<"general" | "car" | "cnss" | "rent">("general");
+  const [expenseMode, setExpenseMode] = useState<"general" | "car" | "cnss" | "rent" | "accounting">("general");
   const [editingExpense, setEditingExpense] = useState<any | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
@@ -213,6 +213,17 @@ export default function ExpensesClient({ expenses, overallRevenue, vehicles }: E
           {t("expenses.title")}
         </h1>
         <div className="page-header-actions">
+          <Button
+            variant="secondary"
+            icon={<Calculator size={16} />}
+            onClick={() => {
+              setExpenseMode("accounting");
+              setEditingExpense(null);
+              setIsModalOpen(true);
+            }}
+          >
+            {t("expenses.addAccountingPayment")}
+          </Button>
           <Button
             variant="secondary"
             icon={<Home size={16} />}

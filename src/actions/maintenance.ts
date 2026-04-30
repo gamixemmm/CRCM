@@ -2,6 +2,9 @@
 
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { requireCompanyId } from "@/lib/company";
+import { canPerform } from "@/lib/permissions";
+import { requireCompanyAdminAccess } from "@/actions/companyAuth";
 
 interface MaintenanceInput {
   vehicleId: string;
@@ -17,14 +20,17 @@ interface MaintenanceInput {
 }
 
 export async function getMaintenanceLog(id: string) {
-  return prisma.maintenance.findUnique({
-    where: { id },
+  const companyId = await requireCompanyId();
+  return prisma.maintenance.findFirst({
+    where: { id, companyId },
     include: { vehicle: true },
   });
 }
 
 export async function getMaintenanceLogs(params?: { status?: string; search?: string }) {
-  const where: any = {};
+  const companyId = await requireCompanyId();
+  const where: Record<string, unknown> = {};
+  where.companyId = companyId;
 
   if (params?.status && params.status !== "ALL") {
     // ACTIVE means returnDate is null, COMPLETED means returnDate exists
@@ -52,8 +58,13 @@ export async function getMaintenanceLogs(params?: { status?: string; search?: st
 
 export async function updateMaintenance(id: string, input: Partial<MaintenanceInput>) {
   try {
-    const current = await prisma.maintenance.findUnique({
-      where: { id },
+    const session = await requireCompanyAdminAccess();
+    if (!canPerform(session, ["MANAGE_MAINTENANCE"])) {
+      return { success: false, message: "You do not have permission to manage maintenance." };
+    }
+    const companyId = await requireCompanyId();
+    const current = await prisma.maintenance.findFirst({
+      where: { id, companyId },
       include: { vehicle: true },
     });
 
@@ -100,8 +111,10 @@ export async function updateMaintenance(id: string, input: Partial<MaintenanceIn
 }
 
 export async function getMaintenanceServiceProviders() {
+  const companyId = await requireCompanyId();
   const providers = await prisma.maintenance.findMany({
     where: {
+      companyId,
       serviceProvider: {
         not: null,
       },
@@ -122,8 +135,13 @@ export async function getMaintenanceServiceProviders() {
 
 export async function logMaintenance(input: MaintenanceInput) {
   try {
-    const vehicle = await prisma.vehicle.findUnique({
-      where: { id: input.vehicleId }
+    const session = await requireCompanyAdminAccess();
+    if (!canPerform(session, ["CREATE_MAINTENANCE"])) {
+      return { success: false, message: "You do not have permission to create maintenance." };
+    }
+    const companyId = await requireCompanyId();
+    const vehicle = await prisma.vehicle.findFirst({
+      where: { id: input.vehicleId, companyId }
     });
 
     if (!vehicle) return { success: false, message: "Vehicle not found" };
@@ -140,6 +158,7 @@ export async function logMaintenance(input: MaintenanceInput) {
       // Create log
       const m = await tx.maintenance.create({
         data: {
+          companyId,
           vehicleId: input.vehicleId,
           serviceDate,
           returnDate: input.returnDate ? new Date(input.returnDate) : null,
@@ -175,9 +194,10 @@ export async function logMaintenance(input: MaintenanceInput) {
 
       // Auto-create an expense if cost > 0
       if (input.cost > 0) {
-        await tx.expense.create({
-          data: {
-            date: serviceDate,
+          await tx.expense.create({
+            data: {
+              companyId,
+              date: serviceDate,
             category: "Maintenance",
             amount: input.cost,
             description: `Maintenance (${input.type}): ${input.description}`,
@@ -203,12 +223,17 @@ export async function logMaintenance(input: MaintenanceInput) {
 
 export async function resolveMaintenance(id: string, returnDate?: string) {
   try {
-    const result = await prisma.$transaction(async (tx) => {
-      const current = await tx.maintenance.findUnique({ where: { id } });
+    const session = await requireCompanyAdminAccess();
+    if (!canPerform(session, ["MANAGE_MAINTENANCE"])) {
+      return { success: false, message: "You do not have permission to manage maintenance." };
+    }
+    const companyId = await requireCompanyId();
+    await prisma.$transaction(async (tx) => {
+      const current = await tx.maintenance.findFirst({ where: { id, companyId } });
       if (!current) throw new Error("Log not found");
 
       // Mark maintenance done
-      const resolvedLog = await tx.maintenance.update({
+      await tx.maintenance.update({
         where: { id },
         data: {
           returnDate: returnDate ? new Date(returnDate) : new Date(),
@@ -221,7 +246,6 @@ export async function resolveMaintenance(id: string, returnDate?: string) {
         data: { status: "AVAILABLE" },
       });
 
-      return resolvedLog;
     });
 
     revalidatePath("/maintenance");
@@ -237,8 +261,13 @@ export async function resolveMaintenance(id: string, returnDate?: string) {
 
 export async function unresolveMaintenance(id: string) {
   try {
+    const session = await requireCompanyAdminAccess();
+    if (!canPerform(session, ["MANAGE_MAINTENANCE"])) {
+      return { success: false, message: "You do not have permission to manage maintenance." };
+    }
+    const companyId = await requireCompanyId();
     await prisma.$transaction(async (tx) => {
-      const current = await tx.maintenance.findUnique({ where: { id } });
+      const current = await tx.maintenance.findFirst({ where: { id, companyId } });
       if (!current) throw new Error("Log not found");
 
       await tx.maintenance.update({
@@ -265,8 +294,13 @@ export async function unresolveMaintenance(id: string) {
 
 export async function deleteMaintenance(id: string) {
   try {
+    const session = await requireCompanyAdminAccess();
+    if (!canPerform(session, ["MANAGE_MAINTENANCE"])) {
+      return { success: false, message: "You do not have permission to manage maintenance." };
+    }
+    const companyId = await requireCompanyId();
     await prisma.$transaction(async (tx) => {
-      const log = await tx.maintenance.findUnique({ where: { id } });
+      const log = await tx.maintenance.findFirst({ where: { id, companyId } });
       if (!log) throw new Error("Log not found");
 
       await tx.maintenance.delete({ where: { id } });

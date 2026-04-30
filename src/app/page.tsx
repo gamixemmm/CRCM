@@ -1,9 +1,17 @@
 import { prisma } from "@/lib/prisma";
 import DashboardClient from "./DashboardClient";
+import { getCompanyAdminSession } from "@/actions/companyAuth";
+import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
+  const session = await getCompanyAdminSession();
+  if (!session) {
+    redirect("/login?next=/");
+  }
+  const companyId = session.companyId;
+
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
   const tomorrowEnd = new Date();
@@ -23,20 +31,23 @@ export default async function DashboardPage() {
     todayMaintenanceIn,
     todayMaintenanceOut,
     allInvoices,
+    expenseSummary,
   ] = await Promise.all([
-    prisma.vehicle.count(),
-    prisma.vehicle.count({ where: { status: "AVAILABLE" } }),
-    prisma.vehicle.count({ where: { status: "RENTED" } }),
-    prisma.vehicle.count({ where: { status: "MAINTENANCE" } }),
-    prisma.booking.count({ where: { status: { in: ["ACTIVE", "CONFIRMED"] } } }),
-    prisma.customer.count(),
+    prisma.vehicle.count({ where: { companyId } }),
+    prisma.vehicle.count({ where: { companyId, status: "AVAILABLE" } }),
+    prisma.vehicle.count({ where: { companyId, status: "RENTED" } }),
+    prisma.vehicle.count({ where: { companyId, status: "MAINTENANCE" } }),
+    prisma.booking.count({ where: { companyId, status: { in: ["ACTIVE", "CONFIRMED"] } } }),
+    prisma.customer.count({ where: { companyId } }),
     prisma.booking.findMany({
+      where: { companyId },
       take: 5,
       orderBy: { createdAt: "desc" },
       include: { customer: true, vehicle: true },
     }),
     prisma.booking.findMany({
       where: {
+        companyId,
         startDate: {
           gte: todayStart,
           lt: tomorrowEnd,
@@ -47,6 +58,7 @@ export default async function DashboardPage() {
     }),
     prisma.booking.findMany({
       where: {
+        companyId,
         endDate: {
           gte: todayStart,
           lt: tomorrowEnd,
@@ -57,6 +69,7 @@ export default async function DashboardPage() {
     }),
     prisma.maintenance.findMany({
       where: {
+        companyId,
         serviceDate: {
           gte: todayStart,
           lt: tomorrowEnd,
@@ -66,6 +79,7 @@ export default async function DashboardPage() {
     }),
     prisma.maintenance.findMany({
       where: {
+        companyId,
         returnDate: {
           gte: todayStart,
           lt: tomorrowEnd,
@@ -73,11 +87,19 @@ export default async function DashboardPage() {
       },
       include: { vehicle: true },
     }),
-    prisma.invoice.findMany(),
+    prisma.invoice.findMany({ where: { companyId } }),
+    prisma.expense.aggregate({
+      where: { companyId },
+      _sum: {
+        amount: true,
+      },
+    }),
   ]);
 
   const overallRevenue = allInvoices.reduce((sum, inv) => sum + (inv.totalAmount - inv.amountDue), 0);
   const pendingRevenue = allInvoices.reduce((sum, inv) => sum + inv.amountDue, 0);
+  const totalCharges = expenseSummary._sum.amount ?? 0;
+  const remainder = overallRevenue - totalCharges;
 
   return (
     <DashboardClient
@@ -90,7 +112,9 @@ export default async function DashboardPage() {
         totalCustomers,
         overallRevenue,
         pendingRevenue,
+        remainder,
       }}
+      session={session}
       recentBookings={JSON.parse(JSON.stringify(recentBookings))}
       todayPickups={JSON.parse(JSON.stringify(todayPickups))}
       todayReturns={JSON.parse(JSON.stringify(todayReturns))}

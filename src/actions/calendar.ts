@@ -1,8 +1,10 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import { requireCompanyId } from "@/lib/company";
 
 export async function getCalendarEvents(year: number, month: number) {
+  const companyId = await requireCompanyId();
   // We grab any event that overlaps with this month.
   // Actually, to keep it simple, grab all active/completed ones and filter/map them on frontend,
   // or grab a wider window. For an MVP, grabbing all recent/future jobs is fine.
@@ -13,6 +15,7 @@ export async function getCalendarEvents(year: number, month: number) {
 
   const bookings = await prisma.booking.findMany({
     where: {
+      companyId,
       status: { not: "CANCELLED" },
       OR: [
         { startDate: { lte: endOfMonth }, endDate: { gte: startOfMonth } }
@@ -23,6 +26,7 @@ export async function getCalendarEvents(year: number, month: number) {
 
   const shopJobs = await prisma.maintenance.findMany({
     where: {
+      companyId,
       OR: [
         { serviceDate: { lte: endOfMonth }, returnDate: { gte: startOfMonth } },
         { serviceDate: { lte: endOfMonth }, returnDate: null } // Still in shop
@@ -52,7 +56,7 @@ export async function getCalendarEvents(year: number, month: number) {
     events.push({
       id: `shop-${m.id}`,
       originalId: m.id,
-      title: `SHOP: ${m.vehicle.brand} ${m.vehicle.model}`,
+      title: `${m.vehicle.brand} ${m.vehicle.model}`,
       subtitle: m.description,
       startDate: m.serviceDate.toISOString(),
       endDate: m.returnDate ? m.returnDate.toISOString() : new Date().toISOString(), // Default to today if still in shop

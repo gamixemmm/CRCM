@@ -351,6 +351,64 @@ a:hover {
   border-radius: var(--radius-sm);
 }
 
+.route-loading {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+  animation: fadeIn 0.18s ease forwards;
+}
+
+.route-loading-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+}
+
+.route-loading-title {
+  width: min(260px, 60%);
+  height: 32px;
+}
+
+.route-loading-action {
+  width: 120px;
+  height: 40px;
+}
+
+.route-loading-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--space-md);
+}
+
+.route-loading-card {
+  height: 96px;
+  border-radius: var(--radius-md);
+}
+
+.route-loading-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  padding: var(--space-lg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-secondary);
+}
+
+.route-loading-line {
+  width: 72%;
+  height: 18px;
+}
+
+.route-loading-line.wide {
+  width: 100%;
+}
+
+.route-loading-line.short {
+  width: 45%;
+}
+
 /* ---------- Empty State ---------- */
 .empty-state {
   display: flex;

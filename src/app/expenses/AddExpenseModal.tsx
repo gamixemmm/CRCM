@@ -12,8 +12,10 @@ interface AddExpenseModalProps {
   onClose: () => void;
   vehicles: any[];
   editingExpense?: any | null;
-  mode?: "general" | "car" | "cnss" | "rent" | "vignette";
+  mode?: "general" | "car" | "cnss" | "rent" | "vignette" | "accounting";
   initialVehicleId?: string;
+  initialDate?: string;
+  onSuccess?: () => void;
 }
 
 const CATEGORY_KEY_MAP: Record<string, string> = {
@@ -57,7 +59,7 @@ const defaultForm = {
   vehicleId: "",
 };
 
-export default function AddExpenseModal({ isOpen, onClose, vehicles, editingExpense, mode = "general", initialVehicleId }: AddExpenseModalProps) {
+export default function AddExpenseModal({ isOpen, onClose, vehicles, editingExpense, mode = "general", initialVehicleId, initialDate, onSuccess }: AddExpenseModalProps) {
   const { t } = useSettings();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
@@ -68,6 +70,7 @@ export default function AddExpenseModal({ isOpen, onClose, vehicles, editingExpe
   const isCnssMode = mode === "cnss" && !isEditMode;
   const isRentMode = mode === "rent" && !isEditMode;
   const isVignetteMode = mode === "vignette" && !isEditMode;
+  const isAccountingMode = mode === "accounting" && !isEditMode;
 
   const activeCategories = isCarExpenseMode
     ? CAR_EXPENSE_CATEGORIES
@@ -77,7 +80,9 @@ export default function AddExpenseModal({ isOpen, onClose, vehicles, editingExpe
         ? ["Loyer"]
         : isVignetteMode
           ? ["Vignette"]
-          : CATEGORIES;
+          : isAccountingMode
+            ? ["Comptabilité"]
+            : CATEGORIES;
 
   useEffect(() => {
     if (editingExpense) {
@@ -94,14 +99,16 @@ export default function AddExpenseModal({ isOpen, onClose, vehicles, editingExpe
       if (mode === "cnss") initialCategory = "CNSS";
       if (mode === "rent") initialCategory = "Loyer";
       if (mode === "vignette") initialCategory = "Vignette";
+      if (mode === "accounting") initialCategory = "Comptabilité";
 
       setFormData({
         ...defaultForm,
+        date: initialDate || new Date().toISOString().split("T")[0],
         category: initialCategory,
         vehicleId: initialVehicleId || defaultForm.vehicleId,
       });
     }
-  }, [editingExpense, mode, initialVehicleId]);
+  }, [editingExpense, mode, initialVehicleId, initialDate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -134,9 +141,10 @@ export default function AddExpenseModal({ isOpen, onClose, vehicles, editingExpe
     if (res.success) {
       toast(isEditMode ? t("expenses.updated") : t("expenses.added"), "success");
       onClose();
+      onSuccess?.();
       setFormData({
         ...defaultForm,
-        category: mode === "car" ? CAR_EXPENSE_CATEGORIES[0] : (mode === "rent" ? "Loyer" : (mode === "cnss" ? "CNSS" : defaultForm.category)),
+        category: mode === "car" ? CAR_EXPENSE_CATEGORIES[0] : (mode === "rent" ? "Loyer" : (mode === "cnss" ? "CNSS" : (mode === "accounting" ? "Comptabilité" : defaultForm.category))),
       });
     } else {
       toast(res.message, "error");
@@ -157,13 +165,16 @@ export default function AddExpenseModal({ isOpen, onClose, vehicles, editingExpe
       ? t("expenses.modalTitleCnss")
       : isRentMode
         ? t("expenses.modalTitleRent")
-        : isCarExpenseMode
-          ? t("expenses.modalTitleCar")
-          : t("expenses.modalTitleAdd");
+        : isAccountingMode
+          ? t("expenses.modalTitleAccounting")
+          : isCarExpenseMode
+            ? t("expenses.modalTitleCar")
+            : t("expenses.modalTitleAdd");
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={modalTitle}>
       <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+        {!isAccountingMode && (
         <div>
           <label style={{ display: "block", marginBottom: "8px", fontSize: "0.875rem", fontWeight: 500, color: "var(--text-secondary)" }}>{t("label.date")}</label>
           <input
@@ -174,7 +185,9 @@ export default function AddExpenseModal({ isOpen, onClose, vehicles, editingExpe
             style={{ width: "100%", height: "40px", padding: "0 12px", background: "var(--bg-secondary)", border: "1px solid var(--border)", borderRadius: "8px", color: "var(--text-primary)" }}
           />
         </div>
+        )}
 
+        {!isAccountingMode && (
         <div>
           <label style={{ display: "block", marginBottom: "8px", fontSize: "0.875rem", fontWeight: 500, color: "var(--text-secondary)" }}>{t("expenses.category")}</label>
           <select
@@ -188,6 +201,7 @@ export default function AddExpenseModal({ isOpen, onClose, vehicles, editingExpe
             ))}
           </select>
         </div>
+        )}
 
         <div>
           <label style={{ display: "block", marginBottom: "8px", fontSize: "0.875rem", fontWeight: 500, color: "var(--text-secondary)" }}>{t("expenses.amount")}</label>
@@ -201,7 +215,7 @@ export default function AddExpenseModal({ isOpen, onClose, vehicles, editingExpe
           />
         </div>
 
-        {!isCnssMode && !isRentMode && (
+        {!isCnssMode && !isRentMode && !isAccountingMode && (
           <div>
             <label style={{ display: "block", marginBottom: "8px", fontSize: "0.875rem", fontWeight: 500, color: "var(--text-secondary)" }}>
               {isCarExpenseMode ? t("expenses.vehicleRequiredLabel") : t("expenses.vehicleOptional")}

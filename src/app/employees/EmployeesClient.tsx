@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { BriefcaseBusiness, CheckCircle, Pencil, Plus, UserRound, XCircle } from "lucide-react";
+import { BriefcaseBusiness, CheckCircle, Pencil, Plus, UserCog, UserRound, XCircle } from "lucide-react";
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
@@ -12,7 +12,9 @@ import Select from "@/components/ui/Select";
 import Table from "@/components/ui/Table";
 import { useToast } from "@/components/ui/Toast";
 import { createEmployee, updateEmployee, confirmEmployeeSalary } from "@/actions/employees";
+import { upsertEmployeeAccount } from "@/actions/companyAuth";
 import { useSettings } from "@/lib/SettingsContext";
+import { canPerform } from "@/lib/permissions";
 import styles from "./employees.module.css";
 
 type SalaryPayment = {
@@ -36,6 +38,13 @@ type Employee = {
   payDay?: number | null;
   active: boolean;
   notes?: string | null;
+  account?: {
+    id: string;
+    name: string;
+    email: string;
+    active: boolean;
+    lastLoginAt?: string | null;
+  } | null;
   salaryPayments: SalaryPayment[];
 };
 
@@ -70,12 +79,14 @@ function getName(employee: Employee) {
 }
 
 export default function EmployeesClient({
+  companyAdmin,
   employees,
   dueEmployees,
   roles,
   month,
   year,
 }: {
+  companyAdmin: { id: string; companyId: string; companyName: string; name: string; email: string; role?: string; permissions?: string[] };
   employees: Employee[];
   dueEmployees: Employee[];
   roles: { id: string; name: string }[];
@@ -89,14 +100,19 @@ export default function EmployeesClient({
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [form, setForm] = useState<EmployeeForm>(emptyForm);
   const [loading, setLoading] = useState(false);
-  const [salaryPromptOpen, setSalaryPromptOpen] = useState(false);
+  const canAddEmployee = canPerform(companyAdmin, ["ADD_EMPLOYEES"]);
+  const canManageEmployees = canPerform(companyAdmin, ["MANAGE_EMPLOYEES"]);
+  const [salaryPromptOpen, setSalaryPromptOpen] = useState(() => dueEmployees.length > 0 && canManageEmployees);
   const [pendingSalaryEmployees, setPendingSalaryEmployees] = useState(dueEmployees);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
-
-  useEffect(() => {
-    setPendingSalaryEmployees(dueEmployees);
-    if (dueEmployees.length > 0) setSalaryPromptOpen(true);
-  }, [dueEmployees]);
+  const [accountModalOpen, setAccountModalOpen] = useState(false);
+  const [accountEmployee, setAccountEmployee] = useState<Employee | null>(null);
+  const [accountForm, setAccountForm] = useState({
+    name: "",
+    email: "",
+    password: "",
+    active: true,
+  });
 
   const activeEmployees = employees.filter((employee) => employee.active).length;
   const monthlyPayroll = employees
@@ -124,6 +140,17 @@ export default function EmployeesClient({
       notes: employee.notes || "",
     });
     setIsFormOpen(true);
+  };
+
+  const openAccountModal = (employee: Employee) => {
+    setAccountEmployee(employee);
+    setAccountForm({
+      name: employee.account?.name || getName(employee),
+      email: employee.account?.email || employee.email || "",
+      password: "",
+      active: employee.account?.active ?? true,
+    });
+    setAccountModalOpen(true);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -173,6 +200,28 @@ export default function EmployeesClient({
         if (next.length === 0) setSalaryPromptOpen(false);
         return next;
       });
+      window.dispatchEvent(new Event("employees:updated"));
+      router.refresh();
+    } else {
+      toast(result.message, "error");
+    }
+  };
+
+  const handleSaveAccount = async () => {
+    if (!accountEmployee) return;
+
+    setLoading(true);
+    const result = await upsertEmployeeAccount({
+      employeeId: accountEmployee.id,
+      ...accountForm,
+    });
+    setLoading(false);
+
+    if (result.success) {
+      toast(result.message, "success");
+      setAccountModalOpen(false);
+      setAccountEmployee(null);
+      setAccountForm({ name: "", email: "", password: "", active: true });
       router.refresh();
     } else {
       toast(result.message, "error");
@@ -224,21 +273,54 @@ export default function EmployeesClient({
       },
     },
     {
+      key: "account",
+      label: "Account",
+      render: (employee: Employee) => (
+        employee.account ? (
+          <div>
+            <div style={{ fontWeight: 600 }}>{employee.account.email}</div>
+            <small style={{ color: "var(--text-tertiary)" }}>
+              {employee.account.active ? "Active" : "Disabled"}
+            </small>
+          </div>
+        ) : (
+          <span style={{ color: "var(--text-tertiary)" }}>No account</span>
+        )
+      ),
+    },
+    {
       key: "actions",
       label: t("label.actions"),
       align: "right" as const,
       render: (employee: Employee) => (
-        <Button
-          size="sm"
-          variant="secondary"
-          icon={<Pencil size={14} />}
-          onClick={(e) => {
-            e.stopPropagation();
-            openEdit(employee);
-          }}
-        >
-          {t("action.edit")}
-        </Button>
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px" }}>
+          {canManageEmployees && (
+            <>
+              <Button
+                size="sm"
+                variant="secondary"
+                icon={<UserCog size={14} />}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  openAccountModal(employee);
+                }}
+              >
+                Account
+              </Button>
+              <Button
+                size="sm"
+                variant="secondary"
+                icon={<Pencil size={14} />}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  openEdit(employee);
+                }}
+              >
+                {t("action.edit")}
+              </Button>
+            </>
+          )}
+        </div>
       ),
     },
   ];
@@ -250,10 +332,14 @@ export default function EmployeesClient({
           <BriefcaseBusiness size={24} />
           {t("employees.title")}
         </h1>
-        <Button icon={<Plus size={16} />} onClick={openCreate}>
-          {t("employees.addEmployee")}
-        </Button>
+        {canAddEmployee && (
+          <Button icon={<Plus size={16} />} onClick={openCreate}>
+            {t("employees.addEmployee")}
+          </Button>
+        )}
       </div>
+
+
 
       <div className={styles.summaryGrid}>
         <Card padding="md">
@@ -386,6 +472,56 @@ export default function EmployeesClient({
               </div>
             </div>
           ))}
+        </div>
+      </Modal>
+
+      <Modal
+        isOpen={accountModalOpen}
+        onClose={() => {
+          if (!loading) setAccountModalOpen(false);
+        }}
+        title={accountEmployee?.account ? "Modify Employee Account" : "Create Employee Account"}
+        size="sm"
+      >
+        <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+          <p style={{ color: "var(--text-secondary)" }}>{accountEmployee ? getName(accountEmployee) : ""}</p>
+          <Input
+            label="Account Name"
+            required
+            value={accountForm.name}
+            onChange={(e) => setAccountForm({ ...accountForm, name: e.target.value })}
+          />
+          <Input
+            label="Login Email"
+            type="email"
+            required
+            value={accountForm.email}
+            onChange={(e) => setAccountForm({ ...accountForm, email: e.target.value })}
+          />
+          <Input
+            label={accountEmployee?.account ? "New Password" : "Password"}
+            type="password"
+            required={!accountEmployee?.account}
+            value={accountForm.password}
+            onChange={(e) => setAccountForm({ ...accountForm, password: e.target.value })}
+            hint={accountEmployee?.account ? "Leave empty to keep the current password" : "Required for a new employee account"}
+          />
+          <label style={{ display: "flex", alignItems: "center", gap: "10px", color: "var(--text-secondary)", fontSize: "0.875rem" }}>
+            <input
+              type="checkbox"
+              checked={accountForm.active}
+              onChange={(e) => setAccountForm({ ...accountForm, active: e.target.checked })}
+            />
+            Account active
+          </label>
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: "12px" }}>
+            <Button type="button" variant="secondary" onClick={() => setAccountModalOpen(false)}>
+              {t("action.cancel")}
+            </Button>
+            <Button type="button" loading={loading} onClick={handleSaveAccount}>
+              Save Account
+            </Button>
+          </div>
         </div>
       </Modal>
     </div>

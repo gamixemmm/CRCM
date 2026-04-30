@@ -34,7 +34,7 @@ export default function BookingDetailClient({ booking }: { booking: any }) {
   const [isReturnModalOpen, setIsReturnModalOpen] = useState(false);
   const [returnLoading, setReturnLoading] = useState(false);
   const [returnUpdateDate, setReturnUpdateDate] = useState(false);
-  const [returnMileage, setReturnMileage] = useState(booking.vehicle.mileage || 0);
+  const [returnMileage, setReturnMileage] = useState(String(booking.vehicle.mileage || 0));
   const [isEditDatesModalOpen, setIsEditDatesModalOpen] = useState(false);
   const [editDatesLoading, setEditDatesLoading] = useState(false);
   const [editStartDate, setEditStartDate] = useState(new Date(booking.startDate).toISOString().split("T")[0]);
@@ -47,6 +47,14 @@ export default function BookingDetailClient({ booking }: { booking: any }) {
   const diffTime = Math.abs(end.getTime() - start.getTime());
   const days = Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
   const baseSubtotal = days * booking.vehicle.dailyRate;
+  const validateReturnMileage = () => {
+    const mileage = Number(returnMileage);
+    if (returnMileage === "" || Number.isNaN(mileage) || mileage < (booking.vehicle.mileage || 0)) {
+      toast(t("toast.mileageError"), "error");
+      return null;
+    }
+    return mileage;
+  };
 
   const handleGenerateInvoice = async () => {
     setGenerating(true);
@@ -375,7 +383,7 @@ export default function BookingDetailClient({ booking }: { booking: any }) {
                 icon={<CheckCircle size={16} />}
                 disabled={booking.status !== "ACTIVE"}
                 onClick={() => {
-                  setReturnMileage(booking.vehicle.mileage || 0);
+                  setReturnMileage(String(booking.vehicle.mileage || 0));
                   const today = new Date();
                   const returnDate = new Date(booking.endDate);
                   // Offer date update for both early and late returns
@@ -689,7 +697,7 @@ export default function BookingDetailClient({ booking }: { booking: any }) {
               required
               min={booking.vehicle.mileage || 0}
               value={returnMileage}
-              onChange={(e) => setReturnMileage(Number(e.target.value))}
+              onChange={(e) => setReturnMileage(e.target.value)}
               hint={t("bookings.mileageHint")}
             />
           </div>
@@ -702,12 +710,10 @@ export default function BookingDetailClient({ booking }: { booking: any }) {
                   variant="primary"
                   loading={returnLoading}
                   onClick={async () => {
-                    if (returnMileage < (booking.vehicle.mileage || 0)) {
-                      toast(t("toast.mileageError"), "error");
-                      return;
-                    }
+                    const mileage = validateReturnMileage();
+                    if (mileage === null) return;
                     setReturnLoading(true);
-                    const res = await handleReturn(booking.id, true, returnMileage);
+                    const res = await handleReturn(booking.id, true, mileage);
                     setReturnLoading(false);
                     if (res.success) {
                       toast(res.message, "success");
@@ -724,12 +730,10 @@ export default function BookingDetailClient({ booking }: { booking: any }) {
                   variant="secondary"
                   loading={returnLoading}
                   onClick={async () => {
-                    if (returnMileage < (booking.vehicle.mileage || 0)) {
-                      toast(t("toast.mileageError"), "error");
-                      return;
-                    }
+                    const mileage = validateReturnMileage();
+                    if (mileage === null) return;
                     setReturnLoading(true);
-                    const res = await handleReturn(booking.id, false, returnMileage);
+                    const res = await handleReturn(booking.id, false, mileage);
                     setReturnLoading(false);
                     if (res.success) {
                       toast(res.message, "success");
@@ -748,12 +752,10 @@ export default function BookingDetailClient({ booking }: { booking: any }) {
                 variant="primary"
                 loading={returnLoading}
                 onClick={async () => {
-                  if (returnMileage < (booking.vehicle.mileage || 0)) {
-                    toast(t("toast.mileageError"), "error");
-                    return;
-                  }
+                  const mileage = validateReturnMileage();
+                  if (mileage === null) return;
                   setReturnLoading(true);
-                  const res = await handleReturn(booking.id, false, returnMileage);
+                  const res = await handleReturn(booking.id, false, mileage);
                   setReturnLoading(false);
                   if (res.success) {
                     toast(res.message, "success");

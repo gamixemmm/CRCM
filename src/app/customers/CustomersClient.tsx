@@ -32,7 +32,7 @@ export default function CustomersClient({ customers }: CustomersClientProps) {
   const columns = [
     {
       key: "name",
-      label: "Broker",
+      label: t("customers.broker"),
       render: (c: any) => (
         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
           <div style={{ width: "36px", height: "36px", borderRadius: "50%", background: "var(--accent-muted)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--accent)", fontWeight: "bold" }}>
@@ -44,17 +44,17 @@ export default function CustomersClient({ customers }: CustomersClientProps) {
     },
     {
       key: "contact",
-      label: "Contact",
+      label: t("customers.contact"),
       render: (c: any) => (
         <div>
           <div>{c.phone || "—"}</div>
-          <div style={{ fontSize: "0.75rem", color: "var(--text-tertiary)" }}>{c.email || "No email"}</div>
+          <div style={{ fontSize: "0.75rem", color: "var(--text-tertiary)" }}>{c.email || t("customers.noEmail")}</div>
         </div>
       ),
     },
     {
       key: "license",
-      label: "License Number",
+      label: t("customers.licenseNumber"),
       render: (c: any) => (
         <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
           <FileText size={14} style={{ color: "var(--text-tertiary)" }} />
@@ -64,12 +64,12 @@ export default function CustomersClient({ customers }: CustomersClientProps) {
     },
     {
       key: "joined",
-      label: "Joined",
+      label: t("customers.joined"),
       render: (c: any) => <span style={{ color: "var(--text-secondary)" }}>{formatDate(c.createdAt)}</span>,
     },
     {
       key: "bookings",
-      label: "Total Bookings",
+      label: t("customers.totalBookings"),
       align: "center" as const,
       render: (c: any) => <span style={{ fontWeight: 600 }}>{c._count.bookings}</span>,
     },

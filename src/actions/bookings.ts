@@ -2,6 +2,9 @@
 
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { requireCompanyId } from "@/lib/company";
+import { canPerform } from "@/lib/permissions";
+import { requireCompanyAdminAccess } from "@/actions/companyAuth";
 
 interface BookingInput {
   customerId: string;
@@ -30,7 +33,9 @@ interface BookingInput {
 }
 
 export async function getBookings(params?: { status?: string; search?: string }) {
-  const where: any = {};
+  const companyId = await requireCompanyId();
+  const where: Record<string, unknown> = {};
+  where.companyId = companyId;
   
   if (params?.status && params.status !== "ALL") {
     where.status = params.status;
@@ -57,8 +62,9 @@ export async function getBookings(params?: { status?: string; search?: string })
 }
 
 export async function getBooking(id: string) {
-  return prisma.booking.findUnique({
-    where: { id },
+  const companyId = await requireCompanyId();
+  return prisma.booking.findFirst({
+    where: { id, companyId },
     include: {
       customer: true,
       vehicle: true,
@@ -69,6 +75,11 @@ export async function getBooking(id: string) {
 
 export async function createBooking(input: BookingInput) {
   try {
+    const session = await requireCompanyAdminAccess();
+    if (!canPerform(session, ["ADD_BOOKINGS"])) {
+      return { success: false, message: "You do not have permission to create bookings." };
+    }
+    const companyId = await requireCompanyId();
     const start = new Date(input.startDate);
     const end = new Date(input.endDate);
 
@@ -79,6 +90,7 @@ export async function createBooking(input: BookingInput) {
     // Check overlaps
     const overlaps = await prisma.booking.count({
       where: {
+        companyId,
         vehicleId: input.vehicleId,
         status: { in: ["CONFIRMED", "ACTIVE"] },
         OR: [
@@ -96,6 +108,7 @@ export async function createBooking(input: BookingInput) {
         data: {
           customerId: input.customerId,
           vehicleId: input.vehicleId,
+          companyId,
           startDate: start,
           endDate: end,
           pickupLocation: input.pickupLocation || null,
@@ -137,6 +150,7 @@ export async function createBooking(input: BookingInput) {
       await tx.invoice.create({
         data: {
           bookingId: b.id,
+          companyId,
           subtotal: input.totalAmount,
           totalAmount: input.totalAmount,
           depositPaid: deposit,
@@ -163,8 +177,13 @@ export async function createBooking(input: BookingInput) {
 // ─── Update Booking Status ───────────────────────────────────────
 export async function updateBookingStatus(bookingId: string, newStatus: string) {
   try {
-    const booking = await prisma.booking.findUnique({
-      where: { id: bookingId },
+    const session = await requireCompanyAdminAccess();
+    if (!canPerform(session, ["MANAGE_BOOKINGS"])) {
+      return { success: false, message: "You do not have permission to manage bookings." };
+    }
+    const companyId = await requireCompanyId();
+    const booking = await prisma.booking.findFirst({
+      where: { id: bookingId, companyId },
       include: { vehicle: true },
     });
 
@@ -188,6 +207,7 @@ export async function updateBookingStatus(bookingId: string, newStatus: string) 
         // Check if the vehicle has any OTHER active bookings before freeing it
         const otherActive = await tx.booking.count({
           where: {
+            companyId,
             vehicleId: booking.vehicleId,
             id: { not: bookingId },
             status: "ACTIVE",
@@ -217,8 +237,9 @@ export async function updateBookingStatus(bookingId: string, newStatus: string) 
 // ─── Early Pickup ────────────────────────────────────────────────
 export async function handleEarlyPickup(bookingId: string, updateDate: boolean) {
   try {
-    const booking = await prisma.booking.findUnique({
-      where: { id: bookingId },
+    const companyId = await requireCompanyId();
+    const booking = await prisma.booking.findFirst({
+      where: { id: bookingId, companyId },
       include: { vehicle: true, invoice: true },
     });
 
@@ -237,6 +258,7 @@ export async function handleEarlyPickup(bookingId: string, updateDate: boolean) 
     // Check if the vehicle has any OTHER active/confirmed booking that overlaps with today → endDate
     const overlaps = await prisma.booking.count({
       where: {
+        companyId,
         vehicleId: booking.vehicleId,
         id: { not: bookingId },
         status: { in: ["CONFIRMED", "ACTIVE"] },
@@ -310,8 +332,9 @@ export async function handleEarlyPickup(bookingId: string, updateDate: boolean) 
 // ─── Return Vehicle ──────────────────────────────────────────────
 export async function handleReturn(bookingId: string, updateDate: boolean, newMileage: number) {
   try {
-    const booking = await prisma.booking.findUnique({
-      where: { id: bookingId },
+    const companyId = await requireCompanyId();
+    const booking = await prisma.booking.findFirst({
+      where: { id: bookingId, companyId },
       include: { vehicle: true, invoice: true },
     });
 
@@ -370,6 +393,7 @@ export async function handleReturn(bookingId: string, updateDate: boolean, newMi
       // Update vehicle mileage and free it up
       const otherActive = await tx.booking.count({
         where: {
+          companyId,
           vehicleId: booking.vehicleId,
           id: { not: bookingId },
           status: "ACTIVE",
@@ -401,8 +425,13 @@ export async function handleReturn(bookingId: string, updateDate: boolean, newMi
 // ─── Update Booking Dates ────────────────────────────────────────
 export async function updateBookingDates(bookingId: string, newStartDate: string, newEndDate: string, newPricePerDay?: number) {
   try {
-    const booking = await prisma.booking.findUnique({
-      where: { id: bookingId },
+    const session = await requireCompanyAdminAccess();
+    if (!canPerform(session, ["MANAGE_BOOKINGS"])) {
+      return { success: false, message: "You do not have permission to manage bookings." };
+    }
+    const companyId = await requireCompanyId();
+    const booking = await prisma.booking.findFirst({
+      where: { id: bookingId, companyId },
       include: { vehicle: true, invoice: true },
     });
 
@@ -422,6 +451,7 @@ export async function updateBookingDates(bookingId: string, newStartDate: string
     // Check for overlapping bookings with the new dates (excluding this booking)
     const overlaps = await prisma.booking.count({
       where: {
+        companyId,
         vehicleId: booking.vehicleId,
         id: { not: bookingId },
         status: { in: ["CONFIRMED", "ACTIVE"] },
