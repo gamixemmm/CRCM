@@ -1,14 +1,14 @@
 "use client";
 import { useSettings } from "@/lib/SettingsContext";
 
-import { useState, useEffect } from "react";
+import { useRef, useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
   Plus,
   Search,
   Car,
-  Filter,
+  Upload,
   LayoutGrid,
   List,
   Fuel,
@@ -18,7 +18,9 @@ import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
 import Table from "@/components/ui/Table";
-import { formatStatus, getStatusColor, getStatusBg, formatMileage } from "@/lib/utils";
+import { useToast } from "@/components/ui/Toast";
+import { importVehicles } from "@/actions/vehicles";
+import { getStatusColor, getStatusBg, formatMileage } from "@/lib/utils";
 import styles from "./vehicles.module.css";
 
 const statusFilters = ["ALL", "AVAILABLE", "RENTED", "MAINTENANCE", "OUT_OF_SERVICE"];
@@ -48,12 +50,15 @@ interface VehiclesClientProps {
 
 export default function VehiclesClient({ vehicles, stats }: VehiclesClientProps) {
   const { t, formatStatusT } = useSettings();
+  const { toast } = useToast();
 
   const router = useRouter();
   const searchParams = useSearchParams();
+  const importInputRef = useRef<HTMLInputElement | null>(null);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [importing, setImporting] = useState(false);
 
   useEffect(() => {
     const statusParam = searchParams.get("status");
@@ -84,6 +89,28 @@ export default function VehiclesClient({ vehicles, stats }: VehiclesClientProps)
     { label: t("status.inMaintenance"), value: stats.maintenance, color: "var(--warning)" },
   ];
   const statusTotal = statusBreakdown.reduce((sum, item) => sum + item.value, 0);
+
+  const handleImportChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append("file", file);
+    setImporting(true);
+
+    try {
+      const result = await importVehicles(formData);
+      toast(result.message, result.success ? "success" : "error");
+      if (result.success) {
+        router.refresh();
+      }
+    } catch {
+      toast("Failed to import vehicles", "error");
+    } finally {
+      setImporting(false);
+      event.target.value = "";
+    }
+  };
 
   const columns = [
     {
@@ -286,6 +313,21 @@ export default function VehiclesClient({ vehicles, stats }: VehiclesClientProps)
           {t("vehicles.title")}
         </h1>
         <div className="page-header-actions">
+          <input
+            ref={importInputRef}
+            type="file"
+            accept=".pdf,.csv,.txt,text/csv,text/plain,application/pdf"
+            onChange={handleImportChange}
+            className={styles.hiddenFileInput}
+          />
+          <Button
+            variant="secondary"
+            icon={<Upload size={16} />}
+            loading={importing}
+            onClick={() => importInputRef.current?.click()}
+          >
+            {t("vehicles.importVehicles")}
+          </Button>
           <Link href="/vehicles/new">
             <Button icon={<Plus size={16} />}>{t("vehicles.addVehicle")}</Button>
           </Link>

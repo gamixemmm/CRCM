@@ -75,6 +75,7 @@ const translations = {
   // ─── Vehicles ───────────────────────────────────────────────────
   "vehicles.title": { en: "Vehicle Fleet", fr: "Flotte de véhicules", ar: "أسطول المركبات" },
   "vehicles.addVehicle": { en: "Add Vehicle", fr: "Ajouter un véhicule", ar: "إضافة مركبة" },
+  "vehicles.importVehicles": { en: "Import Vehicles", fr: "Importer véhicules", ar: "استيراد المركبات" },
   "vehicles.brand": { en: "Brand", fr: "Marque", ar: "العلامة" },
   "vehicles.model": { en: "Model", fr: "Modèle", ar: "الموديل" },
   "vehicles.year": { en: "Year", fr: "Année", ar: "السنة" },

@@ -83,6 +83,9 @@ export async function createBooking(input: BookingInput) {
     const companyId = await requireCompanyId();
     const start = new Date(input.startDate);
     const end = new Date(input.endDate);
+    const status = ["CONFIRMED", "ACTIVE", "COMPLETED"].includes(input.status || "")
+      ? input.status!
+      : "CONFIRMED";
 
     if (end <= start) {
       return { success: false, message: "End date must be after start date" };
@@ -114,7 +117,7 @@ export async function createBooking(input: BookingInput) {
           endDate: end,
           pickupLocation: input.pickupLocation || null,
           returnLocation: input.returnLocation || null,
-          status: input.status || "CONFIRMED",
+          status,
           totalAmount: input.totalAmount,
           depositAmount: input.depositAmount || 0,
           pricePerDay: input.pricePerDay || null,
@@ -160,6 +163,13 @@ export async function createBooking(input: BookingInput) {
           notes: notesStr,
         }
       });
+
+      if (status === "ACTIVE") {
+        await tx.vehicle.update({
+          where: { id: input.vehicleId },
+          data: { status: "RENTED" },
+        });
+      }
 
       return b;
     });

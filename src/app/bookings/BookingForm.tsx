@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, ArrowLeft, Save, Building2, User, Plus, X, Calendar, Car, ClipboardList, ChevronRight, ChevronLeft } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Save, Building2, User, Plus, X, Calendar, Car, ClipboardList, ChevronRight, ChevronLeft, Search } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import Input from "@/components/ui/Input";
@@ -25,6 +25,7 @@ export default function BookingForm({ vehicles, customers: initialCustomers }: {
   const [newBroker, setNewBroker] = useState({ firstName: "", lastName: "", phone: "" });
   const [step, setStep] = useState(1);
   const [showDriver2, setShowDriver2] = useState(false);
+  const [vehicleSearch, setVehicleSearch] = useState("");
 
   const [form, setForm] = useState({
     customerId: "",
@@ -58,6 +59,11 @@ export default function BookingForm({ vehicles, customers: initialCustomers }: {
     const normalized = new Date(date);
     normalized.setHours(0, 0, 0, 0);
     return normalized;
+  };
+
+  const parseDateInput = (value: string) => {
+    const [year, month, day] = value.split("-").map(Number);
+    return normalizeDate(new Date(year, month - 1, day));
   };
 
   const dateWithinRange = (date: Date, rangeStart: Date, rangeEnd: Date) => {
@@ -200,9 +206,21 @@ export default function BookingForm({ vehicles, customers: initialCustomers }: {
       return;
     }
 
+    const today = normalizeDate(new Date());
+    const startDay = parseDateInput(form.startDate);
+    const endDay = parseDateInput(form.endDate);
+    let status = "CONFIRMED";
+
+    if (startDay < today && endDay < today) {
+      status = "COMPLETED";
+    } else if (startDay < today && endDay >= today) {
+      status = "ACTIVE";
+    }
+
     setLoading(true);
     const result = await createBooking({
       ...form,
+      status,
       pricePerDay: effectiveRate,
       totalAmount: estimatedTotal,
     });
@@ -225,8 +243,16 @@ export default function BookingForm({ vehicles, customers: initialCustomers }: {
   ];
 
   const availableVehicles = useMemo(() => {
-    return vehicles.filter(isVehicleAvailable);
-  }, [vehicles, form.startDate, form.endDate]);
+    const term = vehicleSearch.trim().toLowerCase();
+    return vehicles
+      .filter(isVehicleAvailable)
+      .filter((vehicle) => {
+        if (!term) return true;
+        return `${vehicle.brand} ${vehicle.model} ${vehicle.plateNumber} ${vehicle.year} ${vehicle.color}`
+          .toLowerCase()
+          .includes(term);
+      });
+  }, [vehicles, form.startDate, form.endDate, vehicleSearch]);
 
   return (
     <div className={`animate-fade-in ${styles.page}`}>
@@ -304,6 +330,7 @@ export default function BookingForm({ vehicles, customers: initialCustomers }: {
                 startDate={form.startDate}
                 endDate={form.endDate}
                 onDateChange={handleCalendarDateChange}
+                allowPastDates
               />
 
               <div className={styles.selectionSummary}>
@@ -332,7 +359,7 @@ export default function BookingForm({ vehicles, customers: initialCustomers }: {
         {/* Step 2: Vehicle Selection */}
         {step === 2 && (
           <div className="animate-slide-up" style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
+            <div className={styles.vehicleSectionHeader}>
               <div>
                 <h3 style={{ display: "flex", alignItems: "center", gap: "10px", margin: 0 }}>
                   <Car size={20} className="text-accent" />
@@ -342,50 +369,70 @@ export default function BookingForm({ vehicles, customers: initialCustomers }: {
                   {t("bookings.step2Desc")} ({availableVehicles.length})
                 </p>
               </div>
-              <Button variant="ghost" onClick={() => setStep(1)} icon={<ChevronLeft size={16} />}>{t("bookings.changeDates")}</Button>
+              <div className={styles.vehicleActions}>
+                <Input
+                  type="search"
+                  value={vehicleSearch}
+                  onChange={(e) => setVehicleSearch(e.target.value)}
+                  placeholder="Search vehicle or plate"
+                  icon={<Search size={16} />}
+                  aria-label="Search vehicles"
+                  fullWidth={false}
+                  className={styles.vehicleSearch}
+                />
+                <Button variant="ghost" onClick={() => setStep(1)} icon={<ChevronLeft size={16} />}>{t("bookings.changeDates")}</Button>
+              </div>
             </div>
 
-            <div className={styles.vehicleGrid}>
-              {availableVehicles.map((v) => (
-                <div 
-                  key={v.id}
-                  onClick={() => handleVehicleChange(v.id)}
-                  className={`${styles.vehicleCard} ${form.vehicleId === v.id ? styles.vehicleCardSelected : ""}`}
-                >
-                  <div className={styles.vehicleImage}>
-                    {v.imageUrl ? (
-                      <img src={v.imageUrl} alt={v.brand} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                    ) : (
-                      <Car size={48} style={{ opacity: 0.2 }} />
-                    )}
-                    <div className={styles.vehicleImageBadge}>
-                      {v.plateNumber}
+            {availableVehicles.length > 0 ? (
+              <div className={styles.vehicleGrid}>
+                {availableVehicles.map((v) => (
+                  <div 
+                    key={v.id}
+                    onClick={() => handleVehicleChange(v.id)}
+                    className={`${styles.vehicleCard} ${form.vehicleId === v.id ? styles.vehicleCardSelected : ""}`}
+                  >
+                    <div className={styles.vehicleImage}>
+                      {v.imageUrl ? (
+                        <img src={v.imageUrl} alt={v.brand} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                      ) : (
+                        <Car size={48} style={{ opacity: 0.2 }} />
+                      )}
+                      <div className={styles.vehicleImageBadge}>
+                        {v.plateNumber}
+                      </div>
                     </div>
-                  </div>
-                  <div style={{ padding: "16px" }}>
-                    <h4 style={{ margin: 0, fontSize: "1.125rem" }}>{v.brand} {v.model}</h4>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "12px" }}>
-                      <span style={{ fontSize: "1.25rem", fontWeight: 800, color: "var(--accent)" }}>
-                        {formatPrice(v.dailyRate)}<span style={{ fontSize: "0.75rem", fontWeight: 500, color: "var(--text-secondary)" }}> /day</span>
-                      </span>
-                      <div style={{
-                        width: "24px",
-                        height: "24px",
-                        borderRadius: "50%",
-                        border: "2px solid var(--border)",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        background: form.vehicleId === v.id ? "var(--accent)" : "transparent",
-                        borderColor: form.vehicleId === v.id ? "var(--accent)" : "var(--border)"
-                      }}>
-                        {form.vehicleId === v.id && <div style={{ width: "8px", height: "8px", borderRadius: "50%", background: "white" }} />}
+                    <div style={{ padding: "16px" }}>
+                      <h4 style={{ margin: 0, fontSize: "1.125rem" }}>{v.brand} {v.model}</h4>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "12px" }}>
+                        <span style={{ fontSize: "1.25rem", fontWeight: 800, color: "var(--accent)" }}>
+                          {formatPrice(v.dailyRate)}<span style={{ fontSize: "0.75rem", fontWeight: 500, color: "var(--text-secondary)" }}> /day</span>
+                        </span>
+                        <div style={{
+                          width: "24px",
+                          height: "24px",
+                          borderRadius: "50%",
+                          border: "2px solid var(--border)",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          background: form.vehicleId === v.id ? "var(--accent)" : "transparent",
+                          borderColor: form.vehicleId === v.id ? "var(--accent)" : "var(--border)"
+                        }}>
+                          {form.vehicleId === v.id && <div style={{ width: "8px", height: "8px", borderRadius: "50%", background: "white" }} />}
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            ) : (
+              <div className="empty-state">
+                <Car size={32} />
+                <h3>No vehicles found</h3>
+                <p>No available vehicles match your search for the selected dates.</p>
+              </div>
+            )}
 
             {bookingWarnings.length > 0 && (
               <div style={{ background: "var(--warning-muted)", border: "1px solid var(--warning)", borderRadius: "10px", padding: "14px", display: "flex", gap: "12px", alignItems: "flex-start" }}>

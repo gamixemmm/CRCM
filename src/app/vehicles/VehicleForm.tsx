@@ -2,14 +2,14 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Save } from "lucide-react";
+import { ArrowLeft, Save, Trash2 } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
 import { Textarea } from "@/components/ui/Input";
 import { useToast } from "@/components/ui/Toast";
-import { createVehicle, updateVehicle } from "@/actions/vehicles";
+import { createVehicle, updateVehicle, deleteVehicle } from "@/actions/vehicles";
 import styles from "./form.module.css";
 
 const transmissionOptions = [
@@ -72,6 +72,7 @@ export default function VehicleForm({ vehicle }: VehicleFormProps) {
   const isEdit = !!vehicle;
 
   const [loading, setLoading] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string[]>>({});
 
   const [form, setForm] = useState({
@@ -146,13 +147,46 @@ export default function VehicleForm({ vehicle }: VehicleFormProps) {
     }
   };
 
+  const handleDelete = async () => {
+    if (!vehicle) return;
+    if (!confirm(`Delete ${vehicle.brand} ${vehicle.model} (${vehicle.plateNumber})?`)) return;
+
+    setDeleting(true);
+    try {
+      const result = await deleteVehicle(vehicle.id);
+      if (result.success) {
+        toast(result.message, "success");
+        router.push("/vehicles");
+        router.refresh();
+      } else {
+        toast(result.message, "error");
+      }
+    } catch {
+      toast("Something went wrong", "error");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   return (
     <div className="animate-fade-in">
       <div className="page-header">
         <h1>{isEdit ? "Edit Vehicle" : "Add New Vehicle"}</h1>
-        <Button variant="ghost" icon={<ArrowLeft size={16} />} onClick={() => router.back()}>
-          Back
-        </Button>
+        <div className={styles.headerActions}>
+          {isEdit && (
+            <Button
+              variant="danger"
+              icon={<Trash2 size={16} />}
+              loading={deleting}
+              onClick={handleDelete}
+            >
+              Delete
+            </Button>
+          )}
+          <Button variant="ghost" icon={<ArrowLeft size={16} />} onClick={() => router.back()}>
+            Back
+          </Button>
+        </div>
       </div>
 
       <form onSubmit={handleSubmit}>

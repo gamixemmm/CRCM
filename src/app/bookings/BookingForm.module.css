@@ -62,6 +62,25 @@
   gap: 20px;
 }
 
+.vehicleSectionHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 16px;
+}
+
+.vehicleActions {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.vehicleSearch {
+  width: min(320px, 100%);
+}
+
 .vehicleCard {
   cursor: pointer;
   border-radius: 16px;
@@ -257,6 +276,16 @@
   .quickAddGrid,
   .driverGrid {
     grid-template-columns: 1fr;
+  }
+
+  .vehicleSectionHeader,
+  .vehicleActions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .vehicleSearch {
+    width: 100%;
   }
 
   .vehicleCard {

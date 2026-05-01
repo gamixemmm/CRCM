@@ -27,6 +27,14 @@
   margin-top: var(--space-md);
 }
 
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
 .actions {
   display: flex;
   justify-content: flex-end;
@@ -52,6 +60,16 @@
 
   .actions :global(button) {
     width: 100%;
+    justify-content: center;
+  }
+
+  .headerActions {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .headerActions :global(button) {
+    flex: 1;
     justify-content: center;
   }
 }

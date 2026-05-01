@@ -123,6 +123,10 @@
   margin-top: 2px;
 }
 
+.hiddenFileInput {
+  display: none;
+}
+
 /* Toolbar */
 .toolbar {
   display: flex;
