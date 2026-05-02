@@ -42,7 +42,9 @@ export default function BookingsClient({ bookings, vehicles, maintenanceLogs }: 
       b.customer.lastName.toLowerCase().includes(term) ||
       (b.driverFirstName?.toLowerCase().includes(term) ?? false) ||
       (b.driverLastName?.toLowerCase().includes(term) ?? false) ||
-      b.vehicle.plateNumber.toLowerCase().includes(term);
+      b.vehicle.plateNumber.toLowerCase().includes(term) ||
+      b.vehicle.brand.toLowerCase().includes(term) ||
+      b.vehicle.model.toLowerCase().includes(term);
     return matchesStatus && matchesSearch;
   });
 
