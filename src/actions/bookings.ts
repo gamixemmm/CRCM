@@ -94,8 +94,14 @@ export async function getBookingsPdfExportData() {
   const companyId = await requireCompanyId();
   const today = new Date();
   today.setHours(0, 0, 0, 0);
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const weekStart = new Date(today);
+  const dayOfWeek = weekStart.getDay();
+  const daysSinceMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+  weekStart.setDate(weekStart.getDate() - daysSinceMonday);
 
-  const [company, activeBookings, availableVehicles] = await Promise.all([
+  const [company, activeBookings, availableVehicles, activeMaintenance, todayInvoices, weekInvoices] = await Promise.all([
     prisma.company.findUnique({
       where: { id: companyId },
       select: { name: true },
@@ -130,6 +136,34 @@ export async function getBookingsPdfExportData() {
       },
       orderBy: [{ brand: "asc" }, { model: "asc" }, { plateNumber: "asc" }],
     }),
+    prisma.maintenance.findMany({
+      where: {
+        companyId,
+        serviceDate: { lte: today },
+        OR: [
+          { returnDate: null },
+          { returnDate: { gt: today } },
+        ],
+      },
+      orderBy: { serviceDate: "asc" },
+      include: { vehicle: true },
+    }),
+    prisma.invoice.findMany({
+      where: {
+        companyId,
+        createdAt: { gte: today, lt: tomorrow },
+      },
+      orderBy: { createdAt: "desc" },
+      include: { booking: { include: { customer: true, vehicle: true } } },
+    }),
+    prisma.invoice.findMany({
+      where: {
+        companyId,
+        createdAt: { gte: weekStart, lt: tomorrow },
+      },
+      orderBy: { createdAt: "desc" },
+      include: { booking: { include: { customer: true, vehicle: true } } },
+    }),
   ]);
 
   return {
@@ -138,6 +172,9 @@ export async function getBookingsPdfExportData() {
       companyName: company?.name || session.companyName || "Company",
       activeBookings: JSON.parse(JSON.stringify(activeBookings)),
       availableVehicles: JSON.parse(JSON.stringify(availableVehicles)),
+      activeMaintenance: JSON.parse(JSON.stringify(activeMaintenance)),
+      todayInvoices: JSON.parse(JSON.stringify(todayInvoices)),
+      weekInvoices: JSON.parse(JSON.stringify(weekInvoices)),
     },
   };
 }

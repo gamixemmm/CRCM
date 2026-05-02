@@ -18,6 +18,9 @@ type BookingsReportLabels = {
   summary: (activeCount: number, availableCount: number) => string;
   activeBookings: string;
   availableCars: string;
+  maintenanceCars: string;
+  todayInvoices: string;
+  weekInvoices: string;
   noRecords: string;
   columns: {
     number: string;
@@ -37,6 +40,32 @@ type BookingsReportLabels = {
     perDay: string;
   };
   paymentStatuses: Record<string, string>;
+  fields: {
+    total: string;
+    paid: string;
+    due: string;
+    method: string;
+    status: string;
+    pickup: string;
+    return: string;
+    phone: string;
+    cin: string;
+    license: string;
+    secondDriver: string;
+    company: string;
+    ice: string;
+    notes: string;
+    year: string;
+    color: string;
+    mileage: string;
+    customer: string;
+    invoice: string;
+    income: string;
+    created: string;
+    service: string;
+    provider: string;
+    cost: string;
+  };
 };
 
 const PAGE_WIDTH = 842;
@@ -61,24 +90,29 @@ function fitText(value: string, maxChars: number) {
 }
 
 function wrapText(value: string, maxChars: number, maxLines = 2) {
-  const words = value.replace(/\s+/g, " ").trim().split(" ").filter(Boolean);
-  if (words.length === 0) return ["-"];
-
   const lines: string[] = [];
-  let current = "";
+  const paragraphs = value.split("\n");
 
-  words.forEach((word) => {
-    const next = current ? `${current} ${word}` : word;
-    if (next.length <= maxChars) {
-      current = next;
-      return;
-    }
+  paragraphs.forEach((paragraph) => {
+    const words = paragraph.replace(/\s+/g, " ").trim().split(" ").filter(Boolean);
+    if (words.length === 0) return;
+
+    let current = "";
+    words.forEach((word) => {
+      const next = current ? `${current} ${word}` : word;
+      if (next.length <= maxChars) {
+        current = next;
+        return;
+      }
+
+      if (current) lines.push(current);
+      current = word;
+    });
 
     if (current) lines.push(current);
-    current = word;
   });
 
-  if (current) lines.push(current);
+  if (lines.length === 0) return ["-"];
   if (lines.length <= maxLines) return lines;
 
   const visible = lines.slice(0, maxLines);
@@ -99,6 +133,20 @@ function formatPdfMoney(value: number) {
     maximumFractionDigits: 2,
     minimumFractionDigits: 0,
   }).format(value);
+}
+
+function clean(value: unknown) {
+  if (value === null || value === undefined || value === "") return "-";
+  return String(value);
+}
+
+function fullName(first?: string | null, last?: string | null) {
+  return `${first || ""} ${last || ""}`.trim() || "-";
+}
+
+function bookingPaymentStatus(booking: any, labels: BookingsReportLabels) {
+  const status = booking.invoice?.paymentStatus;
+  return status ? labels.paymentStatuses[status] || status : labels.fallback.pending;
 }
 
 class PdfBuilder {
@@ -244,12 +292,18 @@ export function createBookingsReportPdf({
   companyName,
   activeBookings,
   availableVehicles,
+  activeMaintenance,
+  todayInvoices,
+  weekInvoices,
   labels,
   locale,
 }: {
   companyName: string;
   activeBookings: any[];
   availableVehicles: any[];
+  activeMaintenance: any[];
+  todayInvoices: any[];
+  weekInvoices: any[];
   labels: BookingsReportLabels;
   locale?: string;
 }) {
@@ -262,19 +316,70 @@ export function createBookingsReportPdf({
   pdf.heading(labels.activeBookings);
   pdf.table(
     [
-      { header: labels.columns.number, width: 30, value: (_row, index) => String(index + 1), maxLines: 1 },
-      { header: labels.columns.vehicle, width: 145, value: (b) => `${b.vehicle.brand} ${b.vehicle.model}` },
-      { header: labels.columns.plate, width: 80, value: (b) => b.vehicle.plateNumber || "-", maxLines: 1 },
-      { header: labels.columns.driver, width: 125, value: (b) => `${b.driverFirstName || ""} ${b.driverLastName || ""}`.trim() || "-" },
-      { header: labels.columns.broker, width: 125, value: (b) => `${b.customer.firstName || ""} ${b.customer.lastName || ""}`.trim() || "-" },
-      { header: labels.columns.dates, width: 165, value: (b) => `${formatPdfDate(b.startDate, locale)} - ${formatPdfDate(b.endDate, locale)}`, maxLines: 1 },
+      { header: labels.columns.number, width: 24, value: (_row, index) => String(index + 1), maxLines: 1 },
+      {
+        header: labels.columns.vehicle,
+        width: 112,
+        maxLines: 5,
+        value: (b) => [
+          `${b.vehicle.brand} ${b.vehicle.model}`,
+          `${labels.columns.plate}: ${clean(b.vehicle.plateNumber)}`,
+          `${labels.fields.year}: ${clean(b.vehicle.year)} / ${labels.fields.color}: ${clean(b.vehicle.color)}`,
+          `${labels.fields.mileage}: ${clean(b.vehicle.mileage)} km`,
+        ].join("\n"),
+      },
+      {
+        header: labels.columns.dates,
+        width: 142,
+        maxLines: 6,
+        value: (b) => [
+          `${formatPdfDate(b.startDate, locale)} - ${formatPdfDate(b.endDate, locale)}`,
+          `${labels.fields.pickup}: ${clean(b.pickupLocation)}`,
+          `${labels.fields.return}: ${clean(b.returnLocation)}`,
+          b.notes ? `${labels.fields.notes}: ${b.notes}` : "",
+        ].filter(Boolean).join("\n"),
+      },
+      {
+        header: labels.columns.broker,
+        width: 125,
+        maxLines: 6,
+        value: (b) => [
+          fullName(b.customer?.firstName, b.customer?.lastName),
+          `${labels.fields.phone}: ${clean(b.customer?.phone)}`,
+          `${labels.fields.license}: ${clean(b.customer?.licenseNumber)}`,
+          b.clientType === "SOCIETE" || b.companyName
+            ? `${labels.fields.company}: ${clean(b.companyName)}`
+            : "",
+          b.companyICE ? `${labels.fields.ice}: ${b.companyICE}` : "",
+        ].filter(Boolean).join("\n"),
+      },
+      {
+        header: labels.columns.driver,
+        width: 150,
+        maxLines: 7,
+        value: (b) => [
+          fullName(b.driverFirstName, b.driverLastName),
+          `${labels.fields.cin}: ${clean(b.driverCIN)}`,
+          `${labels.fields.license}: ${clean(b.driverLicense)}`,
+          b.driver2FirstName || b.driver2LastName || b.driver2CIN || b.driver2License
+            ? `${labels.fields.secondDriver}: ${fullName(b.driver2FirstName, b.driver2LastName)}`
+            : "",
+          b.driver2CIN ? `${labels.fields.cin}: ${b.driver2CIN}` : "",
+          b.driver2License ? `${labels.fields.license}: ${b.driver2License}` : "",
+        ].filter(Boolean).join("\n"),
+      },
       {
         header: labels.columns.payment,
-        width: 90,
-        value: (b) => {
-          const status = b.invoice?.paymentStatus;
-          return status ? labels.paymentStatuses[status] || status : labels.fallback.pending;
-        },
+        width: 207,
+        maxLines: 6,
+        value: (b) => [
+          `${labels.fields.total}: ${formatPdfMoney(b.invoice?.totalAmount ?? b.totalAmount ?? 0)}`,
+          `${labels.fields.paid}: ${formatPdfMoney(b.invoice?.depositPaid ?? b.depositAmount ?? 0)}`,
+          `${labels.fields.due}: ${formatPdfMoney(b.invoice?.amountDue ?? 0)}`,
+          `${labels.fields.status}: ${bookingPaymentStatus(b, labels)}`,
+          `${labels.fields.method}: ${clean(b.paymentMethod)}`,
+          b.invoice?.paidAt ? `${labels.fields.paid}: ${formatPdfDate(b.invoice.paidAt, locale)}` : "",
+        ].filter(Boolean).join("\n"),
       },
     ],
     activeBookings,
@@ -295,6 +400,44 @@ export function createBookingsReportPdf({
     availableVehicles,
     labels.noRecords
   );
+
+  pdf.heading(labels.maintenanceCars);
+  pdf.table(
+    [
+      { header: labels.columns.number, width: 30, value: (_row, index) => String(index + 1), maxLines: 1 },
+      { header: labels.columns.vehicle, width: 170, value: (m) => `${m.vehicle.brand} ${m.vehicle.model}\n${labels.columns.plate}: ${clean(m.vehicle.plateNumber)}`, maxLines: 3 },
+      { header: labels.fields.service, width: 140, value: (m) => `${formatPdfDate(m.serviceDate, locale)} - ${m.returnDate ? formatPdfDate(m.returnDate, locale) : "Open"}`, maxLines: 2 },
+      { header: labels.fields.provider, width: 135, value: (m) => clean(m.serviceProvider), maxLines: 2 },
+      { header: labels.columns.vehicle, width: 175, value: (m) => `${clean(m.type)}\n${clean(m.description)}`, maxLines: 4 },
+      { header: labels.fields.cost, width: 110, value: (m) => formatPdfMoney(m.cost || 0), maxLines: 1 },
+    ],
+    activeMaintenance,
+    labels.noRecords
+  );
+
+  const renderInvoiceSection = (title: string, invoices: any[]) => {
+    const totalIncome = invoices.reduce((sum, invoice) => sum + ((invoice.totalAmount || 0) - (invoice.amountDue || 0)), 0);
+    const totalDue = invoices.reduce((sum, invoice) => sum + (invoice.amountDue || 0), 0);
+
+    pdf.heading(`${title} - ${labels.fields.income}: ${formatPdfMoney(totalIncome)} / ${labels.fields.due}: ${formatPdfMoney(totalDue)}`);
+    pdf.table(
+      [
+        { header: labels.fields.invoice, width: 65, value: (invoice) => clean(invoice.id).slice(0, 8), maxLines: 1 },
+        { header: labels.fields.created, width: 92, value: (invoice) => formatPdfDate(invoice.createdAt, locale), maxLines: 1 },
+        { header: labels.columns.vehicle, width: 145, value: (invoice) => `${invoice.booking?.vehicle?.brand || "-"} ${invoice.booking?.vehicle?.model || ""}\n${labels.columns.plate}: ${clean(invoice.booking?.vehicle?.plateNumber)}`, maxLines: 3 },
+        { header: labels.fields.customer, width: 140, value: (invoice) => fullName(invoice.booking?.customer?.firstName, invoice.booking?.customer?.lastName), maxLines: 2 },
+        { header: labels.fields.total, width: 85, value: (invoice) => formatPdfMoney(invoice.totalAmount || 0), maxLines: 1 },
+        { header: labels.fields.income, width: 85, value: (invoice) => formatPdfMoney((invoice.totalAmount || 0) - (invoice.amountDue || 0)), maxLines: 1 },
+        { header: labels.fields.due, width: 80, value: (invoice) => formatPdfMoney(invoice.amountDue || 0), maxLines: 1 },
+        { header: labels.fields.status, width: 68, value: (invoice) => labels.paymentStatuses[invoice.paymentStatus] || invoice.paymentStatus || labels.fallback.pending, maxLines: 1 },
+      ],
+      invoices,
+      labels.noRecords
+    );
+  };
+
+  renderInvoiceSection(labels.todayInvoices, todayInvoices);
+  renderInvoiceSection(labels.weekInvoices, weekInvoices);
 
   return pdf.build();
 }

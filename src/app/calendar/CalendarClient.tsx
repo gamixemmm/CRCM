@@ -64,6 +64,13 @@ export default function CalendarClient() {
       start.setHours(0, 0, 0, 0);
       const end = new Date(e.endDate);
       end.setHours(23, 59, 59, 999);
+      if (e.type === "BOOKING" || e.type === "MAINTENANCE") {
+        const startDay = new Date(start);
+        startDay.setHours(0, 0, 0, 0);
+        const endDay = new Date(end);
+        endDay.setHours(0, 0, 0, 0);
+        return cellDate.getTime() === startDay.getTime() || cellDate.getTime() === endDay.getTime();
+      }
       return cellDate >= start && cellDate <= end;
     });
   };
@@ -166,16 +173,14 @@ export default function CalendarClient() {
                           : `${t("calendar.quickFix")}: ${ev.title}`;
                       } else if (isStart) {
                         displayLabel = ev.type === "BOOKING"
-                          ? `${t("calendar.pickup")}: ${ev.title}`
+                          ? `${t("calendar.rented")}: ${ev.title}`
                           : `${t("calendar.toShop")}: ${ev.title}`;
                       } else if (isEnd) {
                         displayLabel = ev.type === "BOOKING"
                           ? `${t("calendar.returnEvent")}: ${ev.title}`
                           : `${t("calendar.outOfShop")}: ${ev.title}`;
-                      } else {
-                        displayLabel = ev.type === "BOOKING"
-                          ? `${t("calendar.rented")}: ${ev.title}`
-                          : `${t("calendar.inShop")}: ${ev.title}`;
+                      } else if (ev.type === "MAINTENANCE") {
+                        displayLabel = `${t("calendar.inShop")}: ${ev.title}`;
                       }
 
                       return (
