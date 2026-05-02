@@ -3,10 +3,11 @@
 import { useState } from "react";
 import { useSettings, CurrencyCode, LanguageCode } from "@/lib/SettingsContext";
 import Card from "@/components/ui/Card";
-import { Settings, DollarSign, Euro, Banknote, Globe, BriefcaseBusiness, Pencil } from "lucide-react";
+import { Settings, DollarSign, Euro, Banknote, Globe, BriefcaseBusiness, Pencil, Database, Download } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import { createEmployeeRole, deleteEmployeeRole, updateEmployeeRole } from "@/actions/employees";
+import { extractCompanyData } from "@/actions/dataExport";
 import { useToast } from "@/components/ui/Toast";
 import { PERMISSIONS, canPerform, getPermissionLabel } from "@/lib/permissions";
 import { Trash2 } from "lucide-react";
@@ -27,6 +28,7 @@ export default function SettingsClient({
   const [editingRolePermissions, setEditingRolePermissions] = useState<string[]>([]);
   const [newRolePermissions, setNewRolePermissions] = useState<string[]>(() => PERMISSIONS.map((permission) => permission.id));
   const [savingRole, setSavingRole] = useState(false);
+  const [extractingData, setExtractingData] = useState(false);
 
   const currencies: { code: CurrencyCode; label: string; icon: React.ReactNode }[] = [
     { code: "MAD", label: "Moroccan Dirham", icon: <Banknote size={20} /> },
@@ -93,6 +95,28 @@ export default function SettingsClient({
     } else {
       toast(result.message, "error");
     }
+  };
+
+  const handleExtractData = async () => {
+    setExtractingData(true);
+    const result = await extractCompanyData();
+    setExtractingData(false);
+
+    if (!result.success || !result.content || !result.filename) {
+      toast(result.message, "error");
+      return;
+    }
+
+    const blob = new Blob([result.content], { type: "application/json;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = result.filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+    toast(t("settings.extractDataSuccess"), "success");
   };
 
   return (
@@ -211,6 +235,31 @@ export default function SettingsClient({
             })}
           </div>
         </Card>
+
+        {canPerform(session, ["EXPORT_DATA"]) && (
+          <Card padding="lg">
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "16px", flexWrap: "wrap" }}>
+              <div style={{ minWidth: 0, flex: "1 1 280px" }}>
+                <div style={{ marginBottom: "12px", paddingBottom: "12px", borderBottom: "1px solid var(--border)" }}>
+                  <h3 style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "1.125rem", color: "var(--text-primary)" }}>
+                    <Database size={18} /> {t("settings.extractData")}
+                  </h3>
+                  <p style={{ color: "var(--text-secondary)", fontSize: "0.875rem", marginTop: "4px", lineHeight: 1.5 }}>
+                    {t("settings.extractDataDesc")}
+                  </p>
+                </div>
+              </div>
+              <Button
+                type="button"
+                icon={<Download size={16} />}
+                loading={extractingData}
+                onClick={handleExtractData}
+              >
+                {t("settings.downloadData")}
+              </Button>
+            </div>
+          </Card>
+        )}
 
         {canPerform(session, ["VIEW_ROLES"]) && (
           <Card padding="lg">

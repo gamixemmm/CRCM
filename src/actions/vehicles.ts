@@ -323,7 +323,7 @@ export async function getVehiclesWithBookings() {
   const vehicles = await prisma.vehicle.findMany({
     where: {
       companyId,
-      status: { not: "MAINTENANCE" },
+      status: "AVAILABLE",
     },
     orderBy: { createdAt: "desc" },
     include: {
@@ -362,6 +362,18 @@ export async function getVehiclesWithBookings() {
         },
         select: {
           date: true,
+        },
+      },
+      maintenance: {
+        where: {
+          OR: [
+            { returnDate: null },
+            { returnDate: { gt: new Date() } },
+          ],
+        },
+        select: {
+          serviceDate: true,
+          returnDate: true,
         },
       },
     },

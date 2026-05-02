@@ -16,6 +16,10 @@ interface ExpenseInput {
   vehicleId?: string;
 }
 
+function getGlobalSettingsId(companyId: string) {
+  return `global:${companyId}`;
+}
+
 export async function getExpenses() {
   const companyId = await requireCompanyId();
   return prisma.expense.findMany({
@@ -137,17 +141,11 @@ export async function deleteExpense(id: string) {
 
 export async function getGlobalSettings() {
   const companyId = await requireCompanyId();
-  let settings = await prisma.globalSettings.findFirst({
+  return prisma.globalSettings.upsert({
     where: { companyId },
+    update: {},
+    create: { id: getGlobalSettingsId(companyId), companyId, cashRegister: 0 },
   });
-
-  if (!settings) {
-    settings = await prisma.globalSettings.create({
-      data: { id: "global", companyId, cashRegister: 0 },
-    });
-  }
-
-  return settings;
 }
 
 export async function updateCashRegister(amount: number) {
@@ -160,7 +158,7 @@ export async function updateCashRegister(amount: number) {
     const settings = await prisma.globalSettings.upsert({
       where: { companyId },
       update: { cashRegister: amount },
-      create: { id: "global", companyId, cashRegister: amount },
+      create: { id: getGlobalSettingsId(companyId), companyId, cashRegister: amount },
     });
 
     revalidatePath("/expenses");
@@ -175,6 +173,92 @@ export async function updateCashRegister(amount: number) {
     return { success: true, message: "Cash register updated", data: settings };
   } catch (error) {
     console.error("Failed to update cash register", error);
+    return { success: false, message: "Failed to update cash register" };
+  }
+}
+
+export async function addCashRegisterAmount(amount: number) {
+  try {
+    const session = await requireCompanyAdminAccess();
+    if (!canPerform(session, ["MANAGE_EXPENSES"])) {
+      return { success: false, message: "You do not have permission to manage expenses." };
+    }
+
+    if (!Number.isFinite(amount) || amount <= 0) {
+      return { success: false, message: "Please enter a valid amount" };
+    }
+
+    const companyId = await requireCompanyId();
+    const settings = await prisma.globalSettings.upsert({
+      where: { companyId },
+      update: {
+        cashRegister: {
+          increment: amount,
+        },
+      },
+      create: {
+        id: getGlobalSettingsId(companyId),
+        companyId,
+        cashRegister: amount,
+      },
+    });
+
+    revalidatePath("/expenses");
+    await logAuditAction({
+      actor: session,
+      action: "ADD_CASH_REGISTER_AMOUNT",
+      entityType: "GlobalSettings",
+      entityId: settings.id,
+      message: `${session.name} added ${amount} to cash register`,
+      metadata: { amount, cashRegister: settings.cashRegister },
+    });
+
+    return { success: true, message: "Cash register amount added", data: settings };
+  } catch (error) {
+    console.error("Failed to add cash register amount", error);
+    return { success: false, message: "Failed to add cash register amount" };
+  }
+}
+
+export async function adjustCashRegisterAmount(amount: number) {
+  try {
+    const session = await requireCompanyAdminAccess();
+    if (!canPerform(session, ["MANAGE_EXPENSES"])) {
+      return { success: false, message: "You do not have permission to manage expenses." };
+    }
+
+    if (!Number.isFinite(amount) || amount === 0) {
+      return { success: false, message: "Please enter a valid amount" };
+    }
+
+    const companyId = await requireCompanyId();
+    const settings = await prisma.globalSettings.upsert({
+      where: { companyId },
+      update: {
+        cashRegister: {
+          increment: amount,
+        },
+      },
+      create: {
+        id: getGlobalSettingsId(companyId),
+        companyId,
+        cashRegister: amount,
+      },
+    });
+
+    revalidatePath("/expenses");
+    await logAuditAction({
+      actor: session,
+      action: amount > 0 ? "ADD_CASH_REGISTER_AMOUNT" : "REMOVE_CASH_REGISTER_AMOUNT",
+      entityType: "GlobalSettings",
+      entityId: settings.id,
+      message: `${session.name} ${amount > 0 ? "added" : "removed"} ${Math.abs(amount)} ${amount > 0 ? "to" : "from"} cash register`,
+      metadata: { amount, cashRegister: settings.cashRegister },
+    });
+
+    return { success: true, message: "Cash register updated", data: settings };
+  } catch (error) {
+    console.error("Failed to adjust cash register amount", error);
     return { success: false, message: "Failed to update cash register" };
   }
 }

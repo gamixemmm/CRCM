@@ -33,6 +33,17 @@ interface BookingInput {
   notes?: string;
 }
 
+interface BookingDriverInput {
+  driverFirstName?: string;
+  driverLastName?: string;
+  driverCIN?: string;
+  driverLicense?: string;
+  driver2FirstName?: string;
+  driver2LastName?: string;
+  driver2CIN?: string;
+  driver2License?: string;
+}
+
 export async function getBookings(params?: { status?: string; search?: string }) {
   const companyId = await requireCompanyId();
   const where: Record<string, unknown> = {};
@@ -74,6 +85,63 @@ export async function getBooking(id: string) {
   });
 }
 
+export async function getBookingsPdfExportData() {
+  const session = await requireCompanyAdminAccess();
+  if (!canPerform(session, ["VIEW_BOOKINGS"])) {
+    return { success: false, message: "You do not have permission to view bookings." };
+  }
+
+  const companyId = await requireCompanyId();
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const [company, activeBookings, availableVehicles] = await Promise.all([
+    prisma.company.findUnique({
+      where: { id: companyId },
+      select: { name: true },
+    }),
+    prisma.booking.findMany({
+      where: { companyId, status: "ACTIVE" },
+      orderBy: { startDate: "asc" },
+      include: {
+        customer: true,
+        vehicle: true,
+        invoice: true,
+      },
+    }),
+    prisma.vehicle.findMany({
+      where: {
+        companyId,
+        status: "AVAILABLE",
+        bookings: {
+          none: {
+            status: "ACTIVE",
+          },
+        },
+        maintenance: {
+          none: {
+            serviceDate: { lte: today },
+            OR: [
+              { returnDate: null },
+              { returnDate: { gt: today } },
+            ],
+          },
+        },
+      },
+      orderBy: [{ brand: "asc" }, { model: "asc" }, { plateNumber: "asc" }],
+    }),
+  ]);
+
+  return {
+    success: true,
+    data: {
+      companyName: company?.name || session.companyName || "Company",
+      activeBookings: JSON.parse(JSON.stringify(activeBookings)),
+      availableVehicles: JSON.parse(JSON.stringify(availableVehicles)),
+    },
+  };
+}
+
 export async function createBooking(input: BookingInput) {
   try {
     const session = await requireCompanyAdminAccess();
@@ -91,6 +159,18 @@ export async function createBooking(input: BookingInput) {
       return { success: false, message: "End date must be after start date" };
     }
 
+    const vehicle = await prisma.vehicle.findFirst({
+      where: { id: input.vehicleId, companyId },
+    });
+
+    if (!vehicle) {
+      return { success: false, message: "Vehicle not found" };
+    }
+
+    if (vehicle.status !== "AVAILABLE") {
+      return { success: false, message: "Vehicle is not available for booking." };
+    }
+
     // Check overlaps
     const overlaps = await prisma.booking.count({
       where: {
@@ -105,6 +185,22 @@ export async function createBooking(input: BookingInput) {
 
     if (overlaps > 0) {
       return { success: false, message: "Vehicle is already booked for these dates." };
+    }
+
+    const maintenanceOverlap = await prisma.maintenance.count({
+      where: {
+        companyId,
+        vehicleId: input.vehicleId,
+        serviceDate: { lte: end },
+        OR: [
+          { returnDate: null },
+          { returnDate: { gte: start } },
+        ],
+      },
+    });
+
+    if (maintenanceOverlap > 0) {
+      return { success: false, message: "Vehicle is in maintenance for these dates." };
     }
 
     const booking = await prisma.$transaction(async (tx) => {
@@ -515,6 +611,22 @@ export async function updateBookingDates(bookingId: string, newStartDate: string
       return { success: false, message: "Vehicle has a conflicting booking for these dates" };
     }
 
+    const maintenanceOverlap = await prisma.maintenance.count({
+      where: {
+        companyId,
+        vehicleId: booking.vehicleId,
+        serviceDate: { lte: newEnd },
+        OR: [
+          { returnDate: null },
+          { returnDate: { gte: newStart } },
+        ],
+      },
+    });
+
+    if (maintenanceOverlap > 0) {
+      return { success: false, message: "Vehicle is in maintenance for these dates." };
+    }
+
     // Calculate new duration and total
     const diffTime = Math.abs(newEnd.getTime() - newStart.getTime());
     const newDays = Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
@@ -565,5 +677,59 @@ export async function updateBookingDates(bookingId: string, newStartDate: string
   } catch (error) {
     console.error(error);
     return { success: false, message: "Failed to update booking dates" };
+  }
+}
+
+export async function updateBookingDrivers(bookingId: string, input: BookingDriverInput) {
+  try {
+    const session = await requireCompanyAdminAccess();
+    if (!canPerform(session, ["MANAGE_BOOKINGS"])) {
+      return { success: false, message: "You do not have permission to manage bookings." };
+    }
+
+    const companyId = await requireCompanyId();
+    const booking = await prisma.booking.findFirst({
+      where: { id: bookingId, companyId },
+      select: { id: true },
+    });
+
+    if (!booking) {
+      return { success: false, message: "Booking not found" };
+    }
+
+    const clean = (value?: string) => {
+      const trimmed = value?.trim();
+      return trimmed ? trimmed : null;
+    };
+
+    await prisma.booking.update({
+      where: { id: bookingId },
+      data: {
+        driverFirstName: clean(input.driverFirstName),
+        driverLastName: clean(input.driverLastName),
+        driverCIN: clean(input.driverCIN),
+        driverLicense: clean(input.driverLicense),
+        driver2FirstName: clean(input.driver2FirstName),
+        driver2LastName: clean(input.driver2LastName),
+        driver2CIN: clean(input.driver2CIN),
+        driver2License: clean(input.driver2License),
+      },
+    });
+
+    revalidatePath(`/bookings/${bookingId}`);
+    revalidatePath("/bookings");
+    await logAuditAction({
+      actor: session,
+      action: "UPDATE_BOOKING_DRIVERS",
+      entityType: "Booking",
+      entityId: bookingId,
+      message: `${session.name} updated drivers for booking ${bookingId}`,
+      metadata: { ...input },
+    });
+
+    return { success: true, message: "Driver information updated" };
+  } catch (error) {
+    console.error(error);
+    return { success: false, message: "Failed to update driver information" };
   }
 }

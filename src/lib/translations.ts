@@ -1,6 +1,15 @@
 import { LanguageCode } from "./SettingsContext";
 
 const translations = {
+  "expenses.adjustCashRegister": { en: "Adjust Cash Register", fr: "Ajuster la caisse", ar: "Adjust Cash Register" },
+  "expenses.adjustCashDesc": { en: "Choose whether to add or remove cash, then enter the amount. The new caisse amount is shown before saving.", fr: "Choisissez ajouter ou retirer, puis saisissez le montant. Le nouveau montant de caisse s'affiche avant l'enregistrement.", ar: "Choose whether to add or remove cash, then enter the amount." },
+  "expenses.addCashOption": { en: "Add cash", fr: "Ajouter", ar: "Add cash" },
+  "expenses.removeCashOption": { en: "Remove cash", fr: "Retirer", ar: "Remove cash" },
+  "expenses.cashAfterChange": { en: "Cash after change", fr: "Caisse apres changement", ar: "Cash after change" },
+  "expenses.remainderAfterChange": { en: "Rest after change", fr: "Reste apres changement", ar: "Rest after change" },
+  "expenses.confirmAdjustCash": { en: "Save Cash Change", fr: "Enregistrer", ar: "Save Cash Change" },
+  "expenses.cashUpdated": { en: "Cash register updated", fr: "Caisse mise a jour", ar: "Cash register updated" },
+  "expenses.cashAdjustmentTooLarge": { en: "The cash register cannot go below zero.", fr: "La caisse ne peut pas etre negative.", ar: "The cash register cannot go below zero." },
   // ─── Navigation ─────────────────────────────────────────────────
   "nav.dashboard": { en: "Dashboard", fr: "Tableau de bord", ar: "لوحة القيادة" },
   "nav.vehicles": { en: "Vehicles", fr: "Véhicules", ar: "المركبات" },
@@ -91,6 +100,19 @@ const translations = {
   // ─── Bookings ───────────────────────────────────────────────────
   "bookings.title": { en: "Bookings", fr: "Réservations", ar: "الحجوزات" },
   "bookings.newBooking": { en: "New Booking", fr: "Nouvelle réservation", ar: "حجز جديد" },
+  "bookings.exportActivePdf": { en: "Extract Active Bookings", fr: "Extraire les réservations actives", ar: "استخراج الحجوزات النشطة" },
+  "bookings.exportSuccess": { en: "Bookings PDF downloaded.", fr: "PDF des réservations téléchargé.", ar: "تم تنزيل ملف PDF للحجوزات." },
+  "bookings.activeReportTitle": { en: "Active Bookings and Available Fleet", fr: "Réservations actives et flotte disponible", ar: "الحجوزات النشطة والأسطول المتاح" },
+  "bookings.reportGenerated": { en: "Generated", fr: "Généré", ar: "تم الإنشاء" },
+  "bookings.activeBookings": { en: "Active Bookings", fr: "Réservations actives", ar: "الحجوزات النشطة" },
+  "bookings.availableCars": { en: "Available Cars", fr: "Voitures disponibles", ar: "السيارات المتاحة" },
+  "bookings.reportNoRecords": { en: "No records", fr: "Aucun enregistrement", ar: "لا توجد سجلات" },
+  "bookings.reportDates": { en: "Dates", fr: "Dates", ar: "التواريخ" },
+  "bookings.reportPerDay": { en: "day", fr: "jour", ar: "يوم" },
+  "bookings.vehicleDateSearch": { en: "Find Car Activity", fr: "Rechercher activite voiture", ar: "Find Car Activity" },
+  "bookings.vehicleDateSearchDesc": { en: "Select a car and a date to find any booking that touched that car on that day.", fr: "Selectionnez une voiture et une date pour trouver toute reservation liee a cette voiture ce jour-la.", ar: "Select a car and a date to find matching bookings." },
+  "bookings.selectVehicle": { en: "Select a vehicle", fr: "Selectionner un vehicule", ar: "Select a vehicle" },
+  "bookings.noVehicleDateRecords": { en: "No booking or maintenance found for this car on that date.", fr: "Aucune reservation ou maintenance trouvee pour cette voiture a cette date.", ar: "No booking or maintenance found for this car on that date." },
   "bookings.details": { en: "Booking Details", fr: "Détails de la réservation", ar: "تفاصيل الحجز" },
   "bookings.customer": { en: "Customer", fr: "Client", ar: "العميل" },
   "bookings.vehicle": { en: "Vehicle", fr: "Véhicule", ar: "المركبة" },
@@ -142,6 +164,7 @@ const translations = {
   "invoices.amountDue": { en: "Amount Due", fr: "Montant dû", ar: "المبلغ المستحق" },
   "invoices.paymentAmount": { en: "Payment Amount", fr: "Montant du paiement", ar: "مبلغ الدفعة" },
   "invoices.paymentMethod": { en: "Payment Method", fr: "Méthode de paiement", ar: "طريقة الدفع" },
+  "invoices.paymentStatus": { en: "Payment Status", fr: "Statut du paiement", ar: "حالة الدفع" },
   "invoices.confirmPayment": { en: "Confirm Payment", fr: "Confirmer le paiement", ar: "تأكيد الدفع" },
   "invoices.subtotal": { en: "Base Subtotal", fr: "Sous-total de base", ar: "المجموع الفرعي" },
   "invoices.extraCharges": { en: "Extra Charges", fr: "Frais supplémentaires", ar: "رسوم إضافية" },
@@ -230,6 +253,10 @@ const translations = {
   "settings.currencyDesc": { en: "Select the primary currency used to display revenue, daily rates, and all financial metrics across the system.", fr: "Sélectionnez la devise principale pour afficher les revenus, tarifs journaliers et toutes les métriques financières.", ar: "اختر العملة الرئيسية لعرض الإيرادات والأسعار اليومية وجميع المقاييس المالية." },
   "settings.language": { en: "Language", fr: "Langue", ar: "اللغة" },
   "settings.languageDesc": { en: "Choose the display language for the interface. This affects labels, buttons, and system messages.", fr: "Choisissez la langue d'affichage de l'interface. Cela affecte les libellés, boutons et messages système.", ar: "اختر لغة العرض للواجهة. يؤثر هذا على التسميات والأزرار ورسائل النظام." },
+  "settings.extractData": { en: "Extract Data", fr: "Extraire les données", ar: "استخراج البيانات" },
+  "settings.extractDataDesc": { en: "Download a JSON file containing all records for the selected company. Password hashes are not included.", fr: "Téléchargez un fichier JSON contenant tous les enregistrements de l'entreprise sélectionnée. Les mots de passe chiffrés ne sont pas inclus.", ar: "قم بتنزيل ملف JSON يحتوي على جميع سجلات الشركة المحددة. لا يتم تضمين كلمات المرور المشفرة." },
+  "settings.downloadData": { en: "Download Data File", fr: "Télécharger le fichier", ar: "تنزيل ملف البيانات" },
+  "settings.extractDataSuccess": { en: "Company data file downloaded.", fr: "Fichier des données de l'entreprise téléchargé.", ar: "تم تنزيل ملف بيانات الشركة." },
 
   // Login
   "login.title": { en: "Account Access", fr: "Acces au compte", ar: "الوصول إلى الحساب" },
@@ -360,6 +387,8 @@ const translations = {
   "toast.carPickedUp": { en: "Car picked up! Booking is now Active.", fr: "Voiture récupérée ! La réservation est maintenant active.", ar: "تم استلام السيارة! الحجز الآن نشط." },
   "toast.bookingCancelled": { en: "Booking cancelled.", fr: "Réservation annulée.", ar: "تم إلغاء الحجز." },
   "toast.mileageError": { en: "New mileage cannot be less than current mileage", fr: "Le nouveau kilométrage ne peut pas être inférieur au kilométrage actuel", ar: "لا يمكن أن يكون عدد الكيلومترات الجديد أقل من الحالي" },
+  "toast.driverInfoUpdated": { en: "Driver information updated.", fr: "Informations du conducteur mises à jour.", ar: "تم تحديث معلومات السائق." },
+  "toast.driverInfoUpdateFailed": { en: "Failed to update driver information.", fr: "Échec de la mise à jour des informations du conducteur.", ar: "فشل تحديث معلومات السائق." },
 
   // ─── Timeline Detail ────────────────────────────────────────────
   "timeline.total": { en: "Total", fr: "Total", ar: "المجموع" },
@@ -404,6 +433,10 @@ const translations = {
   "expenses.addCnssPayment": { en: "Add CNSS Payment", fr: "Ajouter paiement CNSS", ar: "إضافة دفع CNSS" },
   "expenses.addRentPayment": { en: "Add Office Rent", fr: "Ajouter loyer de bureau", ar: "إضافة إيجار المكتب" },
   "expenses.addAccountingPayment": { en: "Add Comptable Payment", fr: "Ajouter paiement comptable", ar: "إضافة دفع المحاسبة" },
+  "expenses.addCashToRegister": { en: "Add Money to Cash Register", fr: "Ajouter l'argent à la caisse", ar: "إضافة المال إلى الصندوق" },
+  "expenses.addCashDesc": { en: "Enter the amount to add to the cash register. This increases the displayed caisse amount without creating an expense.", fr: "Saisissez le montant à ajouter à la caisse. Cela augmente le montant affiché de la caisse sans créer de charge.", ar: "أدخل المبلغ المراد إضافته إلى الصندوق. سيزيد هذا مبلغ الصندوق المعروض دون إنشاء مصروف." },
+  "expenses.confirmAddCash": { en: "Add to Cash Register", fr: "Ajouter à la caisse", ar: "إضافة إلى الصندوق" },
+  "expenses.cashAdded": { en: "Amount added to cash register", fr: "Montant ajouté à la caisse", ar: "تمت إضافة المبلغ إلى الصندوق" },
   "expenses.totalCharges": { en: "Total Charges", fr: "Somme des charges", ar: "إجمالي المصاريف" },
   "expenses.cashAmount": { en: "Cash Amount", fr: "Montant de la Caisse", ar: "مبلغ الصندوق" },
   "expenses.cashSubtitle": { en: "Total payments received", fr: "Total des paiements reçus", ar: "إجمالي المدفوعات المستلمة" },
@@ -620,6 +653,7 @@ const translations = {
   "bookings.brokerSelection": { en: "Broker Selection", fr: "Choix du courtier", ar: "اختيار الوسيط" },
   "bookings.pricingPayment": { en: "Pricing & Payment", fr: "Prix et Paiement", ar: "السعر والدفع" },
   "bookings.driverInformation": { en: "Driver Information", fr: "Informations du conducteur", ar: "معلومات السائق" },
+  "bookings.editDriverInformation": { en: "Edit Driver Information", fr: "Modifier les informations du conducteur", ar: "تعديل معلومات السائق" },
   "bookings.rate": { en: "Rate", fr: "Tarif", ar: "السعر" },
   "bookings.confirmRental": { en: "Confirm Rental", fr: "Confirmer la location", ar: "تأكيد الإيجار" },
   "bookings.backToVehicle": { en: "Back to Vehicle", fr: "Retour au véhicule", ar: "الرجوع للمركبة" },

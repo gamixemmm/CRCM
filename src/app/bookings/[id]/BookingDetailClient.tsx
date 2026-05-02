@@ -4,7 +4,7 @@ import { useSettings } from "@/lib/SettingsContext";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, User, Car, FileText, CheckCircle, XCircle, Trash2, Building2, CreditCard, Edit3 } from "lucide-react";
+import { ArrowLeft, User, Car, FileText, CheckCircle, XCircle, Trash2, Building2, CreditCard, Edit3, Plus } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
@@ -12,7 +12,7 @@ import Modal from "@/components/ui/Modal";
 import Input, { Textarea } from "@/components/ui/Input";
 import { useToast } from "@/components/ui/Toast";
 import { createInvoice, updatePaymentStatus, deleteInvoice } from "@/actions/invoices";
-import { updateBookingStatus, handleEarlyPickup, handleReturn, updateBookingDates } from "@/actions/bookings";
+import { updateBookingStatus, handleEarlyPickup, handleReturn, updateBookingDates, updateBookingDrivers } from "@/actions/bookings";
 import { formatDate, formatStatus, getStatusColor, getStatusBg, getFullName } from "@/lib/utils";
 import styles from "../bookings.module.css";
 
@@ -41,6 +41,21 @@ export default function BookingDetailClient({ booking }: { booking: any }) {
   const [editStartDate, setEditStartDate] = useState(new Date(booking.startDate).toISOString().split("T")[0]);
   const [editEndDate, setEditEndDate] = useState(new Date(booking.endDate).toISOString().split("T")[0]);
   const [editPricePerDay, setEditPricePerDay] = useState(booking.pricePerDay ?? booking.vehicle.dailyRate);
+  const [isEditDriversModalOpen, setIsEditDriversModalOpen] = useState(false);
+  const [editDriversLoading, setEditDriversLoading] = useState(false);
+  const [showSecondDriver, setShowSecondDriver] = useState(Boolean(
+    booking.driver2FirstName || booking.driver2LastName || booking.driver2CIN || booking.driver2License
+  ));
+  const [driverForm, setDriverForm] = useState({
+    driverFirstName: booking.driverFirstName || "",
+    driverLastName: booking.driverLastName || "",
+    driverCIN: booking.driverCIN || "",
+    driverLicense: booking.driverLicense || "",
+    driver2FirstName: booking.driver2FirstName || "",
+    driver2LastName: booking.driver2LastName || "",
+    driver2CIN: booking.driver2CIN || "",
+    driver2License: booking.driver2License || "",
+  });
 
   // Duration
   const start = new Date(booking.startDate);
@@ -55,6 +70,21 @@ export default function BookingDetailClient({ booking }: { booking: any }) {
       return null;
     }
     return mileage;
+  };
+
+  const openEditDriversModal = () => {
+    setDriverForm({
+      driverFirstName: booking.driverFirstName || "",
+      driverLastName: booking.driverLastName || "",
+      driverCIN: booking.driverCIN || "",
+      driverLicense: booking.driverLicense || "",
+      driver2FirstName: booking.driver2FirstName || "",
+      driver2LastName: booking.driver2LastName || "",
+      driver2CIN: booking.driver2CIN || "",
+      driver2License: booking.driver2License || "",
+    });
+    setShowSecondDriver(Boolean(booking.driver2FirstName || booking.driver2LastName || booking.driver2CIN || booking.driver2License));
+    setIsEditDriversModalOpen(true);
   };
 
   const handleGenerateInvoice = async () => {
@@ -236,6 +266,17 @@ export default function BookingDetailClient({ booking }: { booking: any }) {
           )}
 
           {/* Driver Info */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px" }}>
+            <h3 style={{ margin: 0 }}>{t("bookings.driverInformation")}</h3>
+            <Button
+              size="sm"
+              variant="ghost"
+              icon={<Edit3 size={14} />}
+              onClick={openEditDriversModal}
+            >
+              {t("action.edit")}
+            </Button>
+          </div>
           <div className={styles.detailDriversGrid}>
             <Card padding="lg">
               <h3 style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "16px", paddingBottom: "8px", borderBottom: "1px solid var(--border)" }}>
@@ -257,7 +298,7 @@ export default function BookingDetailClient({ booking }: { booking: any }) {
               </div>
             </Card>
             
-            {booking.driver2FirstName || booking.driver2LastName ? (
+            {booking.driver2FirstName || booking.driver2LastName || booking.driver2CIN || booking.driver2License ? (
               <Card padding="lg">
                 <h3 style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "16px", paddingBottom: "8px", borderBottom: "1px solid var(--border)" }}>
                   <User size={16} /> {t("bookings.secondDriver")}
@@ -277,7 +318,23 @@ export default function BookingDetailClient({ booking }: { booking: any }) {
                   </div>
                 </div>
               </Card>
-            ) : null}
+            ) : (
+              <Card padding="lg">
+                <div style={{ display: "flex", minHeight: "132px", alignItems: "center", justifyContent: "center" }}>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    icon={<Plus size={16} />}
+                    onClick={() => {
+                      openEditDriversModal();
+                      setShowSecondDriver(true);
+                    }}
+                  >
+                    {t("bookings.addSecondDriver")}
+                  </Button>
+                </div>
+              </Card>
+            )}
           </div>
 
         </div>
@@ -774,6 +831,137 @@ export default function BookingDetailClient({ booking }: { booking: any }) {
               variant="ghost"
               onClick={() => setIsReturnModalOpen(false)}
             >
+              {t("action.cancel")}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Edit Drivers Modal */}
+      <Modal
+        isOpen={isEditDriversModalOpen}
+        onClose={() => setIsEditDriversModalOpen(false)}
+        title={t("bookings.editDriverInformation")}
+        size="md"
+      >
+        <div style={{ display: "flex", flexDirection: "column", gap: "18px" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+            <h3 style={{ margin: 0, fontSize: "0.95rem" }}>{t("bookings.primaryDriver")}</h3>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "12px" }}>
+              <Input
+                label={t("bookings.lastName")}
+                value={driverForm.driverLastName}
+                onChange={(e) => setDriverForm({ ...driverForm, driverLastName: e.target.value })}
+              />
+              <Input
+                label={t("bookings.firstName")}
+                value={driverForm.driverFirstName}
+                onChange={(e) => setDriverForm({ ...driverForm, driverFirstName: e.target.value })}
+              />
+              <Input
+                label={t("bookings.cinPassport")}
+                value={driverForm.driverCIN}
+                onChange={(e) => setDriverForm({ ...driverForm, driverCIN: e.target.value })}
+              />
+              <Input
+                label={t("bookings.licenseNumber")}
+                value={driverForm.driverLicense}
+                onChange={(e) => setDriverForm({ ...driverForm, driverLicense: e.target.value })}
+              />
+            </div>
+          </div>
+
+          <div style={{ paddingTop: "16px", borderTop: "1px solid var(--border)", display: "flex", flexDirection: "column", gap: "12px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px" }}>
+              <h3 style={{ margin: 0, fontSize: "0.95rem" }}>{t("bookings.secondDriver")}</h3>
+              {showSecondDriver ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    setShowSecondDriver(false);
+                    setDriverForm({
+                      ...driverForm,
+                      driver2FirstName: "",
+                      driver2LastName: "",
+                      driver2CIN: "",
+                      driver2License: "",
+                    });
+                  }}
+                >
+                  {t("bookings.removeDriver")}
+                </Button>
+              ) : (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="secondary"
+                  icon={<Plus size={14} />}
+                  onClick={() => setShowSecondDriver(true)}
+                >
+                  {t("bookings.addSecondDriver")}
+                </Button>
+              )}
+            </div>
+
+            {showSecondDriver && (
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "12px" }}>
+                <Input
+                  label={t("bookings.lastName")}
+                  value={driverForm.driver2LastName}
+                  onChange={(e) => setDriverForm({ ...driverForm, driver2LastName: e.target.value })}
+                />
+                <Input
+                  label={t("bookings.firstName")}
+                  value={driverForm.driver2FirstName}
+                  onChange={(e) => setDriverForm({ ...driverForm, driver2FirstName: e.target.value })}
+                />
+                <Input
+                  label={t("bookings.cinPassport")}
+                  value={driverForm.driver2CIN}
+                  onChange={(e) => setDriverForm({ ...driverForm, driver2CIN: e.target.value })}
+                />
+                <Input
+                  label={t("bookings.licenseNumber")}
+                  value={driverForm.driver2License}
+                  onChange={(e) => setDriverForm({ ...driverForm, driver2License: e.target.value })}
+                />
+              </div>
+            )}
+          </div>
+
+          <div style={{ display: "flex", gap: "10px", marginTop: "4px" }}>
+            <Button
+              fullWidth
+              variant="primary"
+              loading={editDriversLoading}
+              onClick={async () => {
+                const payload = showSecondDriver
+                  ? driverForm
+                  : {
+                      ...driverForm,
+                      driver2FirstName: "",
+                      driver2LastName: "",
+                      driver2CIN: "",
+                      driver2License: "",
+                    };
+
+                setEditDriversLoading(true);
+                const res = await updateBookingDrivers(booking.id, payload);
+                setEditDriversLoading(false);
+                if (res.success) {
+                  toast(t("toast.driverInfoUpdated"), "success");
+                  setIsEditDriversModalOpen(false);
+                  router.refresh();
+                } else {
+                  toast(t("toast.driverInfoUpdateFailed"), "error");
+                }
+              }}
+            >
+              {t("action.saveChanges")}
+            </Button>
+            <Button fullWidth variant="ghost" onClick={() => setIsEditDriversModalOpen(false)}>
               {t("action.cancel")}
             </Button>
           </div>

@@ -32,6 +32,7 @@ export const PERMISSIONS = [
   { id: "ADD_ROLES", label: "Add Roles" },
   { id: "VIEW_ROLES", label: "View Roles" },
   { id: "MANAGE_ROLES", label: "View and Manage Roles" },
+  { id: "EXPORT_DATA", label: "Extract Company Data" },
 ];
 
 const PERMISSION_ALIASES: Record<string, string> = {

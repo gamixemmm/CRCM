@@ -32,11 +32,16 @@ export async function getMaintenanceLogs(params?: { status?: string; search?: st
   const companyId = await requireCompanyId();
   const where: Record<string, unknown> = {};
   where.companyId = companyId;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
 
   if (params?.status && params.status !== "ALL") {
-    // ACTIVE means returnDate is null, COMPLETED means returnDate exists
-    if (params.status === "ACTIVE") where.returnDate = null;
-    if (params.status === "COMPLETED") where.returnDate = { not: null };
+    if (params.status === "ACTIVE") {
+      where.OR = [{ returnDate: null }, { returnDate: { gt: today } }];
+    }
+    if (params.status === "COMPLETED") {
+      where.returnDate = { lte: today };
+    }
   }
 
   if (params?.search) {
@@ -75,6 +80,9 @@ export async function updateMaintenance(id: string, input: Partial<MaintenanceIn
       return { success: false, message: "New mileage cannot be less than current mileage" };
     }
 
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
     const data: Record<string, unknown> = {};
     if (input.serviceDate !== undefined) data.serviceDate = new Date(input.serviceDate);
     if (input.returnDate !== undefined) data.returnDate = input.returnDate ? new Date(input.returnDate) : null;
@@ -88,11 +96,26 @@ export async function updateMaintenance(id: string, input: Partial<MaintenanceIn
 
     const updated = await prisma.$transaction(async (tx) => {
       const log = await tx.maintenance.update({ where: { id }, data });
+      const returnDate = log.returnDate ? new Date(log.returnDate) : null;
+      returnDate?.setHours(0, 0, 0, 0);
+      const serviceDate = new Date(log.serviceDate);
+      serviceDate.setHours(0, 0, 0, 0);
+      const isActiveMaintenance = serviceDate <= today && (!returnDate || returnDate > today);
 
       if (input.mileageAtService !== undefined) {
         await tx.vehicle.update({
           where: { id: current.vehicleId },
-          data: { mileage: input.mileageAtService },
+          data: {
+            mileage: input.mileageAtService,
+            ...(current.vehicle.status !== "RENTED" ? { status: isActiveMaintenance ? "MAINTENANCE" : "AVAILABLE" } : {}),
+          },
+        });
+      } else if ((input.serviceDate !== undefined || input.returnDate !== undefined) && current.vehicle.status !== "RENTED") {
+        await tx.vehicle.update({
+          where: { id: current.vehicleId },
+          data: {
+            status: isActiveMaintenance ? "MAINTENANCE" : "AVAILABLE",
+          },
         });
       }
 
@@ -161,7 +184,10 @@ export async function logMaintenance(input: MaintenanceInput) {
     const serviceDate = new Date(input.serviceDate);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+    const returnDate = input.returnDate ? new Date(input.returnDate) : null;
+    returnDate?.setHours(0, 0, 0, 0);
     const isServiceToday = serviceDate <= today;
+    const isStillInMaintenance = !returnDate || returnDate > today;
 
     const log = await prisma.$transaction(async (tx) => {
       // Create log
@@ -170,7 +196,7 @@ export async function logMaintenance(input: MaintenanceInput) {
           companyId,
           vehicleId: input.vehicleId,
           serviceDate,
-          returnDate: input.returnDate ? new Date(input.returnDate) : null,
+          returnDate,
           description: input.description,
           cost: input.cost,
           serviceProvider: input.serviceProvider || null,
@@ -181,16 +207,14 @@ export async function logMaintenance(input: MaintenanceInput) {
         },
       });
 
-      // Only change status to MAINTENANCE if the service is today or past
-      // and the vehicle is not currently rented
-      // and there's no return date (meaning it's still in maintenance)
+      // Keep vehicles unavailable while an active or future-dated workshop job is open.
       const vehicleUpdateData: { status?: string; mileage?: number } = {};
 
       if (input.mileageAtService !== undefined) {
         vehicleUpdateData.mileage = input.mileageAtService;
       }
 
-      if (isServiceToday && vehicle.status !== "RENTED" && !input.returnDate) {
+      if (isServiceToday && vehicle.status !== "RENTED" && isStillInMaintenance) {
         vehicleUpdateData.status = "MAINTENANCE";
       }
 
@@ -337,7 +361,11 @@ export async function deleteMaintenance(id: string) {
       await tx.maintenance.delete({ where: { id } });
 
       // If the log was actively holding the vehicle hostage, free it up.
-      if (!log.returnDate) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const returnDate = log.returnDate ? new Date(log.returnDate) : null;
+      returnDate?.setHours(0, 0, 0, 0);
+      if (!returnDate || returnDate > today) {
         await tx.vehicle.update({
           where: { id: log.vehicleId },
           data: { status: "AVAILABLE" },

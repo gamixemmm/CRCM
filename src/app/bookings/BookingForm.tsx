@@ -135,12 +135,21 @@ export default function BookingForm({ vehicles, customers: initialCustomers }: {
 
   // Filter vehicles by availability when dates are selected
   const isVehicleAvailable = (vehicle: any): boolean => {
+    if (vehicle.status !== "AVAILABLE") return false;
     if (!start || !end) return true;
     const bookings = vehicle.bookings || [];
-    return !bookings.some((b: any) => {
+    const hasBookingConflict = bookings.some((b: any) => {
       const bStart = new Date(b.startDate);
       const bEnd = new Date(b.endDate);
       return bStart <= end && bEnd >= start;
+    });
+    if (hasBookingConflict) return false;
+
+    const maintenanceLogs = vehicle.maintenance || [];
+    return !maintenanceLogs.some((log: any) => {
+      const mStart = new Date(log.serviceDate);
+      const mEnd = log.returnDate ? new Date(log.returnDate) : new Date(8640000000000000);
+      return mStart <= end && mEnd >= start;
     });
   };
 
@@ -616,6 +625,7 @@ export default function BookingForm({ vehicles, customers: initialCustomers }: {
                       type="number"
                       value={form.pricePerDay}
                       onChange={(e) => setForm({ ...form, pricePerDay: e.target.value })}
+                      onWheel={(e) => e.currentTarget.blur()}
                     />
 
                     <Select

@@ -1,4 +1,6 @@
 import { getBookings } from "@/actions/bookings";
+import { getMaintenanceLogs } from "@/actions/maintenance";
+import { getVehicles } from "@/actions/vehicles";
 import { getCompanyAdminSession } from "@/actions/companyAuth";
 import { canPerform } from "@/lib/permissions";
 import { redirect } from "next/navigation";
@@ -12,6 +14,16 @@ export default async function BookingsPage() {
     redirect("/login?next=/bookings");
   }
   if (!canPerform(session, ["VIEW_BOOKINGS"])) redirect("/");
-  const bookings = await getBookings();
-  return <BookingsClient bookings={JSON.parse(JSON.stringify(bookings))} />;
+  const [bookings, vehicles, maintenanceLogs] = await Promise.all([
+    getBookings(),
+    getVehicles(),
+    getMaintenanceLogs(),
+  ]);
+  return (
+    <BookingsClient
+      bookings={JSON.parse(JSON.stringify(bookings))}
+      vehicles={JSON.parse(JSON.stringify(vehicles))}
+      maintenanceLogs={JSON.parse(JSON.stringify(maintenanceLogs))}
+    />
+  );
 }

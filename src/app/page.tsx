@@ -32,6 +32,7 @@ export default async function DashboardPage() {
     todayMaintenanceOut,
     allInvoices,
     expenseSummary,
+    globalSettings,
   ] = await Promise.all([
     prisma.vehicle.count({ where: { companyId } }),
     prisma.vehicle.count({ where: { companyId, status: "AVAILABLE" } }),
@@ -94,12 +95,14 @@ export default async function DashboardPage() {
         amount: true,
       },
     }),
+    prisma.globalSettings.findFirst({ where: { companyId } }),
   ]);
 
   const overallRevenue = allInvoices.reduce((sum, inv) => sum + (inv.totalAmount - inv.amountDue), 0);
   const pendingRevenue = allInvoices.reduce((sum, inv) => sum + inv.amountDue, 0);
   const totalCharges = expenseSummary._sum.amount ?? 0;
-  const remainder = overallRevenue - totalCharges;
+  const cashAmount = overallRevenue + (globalSettings?.cashRegister ?? 0);
+  const remainder = cashAmount - totalCharges;
 
   return (
     <DashboardClient

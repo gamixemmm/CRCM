@@ -31,12 +31,15 @@ export default function MaintenanceDetailClient({ log }: { log: any }) {
     partsUsed: (log.partsUsed || []).join("\n"),
     notes: log.notes || "",
   });
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const isActive = !log.returnDate || new Date(log.returnDate) > today;
 
   const save = async () => {
     setSaving(true);
     const result = await updateMaintenance(log.id, {
       ...form,
-      returnDate: form.returnDate || undefined,
+      returnDate: form.returnDate,
       cost: Number(form.cost),
       mileageAtService: Number(form.mileageAtService),
       partsUsed: form.partsUsed.split("\n").map((item: string) => item.trim()).filter(Boolean),
@@ -80,7 +83,7 @@ export default function MaintenanceDetailClient({ log }: { log: any }) {
           <h3 style={{ marginBottom: "16px" }}>{t("maintenance.repairCost")}</h3>
           <div style={{ fontSize: "1.8rem", fontWeight: 800 }}>{formatPrice(Number(form.cost || 0))}</div>
           <div style={{ marginTop: "8px", color: "var(--text-secondary)" }}>
-            {log.returnDate ? t("status.completed") : t("status.active")}
+            {isActive ? t("status.active") : t("status.completed")}
           </div>
         </Card>
       </div>

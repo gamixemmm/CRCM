@@ -28,10 +28,12 @@ export default function MaintenanceClient({ logs }: MaintenanceClientProps) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [resolving, setResolving] = useState<string | null>(null);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const isMaintenanceActive = (log: any) => !log.returnDate || new Date(log.returnDate) > today;
 
   const filtered = logs.filter((log) => {
-    // ACTIVE means return date is missing, COMPLETED means returnDate exists
-    const isActive = !log.returnDate;
+    const isActive = isMaintenanceActive(log);
     const matchesStatus = 
       statusFilter === "ALL" || 
       (statusFilter === "ACTIVE" && isActive) || 
@@ -134,7 +136,7 @@ export default function MaintenanceClient({ logs }: MaintenanceClientProps) {
           </div>
           <div style={{ display: "flex", justifyContent: "space-between", gap: "12px", width: "160px" }}>
             <span style={{ color: "var(--text-secondary)" }}>{t("maintenance.out")}:</span>
-            <span style={{ fontWeight: log.returnDate ? 600 : "normal", color: log.returnDate ? "var(--success)" : "var(--text-tertiary)" }}>
+            <span style={{ fontWeight: log.returnDate ? 600 : "normal", color: isMaintenanceActive(log) ? "var(--text-tertiary)" : "var(--success)" }}>
               {log.returnDate ? formatDate(log.returnDate) : t("maintenance.stillInShop")}
             </span>
           </div>
@@ -155,11 +157,11 @@ export default function MaintenanceClient({ logs }: MaintenanceClientProps) {
       label: t("label.status"),
       render: (log: any) => (
         <Badge
-          color={!log.returnDate ? "var(--warning)" : "var(--success)"}
-          bg={!log.returnDate ? "rgba(234, 179, 8, 0.1)" : "rgba(34, 197, 94, 0.1)"}
+          color={isMaintenanceActive(log) ? "var(--warning)" : "var(--success)"}
+          bg={isMaintenanceActive(log) ? "rgba(234, 179, 8, 0.1)" : "rgba(34, 197, 94, 0.1)"}
           dot
         >
-          {!log.returnDate ? t("status.active").toUpperCase() : t("status.completed").toUpperCase()}
+          {isMaintenanceActive(log) ? t("status.active").toUpperCase() : t("status.completed").toUpperCase()}
         </Badge>
       ),
     },
@@ -169,7 +171,7 @@ export default function MaintenanceClient({ logs }: MaintenanceClientProps) {
       align: "right" as const,
       render: (log: any) => (
         <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
-          {!log.returnDate ? (
+          {isMaintenanceActive(log) ? (
             <Button
               size="sm"
               variant="success"
@@ -203,7 +205,7 @@ export default function MaintenanceClient({ logs }: MaintenanceClientProps) {
   ];
 
   const mobileCards = filtered.map((log) => {
-    const isActive = !log.returnDate;
+    const isActive = isMaintenanceActive(log);
     return (
       <Card
         key={log.id}

@@ -2,15 +2,16 @@
 
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { TrendingDown, Plus, CreditCard, Wallet, Calculator, Pencil, Trash2, Car, ShieldCheck, Home, Search, Filter, ArrowUpDown, ArrowUp, ArrowDown, ChevronRight } from "lucide-react";
+import { TrendingDown, CreditCard, Wallet, Calculator, Pencil, Trash2, Car, ShieldCheck, Home, Search, Filter, ArrowUpDown, ArrowUp, ArrowDown, ChevronRight } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Table from "@/components/ui/Table";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
+import Modal from "@/components/ui/Modal";
 import { useSettings } from "@/lib/SettingsContext";
 import { formatDate } from "@/lib/utils";
 import AddExpenseModal from "./AddExpenseModal";
-import { deleteExpense } from "@/actions/expenses";
+import { adjustCashRegisterAmount, deleteExpense } from "@/actions/expenses";
 import { useToast } from "@/components/ui/Toast";
 import { EXPENSE_CATEGORIES, normalizeExpenseCategory, translateExpenseCategory, translateExpenseDescription } from "@/lib/expenseCategories";
 import Card from "@/components/ui/Card";
@@ -33,6 +34,10 @@ export default function ExpensesClient({ expenses, overallRevenue, vehicles }: E
   const [expenseMode, setExpenseMode] = useState<"general" | "car" | "cnss" | "rent" | "accounting">("general");
   const [editingExpense, setEditingExpense] = useState<any | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [isCashModalOpen, setIsCashModalOpen] = useState(false);
+  const [cashAmount, setCashAmount] = useState("");
+  const [cashAdjustmentType, setCashAdjustmentType] = useState<"add" | "remove">("add");
+  const [cashLoading, setCashLoading] = useState(false);
 
   // Filter & Sort State
   const [searchQuery, setSearchQuery] = useState("");
@@ -69,6 +74,46 @@ export default function ExpensesClient({ expenses, overallRevenue, vehicles }: E
   const handleCloseModal = () => {
     setIsModalOpen(false);
     setEditingExpense(null);
+  };
+
+  const cashAdjustmentValue = Number(cashAmount);
+  const signedCashAdjustment = cashAdjustmentType === "add" ? cashAdjustmentValue : -cashAdjustmentValue;
+  const projectedCashAmount = cashAmount === "" || Number.isNaN(cashAdjustmentValue)
+    ? overallRevenue
+    : overallRevenue + signedCashAdjustment;
+  const projectedRemainder = projectedCashAmount - totalCharges;
+
+  const openCashAdjustmentModal = () => {
+    setCashAmount("");
+    setCashAdjustmentType("add");
+    setIsCashModalOpen(true);
+  };
+
+  const handleAdjustCash = async () => {
+    const amount = Number(cashAmount);
+    if (cashAmount === "" || Number.isNaN(amount) || amount <= 0) {
+      toast(t("expenses.invalidAmount"), "error");
+      return;
+    }
+
+    const signedAmount = cashAdjustmentType === "add" ? amount : -amount;
+    if (overallRevenue + signedAmount < 0) {
+      toast(t("expenses.cashAdjustmentTooLarge"), "error");
+      return;
+    }
+
+    setCashLoading(true);
+    const res = await adjustCashRegisterAmount(signedAmount);
+    setCashLoading(false);
+
+    if (res.success) {
+      toast(t("expenses.cashUpdated"), "success");
+      setCashAmount("");
+      setIsCashModalOpen(false);
+      router.refresh();
+    } else {
+      toast(res.message, "error");
+    }
   };
 
   const handleSort = (key: string) => {
@@ -336,15 +381,22 @@ export default function ExpensesClient({ expenses, overallRevenue, vehicles }: E
           </div>
         </div>
 
-        {/* Card: Cash Amount (Overall Revenue from invoices) */}
         <div className={styles.statCard}>
-          <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "16px", color: "var(--success)" }}>
-            <div style={{ padding: "10px", background: "rgba(34, 197, 94, 0.1)", borderRadius: "8px" }}>
-              <Wallet size={20} />
+          <div className={styles.statCardHeader}>
+            <div style={{ display: "flex", alignItems: "center", gap: "12px", color: "var(--success)" }}>
+              <div style={{ padding: "10px", background: "rgba(34, 197, 94, 0.1)", borderRadius: "8px" }}>
+                <Wallet size={20} />
+              </div>
+              <h3 style={{ margin: 0, fontSize: "1.1rem", color: "var(--text-secondary)" }}>
+                {t("expenses.cashAmount")}
+              </h3>
             </div>
-            <h3 style={{ margin: 0, fontSize: "1.1rem", color: "var(--text-secondary)" }}>
-              {t("expenses.cashAmount")}
-            </h3>
+            <Button
+              size="sm"
+              variant="secondary"
+              icon={<Pencil size={14} />}
+              onClick={openCashAdjustmentModal}
+            />
           </div>
           <div style={{ fontSize: "2rem", fontWeight: "bold", color: "var(--text-primary)" }}>
             {formatPrice(overallRevenue)}
@@ -391,6 +443,12 @@ export default function ExpensesClient({ expenses, overallRevenue, vehicles }: E
             <div className={styles.mobileStatsItemValue} style={{ color: "var(--success)" }}>
               {formatPrice(overallRevenue)}
             </div>
+            <Button
+              size="sm"
+              variant="secondary"
+              icon={<Pencil size={14} />}
+              onClick={openCashAdjustmentModal}
+            />
           </div>
           <div className={styles.mobileStatsItem}>
             <div className={styles.mobileStatsItemLabel}>
@@ -492,6 +550,72 @@ export default function ExpensesClient({ expenses, overallRevenue, vehicles }: E
         editingExpense={editingExpense}
         mode={expenseMode}
       />
+
+      <Modal
+        isOpen={isCashModalOpen}
+        onClose={() => {
+          if (!cashLoading) setIsCashModalOpen(false);
+        }}
+        title={t("expenses.adjustCashRegister")}
+        size="sm"
+      >
+        <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+          <div style={{ padding: "12px", background: "var(--bg-tertiary)", border: "1px solid var(--border)", borderRadius: "8px", fontSize: "0.875rem", color: "var(--text-secondary)", lineHeight: 1.5 }}>
+            {t("expenses.adjustCashDesc")}
+          </div>
+          <div className={styles.cashAdjustmentToggle}>
+            <button
+              type="button"
+              className={cashAdjustmentType === "add" ? styles.cashAdjustmentOptionActive : styles.cashAdjustmentOption}
+              onClick={() => setCashAdjustmentType("add")}
+            >
+              {t("expenses.addCashOption")}
+            </button>
+            <button
+              type="button"
+              className={cashAdjustmentType === "remove" ? styles.cashAdjustmentOptionActive : styles.cashAdjustmentOption}
+              onClick={() => setCashAdjustmentType("remove")}
+            >
+              {t("expenses.removeCashOption")}
+            </button>
+          </div>
+          <Input
+            label={t("expenses.amount")}
+            type="number"
+            min={0}
+            step="0.01"
+            value={cashAmount}
+            onChange={(e) => setCashAmount(e.target.value)}
+            autoFocus
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                handleAdjustCash();
+              }
+            }}
+          />
+          <div className={styles.cashPreview}>
+            <span>{t("expenses.cashAfterChange")}</span>
+            <strong style={{ color: projectedCashAmount < 0 ? "var(--error)" : "var(--success)" }}>
+              {formatPrice(projectedCashAmount)}
+            </strong>
+          </div>
+          <div className={styles.cashPreview}>
+            <span>{t("expenses.remainderAfterChange")}</span>
+            <strong style={{ color: projectedRemainder < 0 ? "var(--error)" : "var(--success)" }}>
+              {formatPrice(projectedRemainder)}
+            </strong>
+          </div>
+          <div style={{ display: "flex", gap: "10px" }}>
+            <Button fullWidth loading={cashLoading} onClick={handleAdjustCash}>
+              {t("expenses.confirmAdjustCash")}
+            </Button>
+            <Button fullWidth variant="ghost" disabled={cashLoading} onClick={() => setIsCashModalOpen(false)}>
+              {t("action.cancel")}
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

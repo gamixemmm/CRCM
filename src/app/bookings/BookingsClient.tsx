@@ -4,25 +4,34 @@ import { useSettings } from "@/lib/SettingsContext";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { CalendarDays, Plus, Search, Car, User } from "lucide-react";
+import { CalendarDays, Plus, Search, Car, User, Download } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
 import Table from "@/components/ui/Table";
+import { useToast } from "@/components/ui/Toast";
+import { getBookingsPdfExportData } from "@/actions/bookings";
+import { createBookingsReportPdf } from "@/lib/simplePdf";
 import { formatDate, formatStatus, getStatusColor, getStatusBg, getFullName } from "@/lib/utils";
 import styles from "./bookings.module.css";
 const statusFilters = ["ALL", "PENDING", "CONFIRMED", "ACTIVE", "COMPLETED", "CANCELLED"];
 
 interface BookingsClientProps {
   bookings: any[];
+  vehicles: any[];
+  maintenanceLogs: any[];
 }
 
-export default function BookingsClient({ bookings }: BookingsClientProps) {
-  const { formatPrice: formatCurrency, t, formatStatusT } = useSettings();
+export default function BookingsClient({ bookings, vehicles, maintenanceLogs }: BookingsClientProps) {
+  const { formatPrice: formatCurrency, t, formatStatusT, language } = useSettings();
 
   const router = useRouter();
+  const { toast } = useToast();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
+  const [exporting, setExporting] = useState(false);
+  const [lookupVehicleId, setLookupVehicleId] = useState("");
+  const [lookupDate, setLookupDate] = useState("");
 
   const filtered = bookings.filter((b) => {
     const matchesStatus = statusFilter === "ALL" || b.status === statusFilter;
@@ -36,6 +45,88 @@ export default function BookingsClient({ bookings }: BookingsClientProps) {
       b.vehicle.plateNumber.toLowerCase().includes(term);
     return matchesStatus && matchesSearch;
   });
+
+  const lookupResults = lookupVehicleId && lookupDate
+    ? bookings.filter((booking) => {
+        if (booking.vehicleId !== lookupVehicleId) return false;
+        const dayStart = new Date(`${lookupDate}T00:00:00`);
+        const dayEnd = new Date(`${lookupDate}T23:59:59.999`);
+        const bookingStart = new Date(booking.startDate);
+        const bookingEnd = new Date(booking.endDate);
+        return bookingStart <= dayEnd && bookingEnd >= dayStart;
+      })
+    : [];
+
+  const lookupMaintenanceResults = lookupVehicleId && lookupDate
+    ? maintenanceLogs.filter((log) => {
+        if (log.vehicleId !== lookupVehicleId) return false;
+        const dayStart = new Date(`${lookupDate}T00:00:00`);
+        const dayEnd = new Date(`${lookupDate}T23:59:59.999`);
+        const serviceDate = new Date(log.serviceDate);
+        const returnDate = log.returnDate ? new Date(log.returnDate) : dayEnd;
+        return serviceDate <= dayEnd && returnDate >= dayStart;
+      })
+    : [];
+
+  const selectedLookupVehicle = vehicles.find((vehicle) => vehicle.id === lookupVehicleId);
+
+  const handleExportActiveBookings = async () => {
+    setExporting(true);
+    const result = await getBookingsPdfExportData();
+    setExporting(false);
+
+    if (!result.success || !result.data) {
+      toast(result.message || "Failed to export bookings PDF.", "error");
+      return;
+    }
+
+    const pdf = createBookingsReportPdf({
+      ...result.data,
+      locale: language === "fr" ? "fr-FR" : language === "ar" ? "ar-MA" : "en-GB",
+      labels: {
+        title: t("bookings.activeReportTitle"),
+        generated: t("bookings.reportGenerated"),
+        summary: (activeCount, availableCount) =>
+          `${activeCount} ${t("bookings.activeBookings")} / ${availableCount} ${t("bookings.availableCars")}`,
+        activeBookings: t("bookings.activeBookings"),
+        availableCars: t("bookings.availableCars"),
+        noRecords: t("bookings.reportNoRecords"),
+        columns: {
+          number: "#",
+          vehicle: t("bookings.vehicle"),
+          plate: t("vehicles.plate"),
+          driver: t("bookings.primaryDriver"),
+          broker: t("bookings.broker"),
+          dates: t("bookings.reportDates"),
+          payment: t("invoices.paymentStatus"),
+          year: t("vehicles.year"),
+          color: t("vehicles.color"),
+          mileage: t("vehicles.mileage"),
+          rate: t("vehicles.dailyRate"),
+        },
+        fallback: {
+          pending: formatStatusT("PENDING"),
+          perDay: t("bookings.reportPerDay"),
+        },
+        paymentStatuses: {
+          PENDING: formatStatusT("PENDING"),
+          PARTIAL: formatStatusT("PARTIAL"),
+          PAID: formatStatusT("PAID"),
+        },
+      },
+    });
+    const blob = new Blob([pdf], { type: "application/pdf" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    const date = new Date().toISOString().slice(0, 10);
+    link.href = url;
+    link.download = `active-bookings-${date}.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+    toast(t("bookings.exportSuccess"), "success");
+  };
 
   const columns = [
     {
@@ -168,6 +259,15 @@ export default function BookingsClient({ bookings }: BookingsClientProps) {
           {t("bookings.title")}
         </h1>
         <div className="page-header-actions">
+          <Button
+            type="button"
+            variant="secondary"
+            icon={<Download size={16} />}
+            loading={exporting}
+            onClick={handleExportActiveBookings}
+          >
+            {t("bookings.exportActivePdf")}
+          </Button>
           <Link href="/bookings/new">
             <Button icon={<Plus size={16} />}>{t("bookings.newBooking")}</Button>
           </Link>
@@ -207,6 +307,103 @@ export default function BookingsClient({ bookings }: BookingsClientProps) {
           ))}
         </div>
       </div>
+
+      <Card padding="md" className={styles.vehicleDateLookup}>
+        <div className={styles.lookupHeader}>
+          <div>
+            <h3>{t("bookings.vehicleDateSearch")}</h3>
+            <p>{t("bookings.vehicleDateSearchDesc")}</p>
+          </div>
+          {(lookupVehicleId || lookupDate) && (
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => {
+                setLookupVehicleId("");
+                setLookupDate("");
+              }}
+            >
+              {t("calendar.clear")}
+            </Button>
+          )}
+        </div>
+
+        <div className={styles.lookupControls}>
+          <label className={styles.lookupField}>
+            <span>{t("bookings.vehicle")}</span>
+            <select value={lookupVehicleId} onChange={(e) => setLookupVehicleId(e.target.value)}>
+              <option value="">{t("bookings.selectVehicle")}</option>
+              {vehicles.map((vehicle) => (
+                <option key={vehicle.id} value={vehicle.id}>
+                  {vehicle.brand} {vehicle.model} - {vehicle.plateNumber}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className={styles.lookupField}>
+            <span>{t("label.date")}</span>
+            <input type="date" value={lookupDate} onChange={(e) => setLookupDate(e.target.value)} />
+          </label>
+        </div>
+
+        {lookupVehicleId && lookupDate && (
+          <div className={styles.lookupResults}>
+            <div className={styles.lookupResultsTitle}>
+              {selectedLookupVehicle
+                ? `${selectedLookupVehicle.brand} ${selectedLookupVehicle.model} - ${selectedLookupVehicle.plateNumber}`
+                : t("bookings.vehicle")}
+              <span>{formatDate(`${lookupDate}T00:00:00`)}</span>
+            </div>
+
+            {lookupResults.length > 0 || lookupMaintenanceResults.length > 0 ? (
+              <>
+                {lookupResults.map((booking) => (
+                  <button
+                    key={`booking-${booking.id}`}
+                    type="button"
+                    className={styles.lookupResult}
+                    onClick={() => router.push(`/bookings/${booking.id}`)}
+                  >
+                    <div>
+                      <strong>
+                        {booking.driverFirstName || booking.driverLastName
+                          ? getFullName(booking.driverFirstName || "", booking.driverLastName || "")
+                          : getFullName(booking.customer.firstName, booking.customer.lastName)}
+                      </strong>
+                      <span>
+                        {formatDate(booking.startDate)} {t("label.to")} {formatDate(booking.endDate)}
+                      </span>
+                    </div>
+                    <Badge color={getStatusColor(booking.status)} bg={getStatusBg(booking.status)} dot>
+                      {formatStatusT(booking.status)}
+                    </Badge>
+                  </button>
+                ))}
+                {lookupMaintenanceResults.map((log) => (
+                  <button
+                    key={`maintenance-${log.id}`}
+                    type="button"
+                    className={styles.lookupResult}
+                    onClick={() => router.push(`/maintenance/${log.id}`)}
+                  >
+                    <div>
+                      <strong>{log.type || t("nav.maintenance")}</strong>
+                      <span>
+                        {formatDate(log.serviceDate)} {t("label.to")} {log.returnDate ? formatDate(log.returnDate) : t("maintenance.stillInShop")}
+                      </span>
+                    </div>
+                    <Badge color="var(--warning)" bg="var(--warning-muted)" dot>
+                      {t("nav.maintenance")}
+                    </Badge>
+                  </button>
+                ))}
+              </>
+            ) : (
+              <div className={styles.lookupEmpty}>{t("bookings.noVehicleDateRecords")}</div>
+            )}
+          </div>
+        )}
+      </Card>
 
       <div className={styles.desktopTable}>
         <Table

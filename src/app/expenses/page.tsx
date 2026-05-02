@@ -1,4 +1,4 @@
-import { getExpenses } from "@/actions/expenses";
+import { getExpenses, getGlobalSettings } from "@/actions/expenses";
 import { getVehicles } from "@/actions/vehicles";
 import ExpensesClient from "./ExpensesClient";
 import { prisma } from "@/lib/prisma";
@@ -15,18 +15,20 @@ export default async function ExpensesPage() {
   }
   if (!canPerform(session, ["VIEW_EXPENSES"])) redirect("/");
   const companyId = session.companyId;
-  const [expenses, vehicles, allInvoices] = await Promise.all([
+  const [expenses, vehicles, allInvoices, globalSettings] = await Promise.all([
     getExpenses(),
     getVehicles(),
     prisma.invoice.findMany({ where: { companyId } }),
+    getGlobalSettings(),
   ]);
 
   const overallRevenue = allInvoices.reduce((sum, inv) => sum + (inv.totalAmount - inv.amountDue), 0);
+  const cashRegister = globalSettings.cashRegister + overallRevenue;
 
   return (
     <ExpensesClient 
       expenses={JSON.parse(JSON.stringify(expenses))} 
-      overallRevenue={overallRevenue}
+      overallRevenue={cashRegister}
       vehicles={JSON.parse(JSON.stringify(vehicles))}
     />
   );

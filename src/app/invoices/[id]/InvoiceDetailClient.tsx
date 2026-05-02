@@ -23,7 +23,7 @@ export default function InvoiceDetailClient({ invoice }: { invoice: any }) {
   const { toast } = useToast();
   
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
-  const [paymentForm, setPaymentForm] = useState({ amount: invoice.amountDue, method: "ESPECE" });
+  const [paymentForm, setPaymentForm] = useState({ amount: String(invoice.amountDue), method: "ESPECE" });
   const [processing, setProcessing] = useState(false);
 
   const start = new Date(invoice.booking.startDate);
@@ -44,18 +44,19 @@ export default function InvoiceDetailClient({ invoice }: { invoice: any }) {
   }
 
   const submitPayment = async () => {
-    if (paymentForm.amount <= 0) {
+    const paymentAmount = Number(paymentForm.amount);
+    if (paymentForm.amount === "" || Number.isNaN(paymentAmount) || paymentAmount <= 0) {
       toast("Invalid amount", "error");
       return;
     }
     
-    const isFullPayment = paymentForm.amount >= invoice.amountDue;
+    const isFullPayment = paymentAmount >= invoice.amountDue;
     const finalStatus = isFullPayment ? "PAID" : "PARTIAL";
 
     setProcessing(true);
     setPaymentModalOpen(false);
     
-    const res = await updatePaymentStatus(invoice.id, finalStatus, paymentForm.amount, false, paymentForm.method);
+    const res = await updatePaymentStatus(invoice.id, finalStatus, paymentAmount, false, paymentForm.method);
     setProcessing(false);
     
     if (res.success) {
@@ -106,7 +107,14 @@ export default function InvoiceDetailClient({ invoice }: { invoice: any }) {
         </div>
         <div className={styles.detailActionRow}>
           {invoice.paymentStatus !== "PAID" && (
-            <Button variant="success" icon={<CreditCard size={16} />} onClick={() => setPaymentModalOpen(true)}>
+            <Button
+              variant="success"
+              icon={<CreditCard size={16} />}
+              onClick={() => {
+                setPaymentForm({ amount: String(invoice.amountDue), method: "ESPECE" });
+                setPaymentModalOpen(true);
+              }}
+            >
               {t("invoices.recordPayment")}
             </Button>
           )}
@@ -283,7 +291,7 @@ export default function InvoiceDetailClient({ invoice }: { invoice: any }) {
             min={0}
             step="0.01"
             value={paymentForm.amount}
-            onChange={(e) => setPaymentForm({ ...paymentForm, amount: Number(e.target.value) })}
+            onChange={(e) => setPaymentForm({ ...paymentForm, amount: e.target.value })}
           />
           <Select
             label={t("invoices.paymentMethod")}

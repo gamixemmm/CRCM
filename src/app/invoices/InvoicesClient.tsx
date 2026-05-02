@@ -33,7 +33,7 @@ export default function InvoicesClient({ invoices }: InvoicesClientProps) {
   const [statusFilter, setStatusFilter] = useState(searchParams.get("status") || "ALL");
   const [processing, setProcessing] = useState<string | null>(null);
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
-  const [paymentForm, setPaymentForm] = useState({ id: "", amount: 0, amountDue: 0, method: "ESPECE" });
+  const [paymentForm, setPaymentForm] = useState({ id: "", amount: "", amountDue: 0, method: "ESPECE" });
 
   const filtered = invoices.filter((i) => {
     const matchesStatus = 
@@ -45,29 +45,31 @@ export default function InvoicesClient({ invoices }: InvoicesClientProps) {
       !search ||
       i.id.toLowerCase().includes(term) ||
       i.booking.customer.firstName.toLowerCase().includes(term) ||
-      i.booking.customer.lastName.toLowerCase().includes(term);
+      i.booking.customer.lastName.toLowerCase().includes(term) ||
+      i.booking.vehicle.plateNumber.toLowerCase().includes(term);
     return matchesStatus && searchMatch;
   });
 
   const handleMarkPaid = (id: string, amountDue: number, e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent row click
-    setPaymentForm({ id, amount: amountDue, amountDue, method: "ESPECE" });
+    setPaymentForm({ id, amount: String(amountDue), amountDue, method: "ESPECE" });
     setPaymentModalOpen(true);
   };
 
   const submitPayment = async () => {
-    if (paymentForm.amount <= 0) {
+    const paymentAmount = Number(paymentForm.amount);
+    if (paymentForm.amount === "" || Number.isNaN(paymentAmount) || paymentAmount <= 0) {
       toast("Invalid amount", "error");
       return;
     }
     
-    const isFullPayment = paymentForm.amount >= paymentForm.amountDue;
+    const isFullPayment = paymentAmount >= paymentForm.amountDue;
     const finalStatus = isFullPayment ? "PAID" : "PARTIAL";
 
     setProcessing(paymentForm.id);
     setPaymentModalOpen(false);
     
-    const res = await updatePaymentStatus(paymentForm.id, finalStatus, paymentForm.amount, false, paymentForm.method);
+    const res = await updatePaymentStatus(paymentForm.id, finalStatus, paymentAmount, false, paymentForm.method);
     setProcessing(null);
     if (res.success) {
       toast(res.message, "success");
@@ -124,7 +126,7 @@ export default function InvoicesClient({ invoices }: InvoicesClientProps) {
           </div>
           <div style={{ fontSize: "0.75rem", color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: "6px" }}>
             <Car size={14} style={{ color: "var(--text-tertiary)" }} />
-            <span>{i.booking.vehicle.brand} {i.booking.vehicle.model}</span>
+            <span>{i.booking.vehicle.brand} {i.booking.vehicle.model} · {i.booking.vehicle.plateNumber}</span>
           </div>
         </div>
       ),
@@ -223,7 +225,7 @@ export default function InvoicesClient({ invoices }: InvoicesClientProps) {
           </div>
           <div className={styles.mobileSubRow}>
             <Car size={14} style={{ color: "var(--text-tertiary)" }} />
-            <span>{i.booking.vehicle.brand} {i.booking.vehicle.model}</span>
+            <span>{i.booking.vehicle.brand} {i.booking.vehicle.model} · {i.booking.vehicle.plateNumber}</span>
           </div>
         </div>
         <ChevronRight size={16} style={{ color: "var(--text-tertiary)", flexShrink: 0, marginTop: "4px" }} />
@@ -245,8 +247,8 @@ export default function InvoicesClient({ invoices }: InvoicesClientProps) {
           <span className={styles.mobileMetaValue}>{formatCurrency(i.totalAmount)}</span>
         </div>
         <div className={styles.mobileMetaItem}>
-          <span className={styles.mobileMetaLabel}>{t("bookings.broker")}</span>
-          <span className={styles.mobileMetaValue}>{getFullName(i.booking.customer.firstName, i.booking.customer.lastName)}</span>
+          <span className={styles.mobileMetaLabel}>{t("vehicles.plate")}</span>
+          <span className={styles.mobileMetaValue}>{i.booking.vehicle.plateNumber}</span>
         </div>
       </div>
 
@@ -366,7 +368,7 @@ export default function InvoicesClient({ invoices }: InvoicesClientProps) {
             min={0}
             step="0.01"
             value={paymentForm.amount}
-            onChange={(e) => setPaymentForm({ ...paymentForm, amount: Number(e.target.value) })}
+            onChange={(e) => setPaymentForm({ ...paymentForm, amount: e.target.value })}
           />
           <Select
             label={t("invoices.paymentMethod")}

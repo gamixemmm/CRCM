@@ -11,6 +11,130 @@
   display: block;
 }
 
+.vehicleDateLookup {
+  margin-bottom: 24px;
+}
+
+.lookupHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.lookupHeader h3 {
+  margin: 0;
+  font-size: 1rem;
+  color: var(--text-primary);
+}
+
+.lookupHeader p {
+  margin: 4px 0 0;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+.lookupControls {
+  display: grid;
+  grid-template-columns: minmax(220px, 2fr) minmax(180px, 1fr);
+  gap: 14px;
+}
+
+.lookupField {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.lookupField span {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+}
+
+.lookupField select,
+.lookupField input {
+  width: 100%;
+  height: 40px;
+  padding: 0 12px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-primary);
+}
+
+.lookupResults {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.lookupResultsTitle {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.lookupResultsTitle span {
+  color: var(--text-tertiary);
+  font-weight: 600;
+}
+
+.lookupResult {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  cursor: pointer;
+  text-align: left;
+}
+
+.lookupResult:hover {
+  border-color: var(--accent);
+  background: var(--bg-tertiary);
+}
+
+.lookupResult div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.lookupResult strong,
+.lookupResult span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lookupResult span {
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+}
+
+.lookupEmpty {
+  padding: 14px;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  color: var(--text-secondary);
+  background: var(--bg-tertiary);
+  font-size: 0.875rem;
+}
+
 .mobileCardHeader {
   display: flex;
   align-items: flex-start;
@@ -162,6 +286,14 @@
 
   .mobileMetaGrid {
     grid-template-columns: 1fr 1fr;
+  }
+
+  .lookupHeader {
+    flex-direction: column;
+  }
+
+  .lookupControls {
+    grid-template-columns: 1fr;
   }
 
   .detailCardsGrid,
