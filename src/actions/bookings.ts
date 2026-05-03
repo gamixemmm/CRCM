@@ -399,7 +399,7 @@ export async function createBooking(input: BookingInput) {
 }
 
 // ─── Update Booking Status ───────────────────────────────────────
-export async function updateBookingStatus(bookingId: string, newStatus: string) {
+export async function updateBookingStatus(bookingId: string, newStatus: string, options?: { deleteInvoice?: boolean }) {
   try {
     const session = await requireCompanyAdminAccess();
     if (!canPerform(session, ["MANAGE_BOOKINGS"])) {
@@ -408,11 +408,44 @@ export async function updateBookingStatus(bookingId: string, newStatus: string) 
     const companyId = await requireCompanyId();
     const booking = await prisma.booking.findFirst({
       where: { id: bookingId, companyId },
-      include: { vehicle: true },
+      include: { vehicle: true, invoice: true },
     });
 
     if (!booking) {
       return { success: false, message: "Booking not found" };
+    }
+
+    if (newStatus === "ACTIVE" || newStatus === "LATE" || newStatus === "CONFIRMED") {
+      const overlaps = await prisma.booking.count({
+        where: {
+          companyId,
+          vehicleId: booking.vehicleId,
+          id: { not: bookingId },
+          status: { in: RENTAL_HOLD_STATUSES },
+          startDate: { lte: booking.endDate },
+          endDate: { gte: booking.startDate },
+        },
+      });
+
+      if (overlaps > 0) {
+        return { success: false, message: "Vehicle has a conflicting booking for these dates" };
+      }
+
+      const maintenanceOverlap = await prisma.maintenance.count({
+        where: {
+          companyId,
+          vehicleId: booking.vehicleId,
+          serviceDate: { lte: booking.endDate },
+          OR: [
+            { returnDate: null },
+            { returnDate: { gte: booking.startDate } },
+          ],
+        },
+      });
+
+      if (maintenanceOverlap > 0) {
+        return { success: false, message: "Vehicle is in maintenance for these dates." };
+      }
     }
 
     await prisma.$transaction(async (tx) => {
@@ -420,6 +453,12 @@ export async function updateBookingStatus(bookingId: string, newStatus: string) 
         where: { id: bookingId },
         data: { status: newStatus },
       });
+
+      if (newStatus === "CANCELLED" && options?.deleteInvoice && booking.invoice) {
+        await tx.invoice.delete({
+          where: { id: booking.invoice.id },
+        });
+      }
 
       // Sync vehicle status based on the booking transition
       if (newStatus === "ACTIVE" || newStatus === "LATE") {
@@ -448,6 +487,7 @@ export async function updateBookingStatus(bookingId: string, newStatus: string) 
 
     revalidatePath(`/bookings/${bookingId}`);
     revalidatePath("/bookings");
+    revalidatePath("/invoices");
     revalidatePath("/vehicles");
     revalidatePath("/");
     await logAuditAction({
@@ -456,7 +496,7 @@ export async function updateBookingStatus(bookingId: string, newStatus: string) 
       entityType: "Booking",
       entityId: bookingId,
       message: `${session.name} marked booking ${bookingId} as ${newStatus}`,
-      metadata: { status: newStatus },
+      metadata: { status: newStatus, invoiceDeleted: newStatus === "CANCELLED" ? Boolean(options?.deleteInvoice && booking.invoice) : false },
     });
 
     return { success: true, message: `Booking marked as ${newStatus}` };
@@ -572,7 +612,7 @@ export async function handleEarlyPickup(bookingId: string, updateDate: boolean) 
 }
 
 // ─── Return Vehicle ──────────────────────────────────────────────
-export async function handleReturn(bookingId: string, updateDate: boolean, newMileage: number) {
+export async function handleReturn(bookingId: string, updateDate: boolean, newMileage: number, returnDate?: string) {
   try {
     const session = await requireCompanyAdminAccess();
     if (!canPerform(session, ["MANAGE_BOOKINGS"])) {
@@ -592,20 +632,28 @@ export async function handleReturn(bookingId: string, updateDate: boolean, newMi
       return { success: false, message: "Only active or late bookings can be returned" };
     }
 
-    const today = getBusinessStartOfToday();
+    if (updateDate && returnDate && !/^\d{4}-\d{2}-\d{2}$/.test(returnDate)) {
+      return { success: false, message: "Return date is invalid" };
+    }
+
+    const actualReturnDate = updateDate && returnDate ? parseBusinessDateInput(returnDate) : getBusinessStartOfToday();
     const startDate = new Date(booking.startDate);
+
+    if (updateDate && actualReturnDate < startDate) {
+      return { success: false, message: "Return date cannot be before pickup date" };
+    }
 
     await prisma.$transaction(async (tx) => {
       if (updateDate) {
-        // Recalculate duration & amounts based on actual usage (startDate → today)
-        const newDays = getRentalDays(startDate, today);
+        // Recalculate duration and amounts based on the actual return date.
+        const newDays = getRentalDays(startDate, actualReturnDate);
         const rate = booking.pricePerDay ?? booking.vehicle.dailyRate;
         const newTotal = newDays * rate;
 
         await tx.booking.update({
           where: { id: bookingId },
           data: {
-            endDate: today,
+            endDate: actualReturnDate,
             status: "COMPLETED",
             totalAmount: newTotal,
           },
@@ -663,10 +711,10 @@ export async function handleReturn(bookingId: string, updateDate: boolean, newMi
       entityType: "Booking",
       entityId: bookingId,
       message: `${session.name} returned booking ${bookingId}`,
-      metadata: { updateDate, newMileage },
+      metadata: { updateDate, newMileage, returnDate: updateDate ? actualReturnDate.toISOString() : null },
     });
 
-    return { success: true, message: updateDate ? "Vehicle returned — date & invoice updated to today" : "Vehicle returned successfully" };
+    return { success: true, message: updateDate ? "Vehicle returned — date & invoice updated" : "Vehicle returned successfully" };
   } catch (error) {
     console.error(error);
     return { success: false, message: "Failed to process return" };

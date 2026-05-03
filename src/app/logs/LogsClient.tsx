@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Activity, Filter, Search, ChevronRight } from "lucide-react";
 import Card from "@/components/ui/Card";
 import Input from "@/components/ui/Input";
@@ -28,6 +29,7 @@ type AuditLog = {
 
 export default function LogsClient({ logs }: { logs: AuditLog[] }) {
   const { t } = useSettings();
+  const router = useRouter();
   const [search, setSearch] = useState("");
   const [actor, setActor] = useState("All");
   const [action, setAction] = useState("All");
@@ -72,6 +74,46 @@ export default function LogsClient({ logs }: { logs: AuditLog[] }) {
     });
   }, [logs, search, actor, action, entityType, startDate, endDate]);
 
+  const getMetadataString = (log: AuditLog, key: string) => {
+    const value = log.metadata?.[key];
+    return typeof value === "string" && value ? value : null;
+  };
+
+  const getLogHref = (log: AuditLog) => {
+    const entityType = log.entityType;
+    const entityId = log.entityId;
+    const bookingId = getMetadataString(log, "bookingId");
+    const vehicleId = getMetadataString(log, "vehicleId");
+
+    if (entityType === "Invoice" && log.action === "DELETE_INVOICE" && bookingId) return `/bookings/${bookingId}`;
+
+    if (entityType === "Booking" && entityId) return `/bookings/${entityId}`;
+    if (entityType === "Invoice" && entityId) return `/invoices/${entityId}`;
+    if (entityType === "Maintenance" && entityId && !log.action.startsWith("DELETE_")) return `/maintenance/${entityId}`;
+    if (entityType === "Vehicle" && entityId && !log.action.startsWith("DELETE_")) return `/vehicles/${entityId}`;
+    if (entityType === "Customer" && entityId) return `/customers/${entityId}`;
+    if (entityType === "Expense" && entityId && !log.action.startsWith("DELETE_")) return `/expenses/${entityId}`;
+
+    if (entityType === "Maintenance") return "/maintenance";
+    if (entityType === "Vehicle") return vehicleId ? `/vehicles/${vehicleId}` : "/vehicles";
+    if (entityType === "Expense" || entityType === "GlobalSettings") return "/expenses";
+    if (entityType === "Employee" || entityType === "EmployeeSalaryPayment" || entityType === "EmployeeAccount") return "/employees";
+    if (entityType === "EmployeeRole") return "/settings";
+    if (entityType === "VignettePayment") return "/vignette";
+    if (entityType === "InsurancePayment") return "/insurance";
+    if (entityType === "TechnicalInspection") return "/technical-inspection";
+    if (entityType === "Company" || entityType === "Account") return "/settings";
+    if (bookingId) return `/bookings/${bookingId}`;
+    if (vehicleId) return `/vehicles/${vehicleId}`;
+
+    return null;
+  };
+
+  const openLogTarget = (log: AuditLog) => {
+    const href = getLogHref(log);
+    if (href) router.push(href);
+  };
+
   const columns = [
     {
       key: "createdAt",
@@ -114,8 +156,10 @@ export default function LogsClient({ logs }: { logs: AuditLog[] }) {
     },
   ];
 
-  const mobileCards = filteredLogs.map((log) => (
-    <Card key={log.id} hover padding="md" className={styles.mobileCard}>
+  const mobileCards = filteredLogs.map((log) => {
+    const href = getLogHref(log);
+    return (
+    <Card key={log.id} hover={Boolean(href)} padding="md" className={styles.mobileCard} onClick={href ? () => router.push(href) : undefined}>
       <div className={styles.mobileCardTop}>
         <div className={styles.mobileTopText}>
           <div className={styles.mobileAction}>
@@ -149,7 +193,8 @@ export default function LogsClient({ logs }: { logs: AuditLog[] }) {
         <ChevronRight size={16} style={{ color: "var(--text-tertiary)" }} />
       </div>
     </Card>
-  ));
+  );
+  });
 
   return (
     <div className="animate-fade-in">
@@ -191,7 +236,7 @@ export default function LogsClient({ logs }: { logs: AuditLog[] }) {
       </Card>
 
       <div className={styles.desktopTable}>
-        <Table columns={columns} data={filteredLogs} keyExtractor={(log) => log.id} emptyMessage={t("logs.empty")} />
+        <Table columns={columns} data={filteredLogs} keyExtractor={(log) => log.id} onRowClick={openLogTarget} emptyMessage={t("logs.empty")} />
       </div>
 
       <div className={styles.mobileList}>

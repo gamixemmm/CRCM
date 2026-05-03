@@ -36,6 +36,7 @@ export default function BookingDetailClient({ booking }: { booking: any }) {
   const [returnLoading, setReturnLoading] = useState(false);
   const [returnUpdateDate, setReturnUpdateDate] = useState(false);
   const [returnMileage, setReturnMileage] = useState(String(booking.vehicle.mileage || 0));
+  const [returnDate, setReturnDate] = useState(formatDateInput(new Date()));
   const [isEditDatesModalOpen, setIsEditDatesModalOpen] = useState(false);
   const [editDatesLoading, setEditDatesLoading] = useState(false);
   const [editStartDate, setEditStartDate] = useState(formatDateInput(booking.startDate));
@@ -416,9 +417,22 @@ export default function BookingDetailClient({ booking }: { booking: any }) {
                 fullWidth
                 variant="success"
                 icon={<CheckCircle size={16} />}
-                disabled={booking.status !== "CONFIRMED"}
+                disabled={booking.status !== "CONFIRMED" && booking.status !== "CANCELLED"}
                 loading={pickupLoading}
                 onClick={async () => {
+                  if (booking.status === "CANCELLED") {
+                    setPickupLoading(true);
+                    const res = await updateBookingStatus(booking.id, "ACTIVE");
+                    setPickupLoading(false);
+                    if (res.success) {
+                      toast(t("toast.carPickedUp"), "success");
+                      router.refresh();
+                    } else {
+                      toast(res.message, "error");
+                    }
+                    return;
+                  }
+
                   const today = new Date();
                   const pickupDate = new Date(booking.startDate);
                   const isToday = today.toDateString() === pickupDate.toDateString();
@@ -428,8 +442,12 @@ export default function BookingDetailClient({ booking }: { booking: any }) {
                     setPickupLoading(true);
                     const res = await updateBookingStatus(booking.id, "ACTIVE");
                     setPickupLoading(false);
-                    if (res.success) toast(t("toast.carPickedUp"), "success");
-                    else toast(res.message, "error");
+                    if (res.success) {
+                      toast(t("toast.carPickedUp"), "success");
+                      router.refresh();
+                    } else {
+                      toast(res.message, "error");
+                    }
                   } else {
                     // Early pickup — open modal
                     setIsEarlyPickupModalOpen(true);
@@ -445,6 +463,7 @@ export default function BookingDetailClient({ booking }: { booking: any }) {
                 disabled={booking.status !== "ACTIVE" && booking.status !== "LATE"}
                 onClick={() => {
                   setReturnMileage(String(booking.vehicle.mileage || 0));
+                  setReturnDate(formatDateInput(new Date()));
                   const today = new Date();
                   const returnDate = new Date(booking.endDate);
                   // Offer date update for both early and late returns
@@ -461,9 +480,16 @@ export default function BookingDetailClient({ booking }: { booking: any }) {
                 disabled={booking.status === "COMPLETED" || booking.status === "CANCELLED"}
                 onClick={async () => {
                   if (!confirm(t("bookings.cancelConfirm"))) return;
-                  const res = await updateBookingStatus(booking.id, "CANCELLED");
-                  if (res.success) toast(t("toast.bookingCancelled"), "success");
-                  else toast(res.message, "error");
+                  const deleteInvoiceOnCancel = booking.invoice
+                    ? confirm(t("bookings.deleteInvoiceOnCancelConfirm"))
+                    : false;
+                  const res = await updateBookingStatus(booking.id, "CANCELLED", { deleteInvoice: deleteInvoiceOnCancel });
+                  if (res.success) {
+                    toast(t("toast.bookingCancelled"), "success");
+                    router.refresh();
+                  } else {
+                    toast(res.message, "error");
+                  }
                 }}
               >
                 {t("bookings.cancelBooking")}
@@ -748,6 +774,14 @@ export default function BookingDetailClient({ booking }: { booking: any }) {
 
           {/* Mileage input */}
           <div style={{ padding: "16px", background: "var(--bg-tertiary)", borderRadius: "8px", border: "1px solid var(--border)" }}>
+            <Input
+              label={t("bookings.returnDate")}
+              type="date"
+              required
+              value={returnDate}
+              onChange={(e) => setReturnDate(e.target.value)}
+              style={{ marginBottom: "12px" }}
+            />
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "12px", fontSize: "0.875rem" }}>
               <span style={{ color: "var(--text-secondary)" }}>{t("bookings.currentMileage")}</span>
               <span style={{ fontWeight: 600, fontFamily: "monospace" }}>{(booking.vehicle.mileage || 0).toLocaleString()} km</span>
@@ -774,11 +808,12 @@ export default function BookingDetailClient({ booking }: { booking: any }) {
                     const mileage = validateReturnMileage();
                     if (mileage === null) return;
                     setReturnLoading(true);
-                    const res = await handleReturn(booking.id, true, mileage);
+                    const res = await handleReturn(booking.id, true, mileage, returnDate);
                     setReturnLoading(false);
                     if (res.success) {
                       toast(res.message, "success");
                       setIsReturnModalOpen(false);
+                      router.refresh();
                     } else {
                       toast(res.message, "error");
                     }
@@ -799,6 +834,7 @@ export default function BookingDetailClient({ booking }: { booking: any }) {
                     if (res.success) {
                       toast(res.message, "success");
                       setIsReturnModalOpen(false);
+                      router.refresh();
                     } else {
                       toast(res.message, "error");
                     }
@@ -816,11 +852,12 @@ export default function BookingDetailClient({ booking }: { booking: any }) {
                   const mileage = validateReturnMileage();
                   if (mileage === null) return;
                   setReturnLoading(true);
-                  const res = await handleReturn(booking.id, false, mileage);
+                  const res = await handleReturn(booking.id, true, mileage, returnDate);
                   setReturnLoading(false);
                   if (res.success) {
                     toast(res.message, "success");
                     setIsReturnModalOpen(false);
+                    router.refresh();
                   } else {
                     toast(res.message, "error");
                   }

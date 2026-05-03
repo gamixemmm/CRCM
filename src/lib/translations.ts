@@ -350,6 +350,7 @@ const translations = {
 
   // ─── Booking confirm prompts ────────────────────────────────────
   "bookings.cancelConfirm": { en: "Cancel this booking? The vehicle will be freed up.", fr: "Annuler cette réservation ? Le véhicule sera libéré.", ar: "إلغاء هذا الحجز؟ سيتم تحرير المركبة." },
+  "bookings.deleteInvoiceOnCancelConfirm": { en: "Also delete this booking's invoice?", fr: "Supprimer aussi la facture de cette réservation ?", ar: "حذف فاتورة هذا الحجز أيضاً؟" },
   "maintenance.resolveConfirm": { en: "Mark this maintenance job as completed? The vehicle will immediately become AVAILABLE in the fleet.", fr: "Marquer cette maintenance comme terminée ? Le véhicule deviendra immédiatement DISPONIBLE dans la flotte.", ar: "هل تريد وضع علامة على هذه الصيانة كمكتملة؟ ستصبح المركبة متاحة فوراً في الأسطول." },
   "maintenance.unresolveConfirm": { en: "Reopen this maintenance job? The vehicle will be pulled back into the shop immediately.", fr: "Rouvrir cette maintenance ? Le véhicule sera retourné à l'atelier immédiatement.", ar: "إعادة فتح هذه الصيانة؟ ستتم إعادة المركبة إلى الورشة فوراً." },
   "maintenance.deleteConfirm": { en: "Permanently delete this shop log? This action cannot be undone.", fr: "Supprimer définitivement ce journal d'atelier ? Cette action est irréversible.", ar: "حذف سجل الورشة نهائياً؟ لا يمكن التراجع عن هذا الإجراء." },
