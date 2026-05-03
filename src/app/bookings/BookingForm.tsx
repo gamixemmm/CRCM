@@ -12,6 +12,7 @@ import { useToast } from "@/components/ui/Toast";
 import { createBooking } from "@/actions/bookings";
 import { createCustomer } from "@/actions/customers";
 import { useSettings } from "@/lib/SettingsContext";
+import { getRentalDays } from "@/lib/utils";
 import styles from "./BookingForm.module.css";
 
 export default function BookingForm({ vehicles, customers: initialCustomers }: { vehicles: any[]; customers: any[] }) {
@@ -83,8 +84,7 @@ export default function BookingForm({ vehicles, customers: initialCustomers }: {
 
   let days = 0;
   if (start && end && end >= start) {
-    const diffTime = Math.abs(end.getTime() - start.getTime());
-    days = Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
+    days = getRentalDays(start, end);
   }
   
   const estimatedTotal = days * effectiveRate;

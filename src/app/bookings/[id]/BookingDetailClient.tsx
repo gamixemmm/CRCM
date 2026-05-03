@@ -13,7 +13,7 @@ import Input, { Textarea } from "@/components/ui/Input";
 import { useToast } from "@/components/ui/Toast";
 import { createInvoice, updatePaymentStatus, deleteInvoice } from "@/actions/invoices";
 import { updateBookingStatus, handleEarlyPickup, handleReturn, updateBookingDates, updateBookingDrivers } from "@/actions/bookings";
-import { formatDate, formatDateInput, getBookingDisplayStatus, getStatusColor, getStatusBg, getFullName } from "@/lib/utils";
+import { formatDate, formatDateInput, getBookingDisplayStatus, getRentalDays, getStatusColor, getStatusBg, getFullName } from "@/lib/utils";
 import styles from "../bookings.module.css";
 
 export default function BookingDetailClient({ booking }: { booking: any }) {
@@ -61,9 +61,11 @@ export default function BookingDetailClient({ booking }: { booking: any }) {
   // Duration
   const start = new Date(booking.startDate);
   const end = new Date(booking.endDate);
-  const diffTime = Math.abs(end.getTime() - start.getTime());
-  const days = Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
+  const days = getRentalDays(start, end);
   const baseSubtotal = days * booking.vehicle.dailyRate;
+  const editPreviewDays = editStartDate && editEndDate && new Date(editEndDate) > new Date(editStartDate)
+    ? getRentalDays(editStartDate, editEndDate)
+    : 0;
   const validateReturnMileage = () => {
     const mileage = Number(returnMileage);
     if (returnMileage === "" || Number.isNaN(mileage) || mileage < (booking.vehicle.mileage || 0)) {
@@ -1005,11 +1007,11 @@ export default function BookingDetailClient({ booking }: { booking: any }) {
             onChange={(e) => setEditEndDate(e.target.value)}
           />
 
-          {editStartDate && editEndDate && new Date(editEndDate) > new Date(editStartDate) && (
+          {editPreviewDays > 0 && (
             <div style={{ padding: "12px", background: "var(--accent-muted)", borderRadius: "8px", fontSize: "0.875rem", display: "flex", justifyContent: "space-between" }}>
               <span style={{ color: "var(--text-secondary)" }}>{t("bookings.newDurationTotal")}</span>
               <span style={{ fontWeight: 600, color: "var(--accent)" }}>
-                {Math.max(1, Math.ceil(Math.abs(new Date(editEndDate).getTime() - new Date(editStartDate).getTime()) / (1000 * 60 * 60 * 24)))} {t("label.days")} — {formatCurrency(Math.max(1, Math.ceil(Math.abs(new Date(editEndDate).getTime() - new Date(editStartDate).getTime()) / (1000 * 60 * 60 * 24))) * editPricePerDay)}
+                {editPreviewDays} {t("label.days")} - {formatCurrency(editPreviewDays * editPricePerDay)}
               </span>
             </div>
           )}

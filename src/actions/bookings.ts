@@ -6,7 +6,7 @@ import { requireCompanyId } from "@/lib/company";
 import { canPerform } from "@/lib/permissions";
 import { requireCompanyAdminAccess } from "@/actions/companyAuth";
 import { logAuditAction } from "@/lib/audit";
-import { getBusinessStartOfToday, getBusinessStartOfTomorrow, getBusinessWeekStart, zonedDateTimeToUtc } from "@/lib/businessTime";
+import { getBusinessStartOfToday, getBusinessStartOfTomorrow, getBusinessWeekStart, getRentalDays, zonedDateTimeToUtc } from "@/lib/businessTime";
 
 interface BookingInput {
   customerId: string;
@@ -76,11 +76,8 @@ async function syncLateBookings(companyId: string) {
   await prisma.$transaction(async (tx) => {
     for (const booking of overdueBookings) {
       const previousReturnDate = new Date(booking.endDate);
-      previousReturnDate.setHours(0, 0, 0, 0);
       const startDate = new Date(booking.startDate);
-      startDate.setHours(0, 0, 0, 0);
-      const diffTime = Math.abs(today.getTime() - startDate.getTime());
-      const newDays = Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
+      const newDays = getRentalDays(startDate, today);
       const rate = booking.pricePerDay ?? booking.vehicle.dailyRate;
       const newTotal = newDays * rate;
       const hasOriginalReturnNote = /\[Late\] Original return date: \d{4}-\d{2}-\d{2}\./.test(booking.notes || "");
@@ -512,8 +509,7 @@ export async function handleEarlyPickup(bookingId: string, updateDate: boolean) 
     await prisma.$transaction(async (tx) => {
       if (updateDate) {
         // Recalculate duration & amounts
-        const diffTime = Math.abs(endDate.getTime() - today.getTime());
-        const newDays = Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
+        const newDays = getRentalDays(today, endDate);
         const rate = booking.pricePerDay ?? booking.vehicle.dailyRate;
         const newTotal = newDays * rate;
 
@@ -598,13 +594,11 @@ export async function handleReturn(bookingId: string, updateDate: boolean, newMi
 
     const today = getBusinessStartOfToday();
     const startDate = new Date(booking.startDate);
-    startDate.setHours(0, 0, 0, 0);
 
     await prisma.$transaction(async (tx) => {
       if (updateDate) {
         // Recalculate duration & amounts based on actual usage (startDate → today)
-        const diffTime = Math.abs(today.getTime() - startDate.getTime());
-        const newDays = Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
+        const newDays = getRentalDays(startDate, today);
         const rate = booking.pricePerDay ?? booking.vehicle.dailyRate;
         const newTotal = newDays * rate;
 
@@ -736,8 +730,7 @@ export async function updateBookingDates(bookingId: string, newStartDate: string
     }
 
     // Calculate new duration and total
-    const diffTime = Math.abs(newEnd.getTime() - newStart.getTime());
-    const newDays = Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
+    const newDays = getRentalDays(newStart, newEnd);
     const rate = newPricePerDay ?? booking.pricePerDay ?? booking.vehicle.dailyRate;
     const newTotal = newDays * rate;
 

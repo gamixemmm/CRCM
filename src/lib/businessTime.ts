@@ -91,3 +91,13 @@ export function getBusinessMonthRange(year: number, month: number) {
     end: zonedDateTimeToUtc(year, month + 1, 1),
   };
 }
+
+export function getBusinessCalendarDayIndex(date: Date | string) {
+  const parts = getBusinessDateParts(typeof date === "string" ? new Date(date) : date);
+  return Math.floor(Date.UTC(parts.year, parts.month, parts.day) / 86_400_000);
+}
+
+export function getRentalDays(start: Date | string, end: Date | string) {
+  const days = getBusinessCalendarDayIndex(end) - getBusinessCalendarDayIndex(start);
+  return Math.max(1, days);
+}

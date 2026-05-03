@@ -1,5 +1,5 @@
 import { format, formatDistanceToNow, differenceInDays, isAfter, isBefore, parseISO } from "date-fns";
-import { BUSINESS_TIME_ZONE, getBusinessDateParts } from "@/lib/businessTime";
+import { BUSINESS_TIME_ZONE, getBusinessDateParts, getRentalDays as getBusinessRentalDays } from "@/lib/businessTime";
 
 // ─── Currency ────────────────────────────────────────────────────
 export function formatCurrency(amount: number): string {
@@ -54,9 +54,8 @@ export function formatDateInput(date: Date | string): string {
   return `${parts.year}-${String(parts.month + 1).padStart(2, "0")}-${String(parts.day).padStart(2, "0")}`;
 }
 
-export function getRentalDays(start: Date, end: Date): number {
-  const days = differenceInDays(end, start);
-  return Math.max(days, 1); // Minimum 1 day
+export function getRentalDays(start: Date | string, end: Date | string): number {
+  return getBusinessRentalDays(start, end);
 }
 
 export function isExpiringSoon(date: Date | string, withinDays: number = 30): boolean {
