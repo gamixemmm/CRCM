@@ -2,6 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { requireCompanyId } from "@/lib/company";
+import { getBusinessMonthRange } from "@/lib/businessTime";
 
 export async function getCalendarEvents(year: number, month: number) {
   const companyId = await requireCompanyId();
@@ -10,15 +11,14 @@ export async function getCalendarEvents(year: number, month: number) {
   // or grab a wider window. For an MVP, grabbing all recent/future jobs is fine.
   // Let's grab all bookings & maintenance that are not cancelled.
   
-  const startOfMonth = new Date(year, month, 1);
-  const endOfMonth = new Date(year, month + 1, 0, 23, 59, 59);
+  const { start: startOfMonth, end: startOfNextMonth } = getBusinessMonthRange(year, month);
 
   const bookings = await prisma.booking.findMany({
     where: {
       companyId,
       status: { not: "CANCELLED" },
       OR: [
-        { startDate: { lte: endOfMonth }, endDate: { gte: startOfMonth } }
+        { startDate: { lt: startOfNextMonth }, endDate: { gte: startOfMonth } }
       ]
     },
     include: { vehicle: true, customer: true }
@@ -28,8 +28,8 @@ export async function getCalendarEvents(year: number, month: number) {
     where: {
       companyId,
       OR: [
-        { serviceDate: { lte: endOfMonth }, returnDate: { gte: startOfMonth } },
-        { serviceDate: { lte: endOfMonth }, returnDate: null } // Still in shop
+        { serviceDate: { lt: startOfNextMonth }, returnDate: { gte: startOfMonth } },
+        { serviceDate: { lt: startOfNextMonth }, returnDate: null } // Still in shop
       ]
     },
     include: { vehicle: true }

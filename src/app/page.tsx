@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import DashboardClient from "./DashboardClient";
 import { getCompanyAdminSession } from "@/actions/companyAuth";
 import { redirect } from "next/navigation";
+import { getBusinessStartOfToday, getBusinessStartOfTomorrow } from "@/lib/businessTime";
 
 export const dynamic = "force-dynamic";
 
@@ -12,11 +13,8 @@ export default async function DashboardPage() {
   }
   const companyId = session.companyId;
 
-  const todayStart = new Date();
-  todayStart.setHours(0, 0, 0, 0);
-  const tomorrowEnd = new Date();
-  tomorrowEnd.setDate(tomorrowEnd.getDate() + 1);
-  tomorrowEnd.setHours(23, 59, 59, 999);
+  const todayStart = getBusinessStartOfToday();
+  const tomorrowStart = getBusinessStartOfTomorrow();
 
   const [
     vehicleCount,
@@ -51,7 +49,7 @@ export default async function DashboardPage() {
         companyId,
         startDate: {
           gte: todayStart,
-          lt: tomorrowEnd,
+          lt: tomorrowStart,
         },
         status: { in: ["CONFIRMED", "ACTIVE"] },
       },
@@ -62,7 +60,7 @@ export default async function DashboardPage() {
         companyId,
         endDate: {
           gte: todayStart,
-          lt: tomorrowEnd,
+          lt: tomorrowStart,
         },
         status: { in: ["ACTIVE", "COMPLETED", "CONFIRMED"] },
       },
@@ -73,7 +71,7 @@ export default async function DashboardPage() {
         companyId,
         serviceDate: {
           gte: todayStart,
-          lt: tomorrowEnd,
+          lt: tomorrowStart,
         },
       },
       include: { vehicle: true },
@@ -83,7 +81,7 @@ export default async function DashboardPage() {
         companyId,
         returnDate: {
           gte: todayStart,
-          lt: tomorrowEnd,
+          lt: tomorrowStart,
         },
       },
       include: { vehicle: true },

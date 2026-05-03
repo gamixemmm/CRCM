@@ -144,11 +144,6 @@ function fullName(first?: string | null, last?: string | null) {
   return `${first || ""} ${last || ""}`.trim() || "-";
 }
 
-function bookingPaymentStatus(booking: any, labels: BookingsReportLabels) {
-  const status = booking.invoice?.paymentStatus;
-  return status ? labels.paymentStatuses[status] || status : labels.fallback.pending;
-}
-
 class PdfBuilder {
   private pages: string[] = [];
   private current: string[] = [];
@@ -319,66 +314,48 @@ export function createBookingsReportPdf({
       { header: labels.columns.number, width: 24, value: (_row, index) => String(index + 1), maxLines: 1 },
       {
         header: labels.columns.vehicle,
-        width: 112,
-        maxLines: 5,
+        width: 125,
+        maxLines: 3,
         value: (b) => [
           `${b.vehicle.brand} ${b.vehicle.model}`,
           `${labels.columns.plate}: ${clean(b.vehicle.plateNumber)}`,
-          `${labels.fields.year}: ${clean(b.vehicle.year)} / ${labels.fields.color}: ${clean(b.vehicle.color)}`,
           `${labels.fields.mileage}: ${clean(b.vehicle.mileage)} km`,
         ].join("\n"),
       },
       {
         header: labels.columns.dates,
-        width: 142,
-        maxLines: 6,
-        value: (b) => [
-          `${formatPdfDate(b.startDate, locale)} - ${formatPdfDate(b.endDate, locale)}`,
-          `${labels.fields.pickup}: ${clean(b.pickupLocation)}`,
-          `${labels.fields.return}: ${clean(b.returnLocation)}`,
-          b.notes ? `${labels.fields.notes}: ${b.notes}` : "",
-        ].filter(Boolean).join("\n"),
+        width: 125,
+        maxLines: 2,
+        value: (b) => `${formatPdfDate(b.startDate, locale)} - ${formatPdfDate(b.endDate, locale)}`,
       },
       {
         header: labels.columns.broker,
-        width: 125,
-        maxLines: 6,
+        width: 135,
+        maxLines: 3,
         value: (b) => [
           fullName(b.customer?.firstName, b.customer?.lastName),
-          `${labels.fields.phone}: ${clean(b.customer?.phone)}`,
-          `${labels.fields.license}: ${clean(b.customer?.licenseNumber)}`,
-          b.clientType === "SOCIETE" || b.companyName
-            ? `${labels.fields.company}: ${clean(b.companyName)}`
-            : "",
-          b.companyICE ? `${labels.fields.ice}: ${b.companyICE}` : "",
+          b.customer?.phone ? `${labels.fields.phone}: ${b.customer.phone}` : "",
         ].filter(Boolean).join("\n"),
       },
       {
         header: labels.columns.driver,
-        width: 150,
-        maxLines: 7,
+        width: 135,
+        maxLines: 3,
         value: (b) => [
           fullName(b.driverFirstName, b.driverLastName),
-          `${labels.fields.cin}: ${clean(b.driverCIN)}`,
-          `${labels.fields.license}: ${clean(b.driverLicense)}`,
           b.driver2FirstName || b.driver2LastName || b.driver2CIN || b.driver2License
             ? `${labels.fields.secondDriver}: ${fullName(b.driver2FirstName, b.driver2LastName)}`
             : "",
-          b.driver2CIN ? `${labels.fields.cin}: ${b.driver2CIN}` : "",
-          b.driver2License ? `${labels.fields.license}: ${b.driver2License}` : "",
         ].filter(Boolean).join("\n"),
       },
       {
         header: labels.columns.payment,
-        width: 207,
-        maxLines: 6,
+        width: 216,
+        maxLines: 3,
         value: (b) => [
           `${labels.fields.total}: ${formatPdfMoney(b.invoice?.totalAmount ?? b.totalAmount ?? 0)}`,
           `${labels.fields.paid}: ${formatPdfMoney(b.invoice?.depositPaid ?? b.depositAmount ?? 0)}`,
           `${labels.fields.due}: ${formatPdfMoney(b.invoice?.amountDue ?? 0)}`,
-          `${labels.fields.status}: ${bookingPaymentStatus(b, labels)}`,
-          `${labels.fields.method}: ${clean(b.paymentMethod)}`,
-          b.invoice?.paidAt ? `${labels.fields.paid}: ${formatPdfDate(b.invoice.paidAt, locale)}` : "",
         ].filter(Boolean).join("\n"),
       },
     ],
@@ -390,12 +367,10 @@ export function createBookingsReportPdf({
   pdf.table(
     [
       { header: labels.columns.number, width: 30, value: (_row, index) => String(index + 1), maxLines: 1 },
-      { header: labels.columns.vehicle, width: 190, value: (v) => `${v.brand} ${v.model}` },
-      { header: labels.columns.plate, width: 105, value: (v) => v.plateNumber || "-", maxLines: 1 },
-      { header: labels.columns.year, width: 55, value: (v) => String(v.year || "-"), maxLines: 1 },
-      { header: labels.columns.color, width: 95, value: (v) => v.color || "-" },
-      { header: labels.columns.mileage, width: 105, value: (v) => `${(v.mileage || 0).toLocaleString()} km`, maxLines: 1 },
-      { header: labels.columns.rate, width: 120, value: (v) => `${formatPdfMoney(v.dailyRate || 0)} / ${labels.fallback.perDay}` },
+      { header: labels.columns.vehicle, width: 260, value: (v) => `${v.brand} ${v.model}` },
+      { header: labels.columns.plate, width: 140, value: (v) => v.plateNumber || "-", maxLines: 1 },
+      { header: labels.columns.mileage, width: 150, value: (v) => `${(v.mileage || 0).toLocaleString()} km`, maxLines: 1 },
+      { header: labels.columns.rate, width: 180, value: (v) => `${formatPdfMoney(v.dailyRate || 0)} / ${labels.fallback.perDay}` },
     ],
     availableVehicles,
     labels.noRecords

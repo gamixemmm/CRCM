@@ -6,6 +6,7 @@ import { requireCompanyId } from "@/lib/company";
 import { canPerform } from "@/lib/permissions";
 import { requireCompanyAdminAccess } from "@/actions/companyAuth";
 import { logAuditAction } from "@/lib/audit";
+import { getBusinessStartOfToday } from "@/lib/businessTime";
 
 interface MaintenanceInput {
   vehicleId: string;
@@ -32,8 +33,7 @@ export async function getMaintenanceLogs(params?: { status?: string; search?: st
   const companyId = await requireCompanyId();
   const where: Record<string, unknown> = {};
   where.companyId = companyId;
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const today = getBusinessStartOfToday();
 
   if (params?.status && params.status !== "ALL") {
     if (params.status === "ACTIVE") {
@@ -80,8 +80,7 @@ export async function updateMaintenance(id: string, input: Partial<MaintenanceIn
       return { success: false, message: "New mileage cannot be less than current mileage" };
     }
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const today = getBusinessStartOfToday();
 
     const data: Record<string, unknown> = {};
     if (input.serviceDate !== undefined) data.serviceDate = new Date(input.serviceDate);
@@ -182,8 +181,7 @@ export async function logMaintenance(input: MaintenanceInput) {
     }
 
     const serviceDate = new Date(input.serviceDate);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const today = getBusinessStartOfToday();
     const returnDate = input.returnDate ? new Date(input.returnDate) : null;
     returnDate?.setHours(0, 0, 0, 0);
     const isServiceToday = serviceDate <= today;
@@ -361,8 +359,7 @@ export async function deleteMaintenance(id: string) {
       await tx.maintenance.delete({ where: { id } });
 
       // If the log was actively holding the vehicle hostage, free it up.
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
+      const today = getBusinessStartOfToday();
       const returnDate = log.returnDate ? new Date(log.returnDate) : null;
       returnDate?.setHours(0, 0, 0, 0);
       if (!returnDate || returnDate > today) {

@@ -2,13 +2,14 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCompanyAdminSession } from "@/actions/companyAuth";
 import { canPerform } from "@/lib/permissions";
+import { getBusinessDateParts } from "@/lib/businessTime";
 
 function getCurrentPayrollPeriod() {
-  const now = new Date();
+  const now = getBusinessDateParts();
   return {
-    month: now.getMonth() + 1,
-    year: now.getFullYear(),
-    day: now.getDate(),
+    month: now.month + 1,
+    year: now.year,
+    day: now.day,
   };
 }
 

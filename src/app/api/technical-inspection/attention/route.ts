@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCompanyAdminSession } from "@/actions/companyAuth";
+import { getBusinessStartOfToday } from "@/lib/businessTime";
 
 function addYears(date: Date, years: number) {
   const next = new Date(date);
@@ -45,7 +46,7 @@ export async function GET() {
     }
   });
 
-  const today = startOfDay(new Date());
+  const today = getBusinessStartOfToday();
   const attentionCount = vehicles.reduce((count, vehicle) => {
     const dueDate = latestByVehicle.get(vehicle.id) ?? (
       vehicle.technicalInspectionDueDate

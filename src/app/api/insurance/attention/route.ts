@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCompanyAdminSession } from "@/actions/companyAuth";
+import { getBusinessStartOfToday } from "@/lib/businessTime";
 
 function startOfDay(date: Date) {
   const next = new Date(date);
@@ -38,7 +39,7 @@ export async function GET() {
     }
   });
 
-  const today = startOfDay(new Date());
+  const today = getBusinessStartOfToday();
   const attentionCount = vehicles.reduce((count, vehicle) => {
     const endDate = latestByVehicle.get(vehicle.id) ?? vehicle.insuranceExpiry;
     if (!endDate) return count;

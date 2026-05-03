@@ -6,6 +6,7 @@ import { requireCompanyId } from "@/lib/company";
 import { canPerform } from "@/lib/permissions";
 import { requireCompanyAdminAccess } from "@/actions/companyAuth";
 import { logAuditAction } from "@/lib/audit";
+import { getBusinessStartOfToday, getBusinessStartOfTomorrow, getBusinessWeekStart } from "@/lib/businessTime";
 
 interface BookingInput {
   customerId: string;
@@ -47,9 +48,7 @@ interface BookingDriverInput {
 const RENTAL_HOLD_STATUSES = ["CONFIRMED", "ACTIVE", "LATE"];
 
 function startOfToday() {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  return today;
+  return getBusinessStartOfToday();
 }
 
 function formatDateNote(date: Date) {
@@ -167,14 +166,9 @@ export async function getBookingsPdfExportData() {
 
   const companyId = await requireCompanyId();
   await syncLateBookings(companyId);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const tomorrow = new Date(today);
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  const weekStart = new Date(today);
-  const dayOfWeek = weekStart.getDay();
-  const daysSinceMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
-  weekStart.setDate(weekStart.getDate() - daysSinceMonday);
+  const today = getBusinessStartOfToday();
+  const tomorrow = getBusinessStartOfTomorrow();
+  const weekStart = getBusinessWeekStart();
 
   const [company, activeBookings, availableVehicles, activeMaintenance, todayInvoices, weekInvoices] = await Promise.all([
     prisma.company.findUnique({
@@ -490,8 +484,7 @@ export async function handleEarlyPickup(bookingId: string, updateDate: boolean) 
       return { success: false, message: "Only confirmed bookings can be picked up" };
     }
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const today = getBusinessStartOfToday();
     const endDate = new Date(booking.endDate);
 
     // Check if the vehicle has any OTHER active/confirmed booking that overlaps with today → endDate
@@ -597,8 +590,7 @@ export async function handleReturn(bookingId: string, updateDate: boolean, newMi
       return { success: false, message: "Only active or late bookings can be returned" };
     }
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const today = getBusinessStartOfToday();
     const startDate = new Date(booking.startDate);
     startDate.setHours(0, 0, 0, 0);
 
