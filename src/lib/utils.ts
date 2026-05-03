@@ -1,4 +1,5 @@
 import { format, formatDistanceToNow, differenceInDays, isAfter, isBefore, parseISO } from "date-fns";
+import { BUSINESS_TIME_ZONE, getBusinessDateParts } from "@/lib/businessTime";
 
 // ─── Currency ────────────────────────────────────────────────────
 export function formatCurrency(amount: number): string {
@@ -13,17 +14,33 @@ export function formatCurrency(amount: number): string {
 // ─── Dates ───────────────────────────────────────────────────────
 export function formatDate(date: Date | string): string {
   const d = typeof date === "string" ? parseISO(date) : date;
-  return format(d, "MMM d, yyyy");
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: BUSINESS_TIME_ZONE,
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  }).format(d);
 }
 
 export function formatDateTime(date: Date | string): string {
   const d = typeof date === "string" ? parseISO(date) : date;
-  return format(d, "MMM d, yyyy 'at' h:mm a");
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: BUSINESS_TIME_ZONE,
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(d);
 }
 
 export function formatDateShort(date: Date | string): string {
   const d = typeof date === "string" ? parseISO(date) : date;
-  return format(d, "MMM d");
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: BUSINESS_TIME_ZONE,
+    month: "short",
+    day: "numeric",
+  }).format(d);
 }
 
 export function formatRelative(date: Date | string): string {
@@ -33,7 +50,8 @@ export function formatRelative(date: Date | string): string {
 
 export function formatDateInput(date: Date | string): string {
   const d = typeof date === "string" ? parseISO(date) : date;
-  return format(d, "yyyy-MM-dd");
+  const parts = getBusinessDateParts(d);
+  return `${parts.year}-${String(parts.month + 1).padStart(2, "0")}-${String(parts.day).padStart(2, "0")}`;
 }
 
 export function getRentalDays(start: Date, end: Date): number {
