@@ -82,6 +82,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     PENDING: "status.pending",
     CONFIRMED: "status.confirmed",
     ACTIVE: "status.active",
+    LATE: "status.late",
     COMPLETED: "status.completed",
     CANCELLED: "status.cancelled",
     PARTIAL: "status.partial",

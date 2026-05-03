@@ -80,7 +80,7 @@ export function formatPlateNumber(plate: string): string {
 
 // ─── Status Helpers ──────────────────────────────────────────────
 export type VehicleStatus = "AVAILABLE" | "RENTED" | "MAINTENANCE" | "OUT_OF_SERVICE";
-export type BookingStatus = "PENDING" | "CONFIRMED" | "ACTIVE" | "COMPLETED" | "CANCELLED";
+export type BookingStatus = "PENDING" | "CONFIRMED" | "ACTIVE" | "COMPLETED" | "CANCELLED" | "LATE";
 export type PaymentStatus = "PENDING" | "PARTIAL" | "PAID" | "REFUNDED";
 
 export function getStatusColor(status: string): string {
@@ -92,6 +92,7 @@ export function getStatusColor(status: string): string {
     PENDING: "var(--warning)",
     CONFIRMED: "var(--info)",
     ACTIVE: "var(--success)",
+    LATE: "var(--danger)",
     COMPLETED: "var(--text-secondary)",
     CANCELLED: "var(--danger)",
     PARTIAL: "var(--warning)",
@@ -110,6 +111,7 @@ export function getStatusBg(status: string): string {
     PENDING: "var(--warning-muted)",
     CONFIRMED: "var(--info-muted)",
     ACTIVE: "var(--success-muted)",
+    LATE: "var(--danger-muted)",
     COMPLETED: "rgba(136, 136, 160, 0.1)",
     CANCELLED: "var(--danger-muted)",
     PARTIAL: "var(--warning-muted)",
@@ -124,6 +126,20 @@ export function formatStatus(status: string): string {
     .replace(/_/g, " ")
     .toLowerCase()
     .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+export function getBookingDisplayStatus(booking: { status: string; endDate: Date | string }): string {
+  if (booking.status === "COMPLETED" || booking.status === "CANCELLED") {
+    return booking.status;
+  }
+
+  const end = typeof booking.endDate === "string" ? parseISO(booking.endDate) : booking.endDate;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const returnDay = new Date(end);
+  returnDay.setHours(0, 0, 0, 0);
+
+  return returnDay < today ? "LATE" : booking.status;
 }
 
 // ─── Numbers ─────────────────────────────────────────────────────

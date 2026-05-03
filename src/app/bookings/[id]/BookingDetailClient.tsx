@@ -13,7 +13,7 @@ import Input, { Textarea } from "@/components/ui/Input";
 import { useToast } from "@/components/ui/Toast";
 import { createInvoice, updatePaymentStatus, deleteInvoice } from "@/actions/invoices";
 import { updateBookingStatus, handleEarlyPickup, handleReturn, updateBookingDates, updateBookingDrivers } from "@/actions/bookings";
-import { formatDate, formatStatus, getStatusColor, getStatusBg, getFullName } from "@/lib/utils";
+import { formatDate, getBookingDisplayStatus, getStatusColor, getStatusBg, getFullName } from "@/lib/utils";
 import styles from "../bookings.module.css";
 
 export default function BookingDetailClient({ booking }: { booking: any }) {
@@ -56,6 +56,7 @@ export default function BookingDetailClient({ booking }: { booking: any }) {
     driver2CIN: booking.driver2CIN || "",
     driver2License: booking.driver2License || "",
   });
+  const displayStatus = getBookingDisplayStatus(booking);
 
   // Duration
   const start = new Date(booking.startDate);
@@ -141,8 +142,8 @@ export default function BookingDetailClient({ booking }: { booking: any }) {
           <span style={{ fontSize: "0.8125rem", color: "var(--text-tertiary)" }}>ID: {booking.id}</span>
         </div>
         <div className={styles.detailTopRow}>
-          <Badge color={getStatusColor(booking.status)} bg={getStatusBg(booking.status)} dot>
-            {formatStatusT(booking.status)}
+          <Badge color={getStatusColor(displayStatus)} bg={getStatusBg(displayStatus)} dot>
+            {formatStatusT(displayStatus)}
           </Badge>
           <Badge 
             color={booking.clientType === "ENTREPRISE" ? "var(--warning)" : "var(--info)"}
@@ -439,7 +440,7 @@ export default function BookingDetailClient({ booking }: { booking: any }) {
                 fullWidth
                 variant="secondary"
                 icon={<CheckCircle size={16} />}
-                disabled={booking.status !== "ACTIVE"}
+                disabled={booking.status !== "ACTIVE" && booking.status !== "LATE"}
                 onClick={() => {
                   setReturnMileage(String(booking.vehicle.mileage || 0));
                   const today = new Date();
@@ -528,7 +529,7 @@ export default function BookingDetailClient({ booking }: { booking: any }) {
             }
 
             // 5. Pickup (if active or completed)
-            if (booking.status === "ACTIVE" || booking.status === "COMPLETED") {
+            if (booking.status === "ACTIVE" || booking.status === "LATE" || booking.status === "COMPLETED") {
               events.push({
                 date: booking.startDate,
                 label: t("timeline.vehiclePickedUp"),

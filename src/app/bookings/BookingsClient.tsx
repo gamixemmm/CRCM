@@ -12,9 +12,9 @@ import Table from "@/components/ui/Table";
 import { useToast } from "@/components/ui/Toast";
 import { getBookingsPdfExportData } from "@/actions/bookings";
 import { createBookingsReportPdf } from "@/lib/simplePdf";
-import { formatDate, formatStatus, getStatusColor, getStatusBg, getFullName } from "@/lib/utils";
+import { formatDate, getBookingDisplayStatus, getStatusColor, getStatusBg, getFullName } from "@/lib/utils";
 import styles from "./bookings.module.css";
-const statusFilters = ["ALL", "PENDING", "CONFIRMED", "ACTIVE", "COMPLETED", "CANCELLED"];
+const statusFilters = ["ALL", "PENDING", "CONFIRMED", "ACTIVE", "LATE", "COMPLETED", "CANCELLED"];
 
 interface BookingsClientProps {
   bookings: any[];
@@ -34,7 +34,8 @@ export default function BookingsClient({ bookings, vehicles, maintenanceLogs }: 
   const [lookupDate, setLookupDate] = useState("");
 
   const filtered = bookings.filter((b) => {
-    const matchesStatus = statusFilter === "ALL" || b.status === statusFilter;
+    const displayStatus = getBookingDisplayStatus(b);
+    const matchesStatus = statusFilter === "ALL" || displayStatus === statusFilter;
     const term = search.toLowerCase();
     const matchesSearch =
       !search ||
@@ -222,8 +223,8 @@ export default function BookingsClient({ bookings, vehicles, maintenanceLogs }: 
       key: "status",
       label: t("label.status"),
       render: (b: any) => (
-        <Badge color={getStatusColor(b.status)} bg={getStatusBg(b.status)} dot>
-          {formatStatusT(b.status)}
+        <Badge color={getStatusColor(getBookingDisplayStatus(b))} bg={getStatusBg(getBookingDisplayStatus(b))} dot>
+          {formatStatusT(getBookingDisplayStatus(b))}
         </Badge>
       ),
     },
@@ -242,8 +243,8 @@ export default function BookingsClient({ bookings, vehicles, maintenanceLogs }: 
           <strong>{b.vehicle.brand} {b.vehicle.model}</strong>
           <span>{b.vehicle.plateNumber}</span>
         </div>
-        <Badge color={getStatusColor(b.status)} bg={getStatusBg(b.status)} dot>
-          {formatStatusT(b.status)}
+        <Badge color={getStatusColor(getBookingDisplayStatus(b))} bg={getStatusBg(getBookingDisplayStatus(b))} dot>
+          {formatStatusT(getBookingDisplayStatus(b))}
         </Badge>
       </div>
 
@@ -405,8 +406,8 @@ export default function BookingsClient({ bookings, vehicles, maintenanceLogs }: 
                         {formatDate(booking.startDate)} {t("label.to")} {formatDate(booking.endDate)}
                       </span>
                     </div>
-                    <Badge color={getStatusColor(booking.status)} bg={getStatusBg(booking.status)} dot>
-                      {formatStatusT(booking.status)}
+                    <Badge color={getStatusColor(getBookingDisplayStatus(booking))} bg={getStatusBg(getBookingDisplayStatus(booking))} dot>
+                      {formatStatusT(getBookingDisplayStatus(booking))}
                     </Badge>
                   </button>
                 ))}

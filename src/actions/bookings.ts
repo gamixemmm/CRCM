@@ -44,8 +44,81 @@ interface BookingDriverInput {
   driver2License?: string;
 }
 
+const RENTAL_HOLD_STATUSES = ["CONFIRMED", "ACTIVE", "LATE"];
+
+function startOfToday() {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return today;
+}
+
+function formatDateNote(date: Date) {
+  return date.toISOString().slice(0, 10);
+}
+
+async function syncLateBookings(companyId: string) {
+  const today = startOfToday();
+  const overdueBookings = await prisma.booking.findMany({
+    where: {
+      companyId,
+      status: { in: ["CONFIRMED", "ACTIVE"] },
+      endDate: { lt: today },
+    },
+    include: { vehicle: true, invoice: true },
+  });
+
+  if (overdueBookings.length === 0) return;
+
+  await prisma.$transaction(async (tx) => {
+    for (const booking of overdueBookings) {
+      const previousReturnDate = new Date(booking.endDate);
+      previousReturnDate.setHours(0, 0, 0, 0);
+      const startDate = new Date(booking.startDate);
+      startDate.setHours(0, 0, 0, 0);
+      const diffTime = Math.abs(today.getTime() - startDate.getTime());
+      const newDays = Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
+      const rate = booking.pricePerDay ?? booking.vehicle.dailyRate;
+      const newTotal = newDays * rate;
+      const lateNote = `[Late] Original return date: ${formatDateNote(previousReturnDate)}.`;
+      const notes = booking.notes?.includes(lateNote)
+        ? booking.notes
+        : [booking.notes, lateNote].filter(Boolean).join("\n");
+
+      await tx.booking.update({
+        where: { id: booking.id },
+        data: {
+          status: "LATE",
+          endDate: today,
+          totalAmount: newTotal,
+          notes,
+        },
+      });
+
+      if (booking.invoice) {
+        const deposit = booking.invoice.depositPaid ?? 0;
+        const newAmountDue = Math.max(0, newTotal - deposit);
+        await tx.invoice.update({
+          where: { id: booking.invoice.id },
+          data: {
+            subtotal: newTotal,
+            totalAmount: newTotal,
+            amountDue: newAmountDue,
+            paymentStatus: newAmountDue === 0 && newTotal > 0 ? "PAID" : deposit > 0 ? "PARTIAL" : "PENDING",
+          },
+        });
+      }
+
+      await tx.vehicle.update({
+        where: { id: booking.vehicleId },
+        data: { status: "RENTED" },
+      });
+    }
+  });
+}
+
 export async function getBookings(params?: { status?: string; search?: string }) {
   const companyId = await requireCompanyId();
+  await syncLateBookings(companyId);
   const where: Record<string, unknown> = {};
   where.companyId = companyId;
   
@@ -75,6 +148,7 @@ export async function getBookings(params?: { status?: string; search?: string })
 
 export async function getBooking(id: string) {
   const companyId = await requireCompanyId();
+  await syncLateBookings(companyId);
   return prisma.booking.findFirst({
     where: { id, companyId },
     include: {
@@ -92,6 +166,7 @@ export async function getBookingsPdfExportData() {
   }
 
   const companyId = await requireCompanyId();
+  await syncLateBookings(companyId);
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const tomorrow = new Date(today);
@@ -107,7 +182,7 @@ export async function getBookingsPdfExportData() {
       select: { name: true },
     }),
     prisma.booking.findMany({
-      where: { companyId, status: "ACTIVE" },
+      where: { companyId, status: { in: ["ACTIVE", "LATE"] } },
       orderBy: { startDate: "asc" },
       include: {
         customer: true,
@@ -121,7 +196,7 @@ export async function getBookingsPdfExportData() {
         status: "AVAILABLE",
         bookings: {
           none: {
-            status: "ACTIVE",
+            status: { in: ["ACTIVE", "LATE"] },
           },
         },
         maintenance: {
@@ -213,7 +288,7 @@ export async function createBooking(input: BookingInput) {
       where: {
         companyId,
         vehicleId: input.vehicleId,
-        status: { in: ["CONFIRMED", "ACTIVE"] },
+        status: { in: RENTAL_HOLD_STATUSES },
         OR: [
           { startDate: { lte: end }, endDate: { gte: start } },
         ],
@@ -297,7 +372,7 @@ export async function createBooking(input: BookingInput) {
         }
       });
 
-      if (status === "ACTIVE") {
+      if (status === "ACTIVE" || status === "LATE") {
         await tx.vehicle.update({
           where: { id: input.vehicleId },
           data: { status: "RENTED" },
@@ -350,7 +425,7 @@ export async function updateBookingStatus(bookingId: string, newStatus: string) 
       });
 
       // Sync vehicle status based on the booking transition
-      if (newStatus === "ACTIVE") {
+      if (newStatus === "ACTIVE" || newStatus === "LATE") {
         await tx.vehicle.update({
           where: { id: booking.vehicleId },
           data: { status: "RENTED" },
@@ -362,7 +437,7 @@ export async function updateBookingStatus(bookingId: string, newStatus: string) 
             companyId,
             vehicleId: booking.vehicleId,
             id: { not: bookingId },
-            status: "ACTIVE",
+            status: { in: ["ACTIVE", "LATE"] },
           },
         });
         if (otherActive === 0) {
@@ -425,7 +500,7 @@ export async function handleEarlyPickup(bookingId: string, updateDate: boolean) 
         companyId,
         vehicleId: booking.vehicleId,
         id: { not: bookingId },
-        status: { in: ["CONFIRMED", "ACTIVE"] },
+        status: { in: RENTAL_HOLD_STATUSES },
         startDate: { lte: endDate },
         endDate: { gte: today },
       },
@@ -518,8 +593,8 @@ export async function handleReturn(bookingId: string, updateDate: boolean, newMi
       return { success: false, message: "Booking not found" };
     }
 
-    if (booking.status !== "ACTIVE") {
-      return { success: false, message: "Only active bookings can be returned" };
+    if (booking.status !== "ACTIVE" && booking.status !== "LATE") {
+      return { success: false, message: "Only active or late bookings can be returned" };
     }
 
     const today = new Date();
@@ -572,7 +647,7 @@ export async function handleReturn(bookingId: string, updateDate: boolean, newMi
           companyId,
           vehicleId: booking.vehicleId,
           id: { not: bookingId },
-          status: "ACTIVE",
+          status: { in: ["ACTIVE", "LATE"] },
         },
       });
 
@@ -638,7 +713,7 @@ export async function updateBookingDates(bookingId: string, newStartDate: string
         companyId,
         vehicleId: booking.vehicleId,
         id: { not: bookingId },
-        status: { in: ["CONFIRMED", "ACTIVE"] },
+        status: { in: RENTAL_HOLD_STATUSES },
         startDate: { lte: newEnd },
         endDate: { gte: newStart },
       },

@@ -57,6 +57,7 @@ const translations = {
 
   // ─── Statuses ───────────────────────────────────────────────────
   "status.active": { en: "Active", fr: "Actif", ar: "نشط" },
+  "status.late": { en: "Late", fr: "En retard", ar: "Late" },
   "status.confirmed": { en: "Confirmed", fr: "Confirmé", ar: "مؤكد" },
   "status.completed": { en: "Completed", fr: "Terminé", ar: "مكتمل" },
   "status.cancelled": { en: "Cancelled", fr: "Annulé", ar: "ملغى" },
