@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { TrendingDown, CreditCard, Wallet, Calculator, Pencil, Trash2, Car, ShieldCheck, Home, Search, Filter, ArrowUpDown, ArrowUp, ArrowDown, ChevronRight } from "lucide-react";
+import { TrendingDown, CreditCard, Wallet, Calculator, Pencil, Trash2, Car, ShieldCheck, Home, Search, Filter, ArrowUpDown, ArrowUp, ArrowDown, ChevronRight, Download } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Table from "@/components/ui/Table";
 import Input from "@/components/ui/Input";
@@ -11,7 +11,8 @@ import Modal from "@/components/ui/Modal";
 import { useSettings } from "@/lib/SettingsContext";
 import { formatDate } from "@/lib/utils";
 import AddExpenseModal from "./AddExpenseModal";
-import { adjustCashRegisterAmount, deleteExpense } from "@/actions/expenses";
+import { adjustCashRegisterAmount, deleteExpense, getExpensesPdfExportData } from "@/actions/expenses";
+import { createExpensesReportPdf } from "@/lib/simplePdf";
 import { useToast } from "@/components/ui/Toast";
 import { EXPENSE_CATEGORIES, normalizeExpenseCategory, translateExpenseCategory, translateExpenseDescription } from "@/lib/expenseCategories";
 import Card from "@/components/ui/Card";
@@ -25,7 +26,7 @@ interface ExpensesClientProps {
 }
 
 export default function ExpensesClient({ expenses, overallRevenue, vehicles }: ExpensesClientProps) {
-  const { t, formatPrice } = useSettings();
+  const { t, formatPrice, language } = useSettings();
   const router = useRouter();
   const { toast } = useToast();
   
@@ -38,6 +39,7 @@ export default function ExpensesClient({ expenses, overallRevenue, vehicles }: E
   const [cashAmount, setCashAmount] = useState("");
   const [cashAdjustmentType, setCashAdjustmentType] = useState<"add" | "remove">("add");
   const [cashLoading, setCashLoading] = useState(false);
+  const [exportingPdf, setExportingPdf] = useState(false);
 
   // Filter & Sort State
   const [searchQuery, setSearchQuery] = useState("");
@@ -123,6 +125,72 @@ export default function ExpensesClient({ expenses, overallRevenue, vehicles }: E
       setSortBy(key);
       setSortOrder("desc");
     }
+  };
+
+  const handleExportPdf = async () => {
+    if (!startDate || !endDate) {
+      toast(t("expenses.exportDateRequired"), "error");
+      return;
+    }
+
+    if (endDate < startDate) {
+      toast(t("expenses.exportInvalidRange"), "error");
+      return;
+    }
+
+    setExportingPdf(true);
+    const result = await getExpensesPdfExportData(startDate, endDate);
+    setExportingPdf(false);
+
+    if (!result.success || !result.data) {
+      toast(result.message || t("expenses.exportFailed"), "error");
+      return;
+    }
+
+    const localizedExpenses = result.data.expenses.map((expense: any) => ({
+      ...expense,
+      category: translateExpenseCategory(expense.category, t),
+      description: translateExpenseDescription(expense.description, t),
+    }));
+
+    const pdf = createExpensesReportPdf({
+      ...result.data,
+      expenses: localizedExpenses,
+      locale: language === "fr" ? "fr-FR" : language === "ar" ? "ar-MA" : "en-GB",
+      labels: {
+        title: t("expenses.reportTitle"),
+        generated: t("bookings.reportGenerated"),
+        period: t("expenses.reportPeriod"),
+        totalSpent: t("expenses.reportTotalSpent"),
+        expenseCount: t("expenses.reportExpenseCount"),
+        averageExpense: t("expenses.reportAverageExpense"),
+        topCategory: t("expenses.reportTopCategory"),
+        largestExpense: t("expenses.reportLargestExpense"),
+        noRecords: t("bookings.reportNoRecords"),
+        analytics: t("expenses.reportAnalytics"),
+        details: t("expenses.reportDetails"),
+        columns: {
+          number: "#",
+          date: t("label.date"),
+          category: t("expenses.category"),
+          description: t("expenses.description"),
+          vehicle: t("expenses.vehicle"),
+          amount: t("expenses.amount"),
+          count: t("expenses.reportCount"),
+          percent: t("expenses.reportPercent"),
+        },
+      },
+    });
+    const blob = new Blob([pdf], { type: "application/pdf" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `expenses-${startDate}-to-${endDate}.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+    toast(t("expenses.exportSuccess"), "success");
   };
 
   // Filter & Sort Logic
@@ -506,6 +574,14 @@ export default function ExpensesClient({ expenses, overallRevenue, vehicles }: E
         </div>
 
         <div className={styles.filterActions}>
+          <Button
+            variant="secondary"
+            icon={<Download size={16} />}
+            loading={exportingPdf}
+            onClick={handleExportPdf}
+          >
+            {t("expenses.exportPdf")}
+          </Button>
           <Button 
             variant="ghost" 
             onClick={() => {

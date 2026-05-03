@@ -7,6 +7,7 @@ import { canPerform } from "@/lib/permissions";
 import { requireCompanyAdminAccess } from "@/actions/companyAuth";
 import { normalizeExpenseCategory } from "@/lib/expenseCategories";
 import { logAuditAction } from "@/lib/audit";
+import { zonedDateTimeToUtc } from "@/lib/businessTime";
 
 interface ExpenseInput {
   date: string;
@@ -18,6 +19,12 @@ interface ExpenseInput {
 
 function getGlobalSettingsId(companyId: string) {
   return `global:${companyId}`;
+}
+
+function parseExpenseDateInput(value: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+  const [year, month, day] = value.split("-").map(Number);
+  return zonedDateTimeToUtc(year, month - 1, day);
 }
 
 export async function getExpenses() {
@@ -35,6 +42,59 @@ export async function getExpense(id: string) {
     where: { id, companyId },
     include: { vehicle: true },
   });
+}
+
+export async function getExpensesPdfExportData(startDate: string, endDate: string) {
+  try {
+    const session = await requireCompanyAdminAccess();
+    if (!canPerform(session, ["VIEW_EXPENSES"])) {
+      return { success: false, message: "You do not have permission to view expenses." };
+    }
+
+    const start = parseExpenseDateInput(startDate);
+    const end = parseExpenseDateInput(endDate);
+
+    if (!start || !end) {
+      return { success: false, message: "Please select a valid date range." };
+    }
+
+    if (end < start) {
+      return { success: false, message: "End date must be after start date." };
+    }
+
+    const companyId = await requireCompanyId();
+    const endExclusive = parseExpenseDateInput(new Date(end.getTime() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10));
+    const [company, expenses] = await Promise.all([
+      prisma.company.findUnique({
+        where: { id: companyId },
+        select: { name: true },
+      }),
+      prisma.expense.findMany({
+        where: {
+          companyId,
+          date: {
+            gte: start,
+            lt: endExclusive || new Date(end.getTime() + 24 * 60 * 60 * 1000),
+          },
+        },
+        orderBy: { date: "asc" },
+        include: { vehicle: true },
+      }),
+    ]);
+
+    return {
+      success: true,
+      data: {
+        companyName: company?.name || session.companyName || "Company",
+        startDate,
+        endDate,
+        expenses: JSON.parse(JSON.stringify(expenses)),
+      },
+    };
+  } catch (error) {
+    console.error("Failed to export expenses PDF", error);
+    return { success: false, message: "Failed to export expenses PDF" };
+  }
 }
 
 export async function logExpense(input: ExpenseInput) {

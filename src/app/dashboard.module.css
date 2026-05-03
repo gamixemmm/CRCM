@@ -192,10 +192,17 @@
   gap: var(--space-sm);
   padding: 10px 0;
   border-bottom: 1px solid var(--border);
+  color: inherit;
+  text-decoration: none;
+  transition: opacity var(--transition-fast);
 }
 
 .activityItem:last-child {
   border-bottom: none;
+}
+
+.activityItem:hover {
+  opacity: 0.85;
 }
 
 .activityDot {

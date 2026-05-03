@@ -68,6 +68,30 @@ type BookingsReportLabels = {
   };
 };
 
+type ExpensesReportLabels = {
+  title: string;
+  generated: string;
+  period: string;
+  totalSpent: string;
+  expenseCount: string;
+  averageExpense: string;
+  topCategory: string;
+  largestExpense: string;
+  noRecords: string;
+  analytics: string;
+  details: string;
+  columns: {
+    number: string;
+    date: string;
+    category: string;
+    description: string;
+    vehicle: string;
+    amount: string;
+    count: string;
+    percent: string;
+  };
+};
+
 const PAGE_WIDTH = 842;
 const PAGE_HEIGHT = 595;
 const MARGIN = 36;
@@ -142,6 +166,10 @@ function clean(value: unknown) {
 
 function fullName(first?: string | null, last?: string | null) {
   return `${first || ""} ${last || ""}`.trim() || "-";
+}
+
+function bookingRatePerDay(booking: any) {
+  return booking?.pricePerDay ?? booking?.vehicle?.dailyRate ?? 0;
 }
 
 class PdfBuilder {
@@ -351,8 +379,10 @@ export function createBookingsReportPdf({
       {
         header: labels.columns.payment,
         width: 216,
-        maxLines: 3,
+        maxLines: 5,
         value: (b) => [
+          `${labels.fields.status}: ${labels.paymentStatuses[b.invoice?.paymentStatus] || b.invoice?.paymentStatus || labels.fallback.pending}`,
+          `${labels.columns.rate}: ${formatPdfMoney(bookingRatePerDay(b))} / ${labels.fallback.perDay}`,
           `${labels.fields.total}: ${formatPdfMoney(b.invoice?.totalAmount ?? b.totalAmount ?? 0)}`,
           `${labels.fields.paid}: ${formatPdfMoney(b.invoice?.depositPaid ?? b.depositAmount ?? 0)}`,
           `${labels.fields.due}: ${formatPdfMoney(b.invoice?.amountDue ?? 0)}`,
@@ -404,7 +434,15 @@ export function createBookingsReportPdf({
         { header: labels.fields.total, width: 85, value: (invoice) => formatPdfMoney(invoice.totalAmount || 0), maxLines: 1 },
         { header: labels.fields.income, width: 85, value: (invoice) => formatPdfMoney((invoice.totalAmount || 0) - (invoice.amountDue || 0)), maxLines: 1 },
         { header: labels.fields.due, width: 80, value: (invoice) => formatPdfMoney(invoice.amountDue || 0), maxLines: 1 },
-        { header: labels.fields.status, width: 68, value: (invoice) => labels.paymentStatuses[invoice.paymentStatus] || invoice.paymentStatus || labels.fallback.pending, maxLines: 1 },
+        {
+          header: labels.fields.status,
+          width: 68,
+          value: (invoice) => [
+            labels.paymentStatuses[invoice.paymentStatus] || invoice.paymentStatus || labels.fallback.pending,
+            `${formatPdfMoney(bookingRatePerDay(invoice.booking))}/${labels.fallback.perDay}`,
+          ].join("\n"),
+          maxLines: 2,
+        },
       ],
       invoices,
       labels.noRecords
@@ -413,6 +451,91 @@ export function createBookingsReportPdf({
 
   renderInvoiceSection(labels.todayInvoices, todayInvoices);
   renderInvoiceSection(labels.weekInvoices, weekInvoices);
+
+  return pdf.build();
+}
+
+export function createExpensesReportPdf({
+  companyName,
+  startDate,
+  endDate,
+  expenses,
+  labels,
+  locale,
+}: {
+  companyName: string;
+  startDate: string;
+  endDate: string;
+  expenses: any[];
+  labels: ExpensesReportLabels;
+  locale?: string;
+}) {
+  const generatedAt = new Date();
+  const pdf = new PdfBuilder(labels.title);
+  const totalSpent = expenses.reduce((sum, expense) => sum + (expense.amount || 0), 0);
+  const averageExpense = expenses.length > 0 ? totalSpent / expenses.length : 0;
+  const categoryMap = new Map<string, { category: string; total: number; count: number }>();
+
+  expenses.forEach((expense) => {
+    const category = clean(expense.category);
+    const current = categoryMap.get(category) || { category, total: 0, count: 0 };
+    current.total += expense.amount || 0;
+    current.count += 1;
+    categoryMap.set(category, current);
+  });
+
+  const categories = Array.from(categoryMap.values()).sort((a, b) => b.total - a.total);
+  const topCategory = categories[0];
+  const largestExpense = expenses.reduce<any | null>((largest, expense) => {
+    if (!largest || (expense.amount || 0) > (largest.amount || 0)) return expense;
+    return largest;
+  }, null);
+
+  pdf.paragraph(`${companyName} - ${labels.generated}: ${formatPdfDate(generatedAt, locale)}`);
+  pdf.paragraph(`${labels.period}: ${formatPdfDate(startDate, locale)} - ${formatPdfDate(endDate, locale)}`);
+  pdf.paragraph(
+    [
+      `${labels.totalSpent}: ${formatPdfMoney(totalSpent)}`,
+      `${labels.expenseCount}: ${expenses.length}`,
+      `${labels.averageExpense}: ${formatPdfMoney(averageExpense)}`,
+      `${labels.topCategory}: ${topCategory ? `${topCategory.category} (${formatPdfMoney(topCategory.total)})` : "-"}`,
+      `${labels.largestExpense}: ${largestExpense ? `${formatPdfMoney(largestExpense.amount || 0)} - ${clean(largestExpense.description)}` : "-"}`,
+    ].join(" / ")
+  );
+
+  pdf.heading(labels.analytics);
+  pdf.table(
+    [
+      { header: labels.columns.number, width: 30, value: (_row, index) => String(index + 1), maxLines: 1 },
+      { header: labels.columns.category, width: 260, value: (row) => row.category, maxLines: 2 },
+      { header: labels.columns.count, width: 110, value: (row) => String(row.count), maxLines: 1 },
+      { header: labels.columns.amount, width: 160, value: (row) => formatPdfMoney(row.total), maxLines: 1 },
+      { header: labels.columns.percent, width: 200, value: (row) => `${totalSpent > 0 ? ((row.total / totalSpent) * 100).toFixed(1) : "0.0"}%`, maxLines: 1 },
+    ],
+    categories,
+    labels.noRecords
+  );
+
+  pdf.heading(labels.details);
+  pdf.table(
+    [
+      { header: labels.columns.number, width: 28, value: (_row, index) => String(index + 1), maxLines: 1 },
+      { header: labels.columns.date, width: 82, value: (expense) => formatPdfDate(expense.date, locale), maxLines: 1 },
+      { header: labels.columns.category, width: 115, value: (expense) => clean(expense.category), maxLines: 2 },
+      { header: labels.columns.description, width: 215, value: (expense) => clean(expense.description), maxLines: 3 },
+      {
+        header: labels.columns.vehicle,
+        width: 200,
+        value: (expense) => expense.vehicle
+          ? `${expense.vehicle.brand || "-"} ${expense.vehicle.model || ""}\n${clean(expense.vehicle.plateNumber)}`
+          : "-",
+        maxLines: 2,
+      },
+      { header: labels.columns.amount, width: 120, value: (expense) => formatPdfMoney(expense.amount || 0), maxLines: 1 },
+    ],
+    expenses,
+    labels.noRecords
+  );
 
   return pdf.build();
 }

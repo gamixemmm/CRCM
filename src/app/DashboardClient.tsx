@@ -256,7 +256,7 @@ export default function DashboardClient({
           ) : (
             <div className={styles.activityList}>
               {todayPickups.map((b) => (
-                <div key={b.id} className={styles.activityItem}>
+                <Link key={b.id} href={`/bookings/${b.id}`} className={styles.activityItem}>
                   <div className={styles.activityDot} style={{ background: "var(--success)" }} />
                   <div className={styles.activityInfo}>
                     <span className={styles.activityTitle}>
@@ -267,10 +267,10 @@ export default function DashboardClient({
                     </span>
                   </div>
                   <Badge variant="success" size="sm">{getDayLabel(b.startDate)}</Badge>
-                </div>
+                </Link>
               ))}
               {todayReturns.map((b) => (
-                <div key={b.id} className={styles.activityItem}>
+                <Link key={b.id} href={`/bookings/${b.id}`} className={styles.activityItem}>
                   <div className={styles.activityDot} style={{ background: "var(--info)" }} />
                   <div className={styles.activityInfo}>
                     <span className={styles.activityTitle}>
@@ -281,10 +281,10 @@ export default function DashboardClient({
                     </span>
                   </div>
                   <Badge variant="info" size="sm">{getDayLabel(b.endDate)}</Badge>
-                </div>
+                </Link>
               ))}
               {todayMaintenanceIn.map((m) => (
-                <div key={m.id} className={styles.activityItem}>
+                <Link key={m.id} href={`/maintenance/${m.id}`} className={styles.activityItem}>
                   <div className={styles.activityDot} style={{ background: "var(--warning)" }} />
                   <div className={styles.activityInfo}>
                     <span className={styles.activityTitle}>
@@ -295,10 +295,10 @@ export default function DashboardClient({
                     </span>
                   </div>
                   <Badge variant="warning" size="sm">{getDayLabel(m.serviceDate)}</Badge>
-                </div>
+                </Link>
               ))}
               {todayMaintenanceOut.map((m) => (
-                <div key={m.id} className={styles.activityItem}>
+                <Link key={m.id} href={`/maintenance/${m.id}`} className={styles.activityItem}>
                   <div className={styles.activityDot} style={{ background: "var(--success)" }} />
                   <div className={styles.activityInfo}>
                     <span className={styles.activityTitle}>
@@ -309,7 +309,7 @@ export default function DashboardClient({
                     </span>
                   </div>
                   <Badge variant="success" size="sm">{getDayLabel(m.returnDate)}</Badge>
-                </div>
+                </Link>
               ))}
             </div>
           )}
