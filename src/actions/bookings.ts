@@ -6,7 +6,7 @@ import { requireCompanyId } from "@/lib/company";
 import { canPerform } from "@/lib/permissions";
 import { requireCompanyAdminAccess } from "@/actions/companyAuth";
 import { logAuditAction } from "@/lib/audit";
-import { getBusinessStartOfToday, getBusinessStartOfTomorrow, getBusinessWeekStart } from "@/lib/businessTime";
+import { getBusinessStartOfToday, getBusinessStartOfTomorrow, getBusinessWeekStart, zonedDateTimeToUtc } from "@/lib/businessTime";
 
 interface BookingInput {
   customerId: string;
@@ -55,12 +55,17 @@ function formatDateNote(date: Date) {
   return date.toISOString().slice(0, 10);
 }
 
+function parseBusinessDateInput(value: string) {
+  const [year, month, day] = value.split("-").map(Number);
+  return zonedDateTimeToUtc(year, month - 1, day);
+}
+
 async function syncLateBookings(companyId: string) {
   const today = startOfToday();
   const overdueBookings = await prisma.booking.findMany({
     where: {
       companyId,
-      status: { in: ["CONFIRMED", "ACTIVE"] },
+      status: { in: RENTAL_HOLD_STATUSES },
       endDate: { lt: today },
     },
     include: { vehicle: true, invoice: true },
@@ -78,8 +83,9 @@ async function syncLateBookings(companyId: string) {
       const newDays = Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
       const rate = booking.pricePerDay ?? booking.vehicle.dailyRate;
       const newTotal = newDays * rate;
+      const hasOriginalReturnNote = /\[Late\] Original return date: \d{4}-\d{2}-\d{2}\./.test(booking.notes || "");
       const lateNote = `[Late] Original return date: ${formatDateNote(previousReturnDate)}.`;
-      const notes = booking.notes?.includes(lateNote)
+      const notes = hasOriginalReturnNote
         ? booking.notes
         : [booking.notes, lateNote].filter(Boolean).join("\n");
 
@@ -690,10 +696,8 @@ export async function updateBookingDates(bookingId: string, newStartDate: string
       return { success: false, message: "Booking not found" };
     }
 
-    const newStart = new Date(newStartDate);
-    const newEnd = new Date(newEndDate);
-    newStart.setHours(0, 0, 0, 0);
-    newEnd.setHours(0, 0, 0, 0);
+    const newStart = parseBusinessDateInput(newStartDate);
+    const newEnd = parseBusinessDateInput(newEndDate);
 
     if (newEnd <= newStart) {
       return { success: false, message: "Return date must be after pickup date" };

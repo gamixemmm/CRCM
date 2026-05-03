@@ -13,7 +13,7 @@ import Input, { Textarea } from "@/components/ui/Input";
 import { useToast } from "@/components/ui/Toast";
 import { createInvoice, updatePaymentStatus, deleteInvoice } from "@/actions/invoices";
 import { updateBookingStatus, handleEarlyPickup, handleReturn, updateBookingDates, updateBookingDrivers } from "@/actions/bookings";
-import { formatDate, getBookingDisplayStatus, getStatusColor, getStatusBg, getFullName } from "@/lib/utils";
+import { formatDate, formatDateInput, getBookingDisplayStatus, getStatusColor, getStatusBg, getFullName } from "@/lib/utils";
 import styles from "../bookings.module.css";
 
 export default function BookingDetailClient({ booking }: { booking: any }) {
@@ -38,8 +38,8 @@ export default function BookingDetailClient({ booking }: { booking: any }) {
   const [returnMileage, setReturnMileage] = useState(String(booking.vehicle.mileage || 0));
   const [isEditDatesModalOpen, setIsEditDatesModalOpen] = useState(false);
   const [editDatesLoading, setEditDatesLoading] = useState(false);
-  const [editStartDate, setEditStartDate] = useState(new Date(booking.startDate).toISOString().split("T")[0]);
-  const [editEndDate, setEditEndDate] = useState(new Date(booking.endDate).toISOString().split("T")[0]);
+  const [editStartDate, setEditStartDate] = useState(formatDateInput(booking.startDate));
+  const [editEndDate, setEditEndDate] = useState(formatDateInput(booking.endDate));
   const [editPricePerDay, setEditPricePerDay] = useState(booking.pricePerDay ?? booking.vehicle.dailyRate);
   const [isEditDriversModalOpen, setIsEditDriversModalOpen] = useState(false);
   const [editDriversLoading, setEditDriversLoading] = useState(false);
@@ -207,8 +207,8 @@ export default function BookingDetailClient({ booking }: { booking: any }) {
                   variant="ghost"
                   icon={<Edit3 size={14} />}
                   onClick={() => {
-                    setEditStartDate(new Date(booking.startDate).toISOString().split("T")[0]);
-                    setEditEndDate(new Date(booking.endDate).toISOString().split("T")[0]);
+                    setEditStartDate(formatDateInput(booking.startDate));
+                    setEditEndDate(formatDateInput(booking.endDate));
                     setEditPricePerDay(booking.pricePerDay ?? booking.vehicle.dailyRate);
                     setIsEditDatesModalOpen(true);
                   }}
@@ -353,8 +353,8 @@ export default function BookingDetailClient({ booking }: { booking: any }) {
                 style={{ display: "flex", justifyContent: "space-between", cursor: booking.status !== "COMPLETED" && booking.status !== "CANCELLED" ? "pointer" : "default", borderRadius: "6px", padding: "4px 0" }}
                 onClick={() => {
                   if (booking.status === "COMPLETED" || booking.status === "CANCELLED") return;
-                  setEditStartDate(new Date(booking.startDate).toISOString().split("T")[0]);
-                  setEditEndDate(new Date(booking.endDate).toISOString().split("T")[0]);
+                  setEditStartDate(formatDateInput(booking.startDate));
+                  setEditEndDate(formatDateInput(booking.endDate));
                   setEditPricePerDay(booking.pricePerDay ?? booking.vehicle.dailyRate);
                   setIsEditDatesModalOpen(true);
                 }}
