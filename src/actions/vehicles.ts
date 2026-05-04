@@ -7,6 +7,7 @@ import { requireCompanyId } from "@/lib/company";
 import { canPerform } from "@/lib/permissions";
 import { requireCompanyAdminAccess } from "@/actions/companyAuth";
 import { logAuditAction } from "@/lib/audit";
+import { getBusinessStartOfToday } from "@/lib/businessTime";
 
 // ─── Types ───────────────────────────────────────────────────────
 interface VehicleInput {
@@ -46,6 +47,41 @@ type ImportedVehicle = {
 };
 
 const PDF_FUEL_VALUES = new Set(["DIESEL", "ESSENCE", "HYBRIDE", "HYBRID", "GASOLINE"]);
+
+type VehicleStatusSource = {
+  id: string;
+  status: string;
+  bookings?: { id: string }[];
+};
+
+function resolveDisplayedVehicleStatus(vehicle: VehicleStatusSource, activeMaintenanceVehicleIds: Set<string>) {
+  if ((vehicle.bookings?.length ?? 0) > 0) {
+    return "RENTED";
+  }
+
+  if (activeMaintenanceVehicleIds.has(vehicle.id)) {
+    return "MAINTENANCE";
+  }
+
+  return vehicle.status;
+}
+
+async function getActiveMaintenanceVehicleIds(companyId: string) {
+  const today = getBusinessStartOfToday();
+  const activeMaintenance = await prisma.maintenance.findMany({
+    where: {
+      companyId,
+      serviceDate: { lte: today },
+      OR: [
+        { returnDate: null },
+        { returnDate: { gt: today } },
+      ],
+    },
+    select: { vehicleId: true },
+  });
+
+  return new Set(activeMaintenance.map((maintenance) => maintenance.vehicleId));
+}
 
 function normalizeImportCell(value: string) {
   return value.replace(/\s+/g, " ").trim();
@@ -278,12 +314,9 @@ export async function getVehicles(params?: {
   search?: string;
 }) {
   const companyId = await requireCompanyId();
+  const today = getBusinessStartOfToday();
   const where: Record<string, unknown> = {};
   where.companyId = companyId;
-
-  if (params?.status && params.status !== "ALL") {
-    where.status = params.status;
-  }
 
   if (params?.search) {
     where.OR = [
@@ -298,7 +331,16 @@ export async function getVehicles(params?: {
     orderBy: { createdAt: "desc" },
     include: {
       bookings: {
-        where: { status: "ACTIVE" },
+        where: {
+          OR: [
+            { status: { in: ["ACTIVE", "LATE"] } },
+            {
+              status: "CONFIRMED",
+              startDate: { lte: today },
+              endDate: { gte: today },
+            },
+          ],
+        },
         take: 1,
         select: { id: true },
       },
@@ -313,8 +355,17 @@ export async function getVehicles(params?: {
     },
   });
 
+  const activeMaintenanceVehicleIds = await getActiveMaintenanceVehicleIds(companyId);
+  const resolvedVehicles = vehicles.map((vehicle) => ({
+    ...vehicle,
+    status: resolveDisplayedVehicleStatus(vehicle, activeMaintenanceVehicleIds),
+  }));
 
-  return vehicles;
+  if (params?.status && params.status !== "ALL") {
+    return resolvedVehicles.filter((vehicle) => vehicle.status === params.status);
+  }
+
+  return resolvedVehicles;
 }
 
 // ─── Get All Vehicles With Their Bookings (for booking calendar) ──
@@ -408,7 +459,8 @@ export async function getVehiclesForMaintenance() {
 // ─── Get Single Vehicle ──────────────────────────────────────────
 export async function getVehicle(id: string) {
   const companyId = await requireCompanyId();
-  return prisma.vehicle.findFirst({
+  const today = getBusinessStartOfToday();
+  const vehicle = await prisma.vehicle.findFirst({
     where: { id, companyId },
     include: {
       bookings: {
@@ -422,6 +474,33 @@ export async function getVehicle(id: string) {
       },
     },
   });
+
+  if (!vehicle) return null;
+
+  const activeBooking = await prisma.booking.findFirst({
+    where: {
+      companyId,
+      vehicleId: id,
+      OR: [
+        { status: { in: ["ACTIVE", "LATE"] } },
+        {
+          status: "CONFIRMED",
+          startDate: { lte: today },
+          endDate: { gte: today },
+        },
+      ],
+    },
+    select: { id: true },
+  });
+  const activeMaintenanceVehicleIds = await getActiveMaintenanceVehicleIds(companyId);
+
+  return {
+    ...vehicle,
+    status: resolveDisplayedVehicleStatus(
+      { id: vehicle.id, status: vehicle.status, bookings: activeBooking ? [activeBooking] : [] },
+      activeMaintenanceVehicleIds
+    ),
+  };
 }
 
 // ─── Create Vehicle ──────────────────────────────────────────────
@@ -698,12 +777,43 @@ export async function deleteVehicle(id: string): Promise<ActionResult> {
 // ─── Get Vehicle Stats ───────────────────────────────────────────
 export async function getVehicleStats() {
   const companyId = await requireCompanyId();
-  const [total, available, rented, maintenance] = await Promise.all([
-    prisma.vehicle.count({ where: { companyId } }),
-    prisma.vehicle.count({ where: { companyId, status: "AVAILABLE" } }),
-    prisma.vehicle.count({ where: { companyId, status: "RENTED" } }),
-    prisma.vehicle.count({ where: { companyId, status: "MAINTENANCE" } }),
+  const today = getBusinessStartOfToday();
+  const [vehicles, activeMaintenanceVehicleIds] = await Promise.all([
+    prisma.vehicle.findMany({
+      where: { companyId },
+      select: {
+        id: true,
+        status: true,
+        bookings: {
+          where: {
+            OR: [
+              { status: { in: ["ACTIVE", "LATE"] } },
+              {
+                status: "CONFIRMED",
+                startDate: { lte: today },
+                endDate: { gte: today },
+              },
+            ],
+          },
+          take: 1,
+          select: { id: true },
+        },
+      },
+    }),
+    getActiveMaintenanceVehicleIds(companyId),
   ]);
 
-  return { total, available, rented, maintenance };
+  const stats = vehicles.reduce(
+    (acc, vehicle) => {
+      const status = resolveDisplayedVehicleStatus(vehicle, activeMaintenanceVehicleIds);
+      acc.total += 1;
+      if (status === "AVAILABLE") acc.available += 1;
+      if (status === "RENTED") acc.rented += 1;
+      if (status === "MAINTENANCE") acc.maintenance += 1;
+      return acc;
+    },
+    { total: 0, available: 0, rented: 0, maintenance: 0 }
+  );
+
+  return stats;
 }

@@ -57,6 +57,7 @@ export default function MaintenanceClient({ logs }: MaintenanceClientProps) {
       setResolving(null);
       if (res.success) {
         toast(t("maintenance.successMsg"), "success");
+        router.refresh();
       } else {
         toast(res.message, "error");
       }
@@ -71,6 +72,7 @@ export default function MaintenanceClient({ logs }: MaintenanceClientProps) {
       setResolving(null);
       if (res.success) {
         toast(res.message, "success");
+        router.refresh();
       } else {
         toast(res.message, "error");
       }
@@ -85,6 +87,7 @@ export default function MaintenanceClient({ logs }: MaintenanceClientProps) {
       setResolving(null);
       if (res.success) {
         toast(res.message, "success");
+        router.refresh();
       } else {
         toast(res.message, "error");
       }

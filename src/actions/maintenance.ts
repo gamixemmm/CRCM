@@ -7,6 +7,7 @@ import { canPerform } from "@/lib/permissions";
 import { requireCompanyAdminAccess } from "@/actions/companyAuth";
 import { logAuditAction } from "@/lib/audit";
 import { getBusinessStartOfToday } from "@/lib/businessTime";
+import type { Prisma } from "@/generated/prisma/client";
 
 interface MaintenanceInput {
   vehicleId: string;
@@ -19,6 +20,54 @@ interface MaintenanceInput {
   type: string;
   partsUsed: string[];
   mileageAtService?: number;
+}
+
+async function resolveVehicleStatus(tx: Prisma.TransactionClient, companyId: string, vehicleId: string) {
+  const today = getBusinessStartOfToday();
+
+  const activeBookings = await tx.booking.count({
+    where: {
+      companyId,
+      vehicleId,
+      OR: [
+        { status: { in: ["ACTIVE", "LATE"] } },
+        {
+          status: "CONFIRMED",
+          startDate: { lte: today },
+          endDate: { gte: today },
+        },
+      ],
+    },
+  });
+
+  if (activeBookings > 0) {
+    return "RENTED";
+  }
+
+  const activeMaintenance = await tx.maintenance.count({
+    where: {
+      companyId,
+      vehicleId,
+      serviceDate: { lte: today },
+      OR: [
+        { returnDate: null },
+        { returnDate: { gt: today } },
+      ],
+    },
+  });
+
+  return activeMaintenance > 0 ? "MAINTENANCE" : "AVAILABLE";
+}
+
+async function syncVehicleStatus(tx: Prisma.TransactionClient, companyId: string, vehicleId: string) {
+  const status = await resolveVehicleStatus(tx, companyId, vehicleId);
+
+  await tx.vehicle.update({
+    where: { id: vehicleId },
+    data: { status },
+  });
+
+  return status;
 }
 
 export async function getMaintenanceLog(id: string) {
@@ -80,8 +129,6 @@ export async function updateMaintenance(id: string, input: Partial<MaintenanceIn
       return { success: false, message: "New mileage cannot be less than current mileage" };
     }
 
-    const today = getBusinessStartOfToday();
-
     const data: Record<string, unknown> = {};
     if (input.serviceDate !== undefined) data.serviceDate = new Date(input.serviceDate);
     if (input.returnDate !== undefined) data.returnDate = input.returnDate ? new Date(input.returnDate) : null;
@@ -95,27 +142,18 @@ export async function updateMaintenance(id: string, input: Partial<MaintenanceIn
 
     const updated = await prisma.$transaction(async (tx) => {
       const log = await tx.maintenance.update({ where: { id }, data });
-      const returnDate = log.returnDate ? new Date(log.returnDate) : null;
-      returnDate?.setHours(0, 0, 0, 0);
-      const serviceDate = new Date(log.serviceDate);
-      serviceDate.setHours(0, 0, 0, 0);
-      const isActiveMaintenance = serviceDate <= today && (!returnDate || returnDate > today);
 
       if (input.mileageAtService !== undefined) {
         await tx.vehicle.update({
           where: { id: current.vehicleId },
           data: {
             mileage: input.mileageAtService,
-            ...(current.vehicle.status !== "RENTED" ? { status: isActiveMaintenance ? "MAINTENANCE" : "AVAILABLE" } : {}),
           },
         });
-      } else if ((input.serviceDate !== undefined || input.returnDate !== undefined) && current.vehicle.status !== "RENTED") {
-        await tx.vehicle.update({
-          where: { id: current.vehicleId },
-          data: {
-            status: isActiveMaintenance ? "MAINTENANCE" : "AVAILABLE",
-          },
-        });
+      }
+
+      if (input.mileageAtService !== undefined || input.serviceDate !== undefined || input.returnDate !== undefined) {
+        await syncVehicleStatus(tx, companyId, current.vehicleId);
       }
 
       return log;
@@ -279,11 +317,7 @@ export async function resolveMaintenance(id: string, returnDate?: string) {
         },
       });
 
-      // Free up vehicle
-      await tx.vehicle.update({
-        where: { id: current.vehicleId },
-        data: { status: "AVAILABLE" },
-      });
+      await syncVehicleStatus(tx, companyId, current.vehicleId);
 
     });
 
@@ -298,7 +332,7 @@ export async function resolveMaintenance(id: string, returnDate?: string) {
       message: `${session.name} resolved maintenance log`,
     });
 
-    return { success: true, message: "Maintenance resolved, vehicle is available" };
+    return { success: true, message: "Maintenance resolved" };
   } catch (error) {
     console.error(error);
     return { success: false, message: "Failed to resolve maintenance" };
@@ -358,16 +392,7 @@ export async function deleteMaintenance(id: string) {
 
       await tx.maintenance.delete({ where: { id } });
 
-      // If the log was actively holding the vehicle hostage, free it up.
-      const today = getBusinessStartOfToday();
-      const returnDate = log.returnDate ? new Date(log.returnDate) : null;
-      returnDate?.setHours(0, 0, 0, 0);
-      if (!returnDate || returnDate > today) {
-        await tx.vehicle.update({
-          where: { id: log.vehicleId },
-          data: { status: "AVAILABLE" },
-        });
-      }
+      await syncVehicleStatus(tx, companyId, log.vehicleId);
     });
 
     revalidatePath("/maintenance");
