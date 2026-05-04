@@ -52,6 +52,9 @@ const MAINTENANCE_VALUE_KEYS: Record<string, TranslationKey> = {
   "Suspension": "maintenance.value.suspension",
   "Jante": "maintenance.value.rim",
   "Peinture": "maintenance.value.paint",
+  "Climatisation": "maintenance.value.ac",
+  "La clime": "maintenance.value.acSystem",
+  "Filtre de la clime": "maintenance.value.acFilter",
 };
 
 export interface MaintenanceDetailGroup {

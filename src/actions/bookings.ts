@@ -60,6 +60,16 @@ function parseBusinessDateInput(value: string) {
   return zonedDateTimeToUtc(year, month - 1, day);
 }
 
+function getInvoicePaidTotal(invoice: { totalAmount: number; amountDue: number; depositPaid?: number | null }) {
+  return Math.max(0, (invoice.totalAmount || 0) - (invoice.amountDue || 0));
+}
+
+function getPaymentStatus(totalAmount: number, amountDue: number, paidTotal: number) {
+  if (amountDue === 0 && totalAmount > 0) return "PAID";
+  if (paidTotal > 0) return "PARTIAL";
+  return "PENDING";
+}
+
 async function syncLateBookings(companyId: string) {
   const today = startOfToday();
   const overdueBookings = await prisma.booking.findMany({
@@ -97,15 +107,15 @@ async function syncLateBookings(companyId: string) {
       });
 
       if (booking.invoice) {
-        const deposit = booking.invoice.depositPaid ?? 0;
-        const newAmountDue = Math.max(0, newTotal - deposit);
+        const paidTotal = getInvoicePaidTotal(booking.invoice);
+        const newAmountDue = Math.max(0, newTotal - paidTotal);
         await tx.invoice.update({
           where: { id: booking.invoice.id },
           data: {
             subtotal: newTotal,
             totalAmount: newTotal,
             amountDue: newAmountDue,
-            paymentStatus: newAmountDue === 0 && newTotal > 0 ? "PAID" : deposit > 0 ? "PARTIAL" : "PENDING",
+            paymentStatus: getPaymentStatus(newTotal, newAmountDue, paidTotal),
           },
         });
       }
@@ -564,15 +574,15 @@ export async function handleEarlyPickup(bookingId: string, updateDate: boolean) 
 
         // Update invoice if it exists
         if (booking.invoice) {
-          const deposit = booking.invoice.depositPaid ?? 0;
-          const newAmountDue = Math.max(0, newTotal - deposit);
+          const paidTotal = getInvoicePaidTotal(booking.invoice);
+          const newAmountDue = Math.max(0, newTotal - paidTotal);
           await tx.invoice.update({
             where: { id: booking.invoice.id },
             data: {
               subtotal: newTotal,
               totalAmount: newTotal,
               amountDue: newAmountDue,
-              paymentStatus: newAmountDue === 0 && newTotal > 0 ? "PAID" : deposit > 0 ? "PARTIAL" : "PENDING",
+              paymentStatus: getPaymentStatus(newTotal, newAmountDue, paidTotal),
             },
           });
         }
@@ -661,15 +671,15 @@ export async function handleReturn(bookingId: string, updateDate: boolean, newMi
 
         // Update invoice if it exists
         if (booking.invoice) {
-          const deposit = booking.invoice.depositPaid ?? 0;
-          const newAmountDue = Math.max(0, newTotal - deposit);
+          const paidTotal = getInvoicePaidTotal(booking.invoice);
+          const newAmountDue = Math.max(0, newTotal - paidTotal);
           await tx.invoice.update({
             where: { id: booking.invoice.id },
             data: {
               subtotal: newTotal,
               totalAmount: newTotal,
               amountDue: newAmountDue,
-              paymentStatus: newAmountDue === 0 && newTotal > 0 ? "PAID" : deposit > 0 ? "PARTIAL" : "PENDING",
+              paymentStatus: getPaymentStatus(newTotal, newAmountDue, paidTotal),
             },
           });
         }
@@ -795,15 +805,15 @@ export async function updateBookingDates(bookingId: string, newStartDate: string
 
       // Update invoice if it exists
       if (booking.invoice) {
-        const deposit = booking.invoice.depositPaid ?? 0;
-        const newAmountDue = Math.max(0, newTotal - deposit);
+        const paidTotal = getInvoicePaidTotal(booking.invoice);
+        const newAmountDue = Math.max(0, newTotal - paidTotal);
         await tx.invoice.update({
           where: { id: booking.invoice.id },
           data: {
             subtotal: newTotal,
             totalAmount: newTotal,
             amountDue: newAmountDue,
-            paymentStatus: newAmountDue === 0 && newTotal > 0 ? "PAID" : deposit > 0 ? "PARTIAL" : "PENDING",
+            paymentStatus: getPaymentStatus(newTotal, newAmountDue, paidTotal),
           },
         });
       }

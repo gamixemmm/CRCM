@@ -12,6 +12,7 @@ export const EXPENSE_CATEGORIES = [
   "Salaire",
   "CNSS",
   "Loyer",
+  "Mouvement",
   "Comptabilité",
   "Autre",
 ] as const;
@@ -32,6 +33,7 @@ const CATEGORY_TRANSLATION_KEYS: Record<string, TranslationKey> = {
   Salaire: "expenses.cat.salary",
   CNSS: "expenses.cat.cnss",
   Loyer: "expenses.cat.rent",
+  Mouvement: "expenses.cat.movement",
   Comptabilité: "expenses.cat.accounting",
   Autre: "expenses.cat.other",
 };
@@ -42,6 +44,7 @@ const CATEGORY_ALIASES: Record<string, string> = {
   "Technical Inspection": "Visite technique",
   Salary: "Salaire",
   Rent: "Loyer",
+  Movement: "Mouvement",
   Accounting: "Comptabilité",
   Other: "Autre",
   "ComptabilitÃ©": "Comptabilité",
@@ -66,6 +69,10 @@ export function translateExpenseDescription(description: string | null | undefin
 
   if (description.startsWith("Paiement salaire - ")) {
     return `${translate("expenses.desc.salaryPayment")} - ${description.slice("Paiement salaire - ".length)}`;
+  }
+
+  if (description.startsWith("Movement payment - ")) {
+    return `${translate("expenses.desc.movementPayment")} - ${description.slice("Movement payment - ".length)}`;
   }
 
   if (description === "Insurance payment" || description === "Paiement assurance") {

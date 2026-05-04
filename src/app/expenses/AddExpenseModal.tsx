@@ -14,7 +14,7 @@ interface AddExpenseModalProps {
   onClose: () => void;
   vehicles: any[];
   editingExpense?: any | null;
-  mode?: "general" | "car" | "cnss" | "rent" | "vignette" | "accounting";
+  mode?: "general" | "car" | "cnss" | "rent" | "vignette" | "accounting" | "movement";
   initialVehicleId?: string;
   initialDate?: string;
   onSuccess?: () => void;
@@ -26,6 +26,7 @@ const defaultForm = {
   amount: "",
   description: "",
   vehicleId: "",
+  driverName: "",
 };
 
 export default function AddExpenseModal({ isOpen, onClose, vehicles, editingExpense, mode = "general", initialVehicleId, initialDate, onSuccess }: AddExpenseModalProps) {
@@ -40,6 +41,7 @@ export default function AddExpenseModal({ isOpen, onClose, vehicles, editingExpe
   const isRentMode = mode === "rent" && !isEditMode;
   const isVignetteMode = mode === "vignette" && !isEditMode;
   const isAccountingMode = mode === "accounting" && !isEditMode;
+  const isMovementMode = mode === "movement" && !isEditMode;
 
   const activeCategories = isCarExpenseMode
     ? CAR_EXPENSE_CATEGORIES
@@ -51,7 +53,9 @@ export default function AddExpenseModal({ isOpen, onClose, vehicles, editingExpe
           ? ["Vignette"]
           : isAccountingMode
             ? ["Comptabilité"]
-            : EXPENSE_CATEGORIES;
+            : isMovementMode
+              ? ["Mouvement"]
+              : EXPENSE_CATEGORIES;
 
   useEffect(() => {
     if (editingExpense) {
@@ -61,6 +65,7 @@ export default function AddExpenseModal({ isOpen, onClose, vehicles, editingExpe
         amount: editingExpense.amount.toString(),
         description: editingExpense.description || "",
         vehicleId: editingExpense.vehicleId || "",
+        driverName: "",
       });
     } else {
       let initialCategory = defaultForm.category;
@@ -68,6 +73,7 @@ export default function AddExpenseModal({ isOpen, onClose, vehicles, editingExpe
       if (mode === "cnss") initialCategory = "CNSS";
       if (mode === "rent") initialCategory = "Loyer";
       if (mode === "vignette") initialCategory = "Vignette";
+      if (mode === "movement") initialCategory = "Mouvement";
       if (mode === "accounting") initialCategory = "Comptabilité";
 
       setFormData({
@@ -87,7 +93,7 @@ export default function AddExpenseModal({ isOpen, onClose, vehicles, editingExpe
       date: formData.date,
       category: formData.category,
       amount: parseFloat(formData.amount),
-      description: formData.description,
+      description: isMovementMode ? `Movement payment - ${formData.driverName.trim()}` : formData.description,
       vehicleId: formData.vehicleId || undefined,
     };
 
@@ -97,8 +103,14 @@ export default function AddExpenseModal({ isOpen, onClose, vehicles, editingExpe
       return;
     }
 
-    if (isCarExpenseMode && !data.vehicleId) {
+    if ((isCarExpenseMode || isMovementMode) && !data.vehicleId) {
       toast(t("expenses.vehicleRequired"), "error");
+      setLoading(false);
+      return;
+    }
+
+    if (isMovementMode && !formData.driverName.trim()) {
+      toast(t("expenses.driverRequired"), "error");
       setLoading(false);
       return;
     }
@@ -113,7 +125,7 @@ export default function AddExpenseModal({ isOpen, onClose, vehicles, editingExpe
       onSuccess?.();
       setFormData({
         ...defaultForm,
-        category: mode === "car" ? CAR_EXPENSE_CATEGORIES[0] : (mode === "rent" ? "Loyer" : (mode === "cnss" ? "CNSS" : (mode === "accounting" ? "Comptabilité" : defaultForm.category))),
+        category: mode === "car" ? CAR_EXPENSE_CATEGORIES[0] : (mode === "rent" ? "Loyer" : (mode === "cnss" ? "CNSS" : (mode === "accounting" ? "Comptabilité" : (mode === "movement" ? "Mouvement" : defaultForm.category)))),
       });
     } else {
       toast(res.message, "error");
@@ -130,9 +142,11 @@ export default function AddExpenseModal({ isOpen, onClose, vehicles, editingExpe
         ? t("expenses.modalTitleRent")
         : isAccountingMode
           ? t("expenses.modalTitleAccounting")
-          : isCarExpenseMode
-            ? t("expenses.modalTitleCar")
-            : t("expenses.modalTitleAdd");
+          : isMovementMode
+            ? t("expenses.modalTitleMovement")
+            : isCarExpenseMode
+              ? t("expenses.modalTitleCar")
+              : t("expenses.modalTitleAdd");
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={modalTitle}>
@@ -181,10 +195,10 @@ export default function AddExpenseModal({ isOpen, onClose, vehicles, editingExpe
         {!isCnssMode && !isRentMode && !isAccountingMode && (
           <div>
             <label className={styles.modalLabel}>
-              {isCarExpenseMode ? t("expenses.vehicleRequiredLabel") : t("expenses.vehicleOptional")}
+              {(isCarExpenseMode || isMovementMode) ? t("expenses.vehicleRequiredLabel") : t("expenses.vehicleOptional")}
             </label>
             <select
-              required={isCarExpenseMode}
+              required={isCarExpenseMode || isMovementMode}
               value={formData.vehicleId}
               onChange={(e) => setFormData({ ...formData, vehicleId: e.target.value })}
               className={styles.modalSelect}
@@ -199,14 +213,27 @@ export default function AddExpenseModal({ isOpen, onClose, vehicles, editingExpe
           </div>
         )}
 
-        <div>
-          <label className={styles.modalLabel}>{t("expenses.descriptionOptional")}</label>
-          <textarea
-            value={formData.description}
-            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-            className={styles.modalTextarea}
-          />
-        </div>
+        {isMovementMode ? (
+          <div>
+            <label className={styles.modalLabel}>{t("expenses.driverName")}</label>
+            <input
+              type="text"
+              required
+              value={formData.driverName}
+              onChange={(e) => setFormData({ ...formData, driverName: e.target.value })}
+              className={styles.modalInput}
+            />
+          </div>
+        ) : (
+          <div>
+            <label className={styles.modalLabel}>{t("expenses.descriptionOptional")}</label>
+            <textarea
+              value={formData.description}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              className={styles.modalTextarea}
+            />
+          </div>
+        )}
 
         <div className={styles.modalFooter}>
           <Button variant="ghost" onClick={onClose} type="button">{t("action.cancel")}</Button>

@@ -98,6 +98,9 @@ const MAINTENANCE_VALUE_KEYS: Record<string, TranslationKey> = {
   "Portière droite": "maintenance.value.rightDoor",
   "Feu arrière": "maintenance.value.tailLight",
   "Rétroviseur": "maintenance.value.mirror",
+  "Climatisation": "maintenance.value.ac",
+  "La clime": "maintenance.value.acSystem",
+  "Filtre de la clime": "maintenance.value.acFilter",
 };
 
 export default function MaintenanceForm({
@@ -145,6 +148,7 @@ export default function MaintenanceForm({
     "Disques de frein",
     "Équilibrage & parallélisme",
     "Réparation après accident",
+    "Climatisation",
     "Autre"
   ];
 
@@ -221,6 +225,14 @@ export default function MaintenanceForm({
       "Suspension",
       "Jante",
       "Peinture",
+    ],
+  };
+
+  INTERVENTION_DETAILS["Climatisation"] = {
+    title: "Climatisation",
+    options: [
+      "La clime",
+      "Filtre de la clime",
     ],
   };
 
