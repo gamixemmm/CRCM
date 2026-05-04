@@ -44,7 +44,7 @@ export async function getExpense(id: string) {
   });
 }
 
-export async function getExpensesPdfExportData(startDate: string, endDate: string) {
+export async function getExpensesPdfExportData(startDate: string, endDate: string, category?: string) {
   try {
     const session = await requireCompanyAdminAccess();
     if (!canPerform(session, ["VIEW_EXPENSES"])) {
@@ -63,6 +63,7 @@ export async function getExpensesPdfExportData(startDate: string, endDate: strin
     }
 
     const companyId = await requireCompanyId();
+    const normalizedCategory = category && category !== "All" ? normalizeExpenseCategory(category) : null;
     const endExclusive = parseExpenseDateInput(new Date(end.getTime() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10));
     const [company, expenses] = await Promise.all([
       prisma.company.findUnique({
@@ -72,6 +73,7 @@ export async function getExpensesPdfExportData(startDate: string, endDate: strin
       prisma.expense.findMany({
         where: {
           companyId,
+          ...(normalizedCategory ? { category: normalizedCategory } : {}),
           date: {
             gte: start,
             lt: endExclusive || new Date(end.getTime() + 24 * 60 * 60 * 1000),
@@ -88,6 +90,7 @@ export async function getExpensesPdfExportData(startDate: string, endDate: strin
         companyName: company?.name || session.companyName || "Company",
         startDate,
         endDate,
+        category: normalizedCategory,
         expenses: JSON.parse(JSON.stringify(expenses)),
       },
     };

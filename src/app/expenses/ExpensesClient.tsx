@@ -139,7 +139,8 @@ export default function ExpensesClient({ expenses, overallRevenue, vehicles }: E
     }
 
     setExportingPdf(true);
-    const result = await getExpensesPdfExportData(startDate, endDate);
+    const exportCategory = categoryFilter === "All" ? undefined : categoryFilter;
+    const result = await getExpensesPdfExportData(startDate, endDate, exportCategory);
     setExportingPdf(false);
 
     if (!result.success || !result.data) {
@@ -161,6 +162,8 @@ export default function ExpensesClient({ expenses, overallRevenue, vehicles }: E
         title: t("expenses.reportTitle"),
         generated: t("bookings.reportGenerated"),
         period: t("expenses.reportPeriod"),
+        category: t("expenses.category"),
+        allCategories: t("label.all"),
         totalSpent: t("expenses.reportTotalSpent"),
         expenseCount: t("expenses.reportExpenseCount"),
         averageExpense: t("expenses.reportAverageExpense"),

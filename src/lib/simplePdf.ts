@@ -72,6 +72,8 @@ type ExpensesReportLabels = {
   title: string;
   generated: string;
   period: string;
+  category: string;
+  allCategories: string;
   totalSpent: string;
   expenseCount: string;
   averageExpense: string;
@@ -459,6 +461,7 @@ export function createExpensesReportPdf({
   companyName,
   startDate,
   endDate,
+  category,
   expenses,
   labels,
   locale,
@@ -466,6 +469,7 @@ export function createExpensesReportPdf({
   companyName: string;
   startDate: string;
   endDate: string;
+  category?: string | null;
   expenses: any[];
   labels: ExpensesReportLabels;
   locale?: string;
@@ -493,15 +497,14 @@ export function createExpensesReportPdf({
 
   pdf.paragraph(`${companyName} - ${labels.generated}: ${formatPdfDate(generatedAt, locale)}`);
   pdf.paragraph(`${labels.period}: ${formatPdfDate(startDate, locale)} - ${formatPdfDate(endDate, locale)}`);
-  pdf.paragraph(
-    [
-      `${labels.totalSpent}: ${formatPdfMoney(totalSpent)}`,
-      `${labels.expenseCount}: ${expenses.length}`,
-      `${labels.averageExpense}: ${formatPdfMoney(averageExpense)}`,
-      `${labels.topCategory}: ${topCategory ? `${topCategory.category} (${formatPdfMoney(topCategory.total)})` : "-"}`,
-      `${labels.largestExpense}: ${largestExpense ? `${formatPdfMoney(largestExpense.amount || 0)} - ${clean(largestExpense.description)}` : "-"}`,
-    ].join(" / ")
-  );
+  pdf.paragraph(`${labels.category}: ${category || labels.allCategories}`);
+  [
+    `${labels.totalSpent}: ${formatPdfMoney(totalSpent)}`,
+    `${labels.expenseCount}: ${expenses.length}`,
+    `${labels.averageExpense}: ${formatPdfMoney(averageExpense)}`,
+    `${labels.topCategory}: ${topCategory ? `${topCategory.category} (${formatPdfMoney(topCategory.total)})` : "-"}`,
+    `${labels.largestExpense}: ${largestExpense ? `${formatPdfMoney(largestExpense.amount || 0)} - ${clean(largestExpense.description)}` : "-"}`,
+  ].forEach((line) => pdf.paragraph(line));
 
   pdf.heading(labels.analytics);
   pdf.table(
