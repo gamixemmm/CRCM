@@ -11,6 +11,8 @@ import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
 import { useSettings } from "@/lib/SettingsContext";
 import { formatDate } from "@/lib/utils";
+import { translateExpenseCategory, translateExpenseDescription } from "@/lib/expenseCategories";
+import type { TranslationKey } from "@/lib/translations";
 import styles from "./logs.module.css";
 
 type AuditLog = {
@@ -49,6 +51,134 @@ export default function LogsClient({ logs }: { logs: AuditLog[] }) {
   const actions = useMemo(() => ["All", ...Array.from(new Set(logs.map((log) => log.action))).sort()], [logs]);
   const entityTypes = useMemo(() => ["All", ...Array.from(new Set(logs.map((log) => log.entityType).filter(Boolean) as string[])).sort()], [logs]);
 
+  const getMetadataString = (log: AuditLog, key: string) => {
+    const value = log.metadata?.[key];
+    return typeof value === "string" && value ? value : null;
+  };
+
+  const getMetadataNumber = (log: AuditLog, key: string) => {
+    const value = log.metadata?.[key];
+    return typeof value === "number" && Number.isFinite(value) ? value : null;
+  };
+
+  const formatEntityType = (entityType: string | null) => {
+    const labels: Record<string, string> = {
+      GlobalSettings: "Cash register",
+      EmployeeSalaryPayment: "Salary payment",
+      EmployeeAccount: "Employee account",
+      EmployeeRole: "Employee role",
+      VignettePayment: "Vignette payment",
+      InsurancePayment: "Insurance payment",
+      TechnicalInspection: "Technical inspection",
+    };
+
+    return entityType ? labels[entityType] || entityType.replace(/([a-z])([A-Z])/g, "$1 $2") : "-";
+  };
+
+  const formatAction = (action: string) => {
+    const labels: Record<string, TranslationKey> = {
+      CREATE_EXPENSE: "logs.action.addedExpense",
+      UPDATE_EXPENSE: "logs.action.updatedExpense",
+      DELETE_EXPENSE: "logs.action.deletedExpense",
+      CREATE_MAINTENANCE: "logs.action.addedMaintenance",
+      UPDATE_MAINTENANCE: "logs.action.updatedMaintenance",
+      RESOLVE_MAINTENANCE: "logs.action.resolvedMaintenance",
+      UNRESOLVE_MAINTENANCE: "logs.action.reopenedMaintenance",
+      DELETE_MAINTENANCE: "logs.action.deletedMaintenance",
+      CREATE_VEHICLE: "logs.action.addedVehicle",
+      UPDATE_VEHICLE: "logs.action.updatedVehicle",
+      DELETE_VEHICLE: "logs.action.deletedVehicle",
+      IMPORT_VEHICLES: "logs.action.importedVehicles",
+      CREATE_BOOKING: "logs.action.addedBooking",
+      UPDATE_BOOKING: "logs.action.updatedBooking",
+      DELETE_BOOKING: "logs.action.deletedBooking",
+      CREATE_CUSTOMER: "logs.action.addedCustomer",
+      UPDATE_CUSTOMER: "logs.action.updatedCustomer",
+      DELETE_CUSTOMER: "logs.action.deletedCustomer",
+      ADD_CASH_REGISTER_AMOUNT: "logs.action.addedCash",
+      REMOVE_CASH_REGISTER_AMOUNT: "logs.action.removedCash",
+      UPDATE_CASH_REGISTER: "logs.action.updatedCashRegister",
+      UPDATE_INVOICE_PAYMENT: "logs.action.paymentRecorded",
+    };
+    const key = labels[action];
+
+    return key ? t(key) : action.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase());
+  };
+
+  const formatLogMessage = (log: AuditLog) => {
+    const vehiclePlate = getMetadataString(log, "vehiclePlate");
+    const vehicleBrand = getMetadataString(log, "vehicleBrand");
+    const vehicleModel = getMetadataString(log, "vehicleModel");
+    const vehicleLabel = vehiclePlate
+      ? `${vehiclePlate}${vehicleBrand || vehicleModel ? ` - ${[vehicleBrand, vehicleModel].filter(Boolean).join(" ")}` : ""}`
+      : null;
+
+    if (log.entityType === "Maintenance" && vehicleLabel) {
+      return `${formatAction(log.action)} ${t("logs.message.for")} ${vehicleLabel}`;
+    }
+
+    if (log.entityType === "Booking") {
+      const driverName = getMetadataString(log, "bookingDriverName");
+      const amount = getMetadataNumber(log, "bookingTotalAmount") ?? getMetadataNumber(log, "totalAmount");
+      const detailParts = [
+        driverName,
+        amount !== null ? String(amount) : null,
+      ].filter(Boolean);
+
+      if (vehicleLabel) {
+        return `${formatAction(log.action)} ${t("logs.message.for")} ${vehicleLabel}${detailParts.length > 0 ? ` - ${detailParts.join(" - ")}` : ""}`;
+      }
+
+      if (detailParts.length > 0) {
+        return `${formatAction(log.action)} - ${detailParts.join(" - ")}`;
+      }
+    }
+
+    if (log.entityType === "Invoice" && log.action === "UPDATE_INVOICE_PAYMENT") {
+      const driverName = getMetadataString(log, "invoiceDriverName");
+      const amount = getMetadataNumber(log, "amountPaid");
+      const detailParts = [
+        driverName,
+        amount !== null ? `${t("logs.message.amountAdded")}: ${amount}` : null,
+      ].filter(Boolean);
+
+      if (vehicleLabel) {
+        return `${formatAction(log.action)} ${t("logs.message.invoiceOfBooking")} ${vehicleLabel}${detailParts.length > 0 ? ` - ${detailParts.join(" - ")}` : ""}`;
+      }
+
+      if (detailParts.length > 0) {
+        return `${formatAction(log.action)} - ${detailParts.join(" - ")}`;
+      }
+    }
+
+    if (log.entityType === "Expense") {
+      const description = translateExpenseDescription(
+        getMetadataString(log, "expenseDescription") || getMetadataString(log, "description"),
+        t
+      );
+      const category = getMetadataString(log, "expenseCategory") || getMetadataString(log, "category");
+      const amount = getMetadataNumber(log, "expenseAmount") ?? getMetadataNumber(log, "amount");
+      const detailParts = [
+        description || (category ? translateExpenseCategory(category, t) : null),
+        amount !== null ? String(amount) : null,
+      ].filter(Boolean);
+
+      if (vehicleLabel) {
+        return `${formatAction(log.action)} ${t("logs.message.for")} ${vehicleLabel}${detailParts.length > 0 ? ` - ${detailParts.join(" - ")}` : ""}`;
+      }
+
+      if (detailParts.length > 0) {
+        return `${formatAction(log.action)} - ${detailParts.join(" - ")}`;
+      }
+    }
+
+    if (log.entityType === "Vehicle" && vehicleLabel) {
+      return `${formatAction(log.action)}: ${vehicleLabel}`;
+    }
+
+    return formatAction(log.action);
+  };
+
   const filteredLogs = useMemo(() => {
     const term = search.trim().toLowerCase();
     return logs.filter((log) => {
@@ -58,6 +188,8 @@ export default function LogsClient({ logs }: { logs: AuditLog[] }) {
         !term ||
         log.message.toLowerCase().includes(term) ||
         log.action.toLowerCase().includes(term) ||
+        formatAction(log.action).toLowerCase().includes(term) ||
+        formatLogMessage(log).toLowerCase().includes(term) ||
         (log.actorName || "").toLowerCase().includes(term) ||
         (log.actorEmail || "").toLowerCase().includes(term) ||
         (log.entityType || "").toLowerCase().includes(term) ||
@@ -73,11 +205,6 @@ export default function LogsClient({ logs }: { logs: AuditLog[] }) {
       );
     });
   }, [logs, search, actor, action, entityType, startDate, endDate]);
-
-  const getMetadataString = (log: AuditLog, key: string) => {
-    const value = log.metadata?.[key];
-    return typeof value === "string" && value ? value : null;
-  };
 
   const getLogHref = (log: AuditLog) => {
     const entityType = log.entityType;
@@ -137,22 +264,24 @@ export default function LogsClient({ logs }: { logs: AuditLog[] }) {
     {
       key: "action",
       label: t("logs.action"),
-      render: (log: AuditLog) => <Badge variant="info">{log.action}</Badge>,
+      render: (log: AuditLog) => <Badge variant="info">{formatAction(log.action)}</Badge>,
     },
     {
       key: "entity",
       label: t("logs.entity"),
       render: (log: AuditLog) => (
         <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-          <strong>{log.entityType || "-"}</strong>
-          <span style={{ color: "var(--text-tertiary)", fontSize: "0.75rem" }}>{log.entityId || ""}</span>
+          <strong>{formatEntityType(log.entityType)}</strong>
+          <span style={{ color: "var(--text-tertiary)", fontSize: "0.75rem" }}>
+            {getMetadataString(log, "vehiclePlate") || log.entityId || ""}
+          </span>
         </div>
       ),
     },
     {
       key: "message",
       label: t("logs.message"),
-      render: (log: AuditLog) => <span>{log.message}</span>,
+      render: (log: AuditLog) => <span>{formatLogMessage(log)}</span>,
     },
   ];
 
@@ -164,10 +293,10 @@ export default function LogsClient({ logs }: { logs: AuditLog[] }) {
         <div className={styles.mobileTopText}>
           <div className={styles.mobileAction}>
             <Activity size={14} />
-            <span>{log.action}</span>
+            <span>{formatAction(log.action)}</span>
           </div>
           <div style={{ fontWeight: 600, color: "var(--text-primary)" }}>
-            {log.entityType || t("logs.entity")}
+            {formatEntityType(log.entityType)}
           </div>
         </div>
         <Badge variant="info">{formatDate(log.createdAt)}</Badge>
@@ -180,11 +309,11 @@ export default function LogsClient({ logs }: { logs: AuditLog[] }) {
         </div>
         <div className={styles.mobileMetaItem}>
           <span className={styles.mobileMetaLabel}>{t("logs.entity")}</span>
-          <span className={styles.mobileMetaValue}>{log.entityId || "-"}</span>
+          <span className={styles.mobileMetaValue}>{getMetadataString(log, "vehiclePlate") || log.entityId || "-"}</span>
         </div>
       </div>
 
-      <div className={styles.mobileMessage}>{log.message}</div>
+      <div className={styles.mobileMessage}>{formatLogMessage(log)}</div>
 
       <div className={styles.mobileFooter}>
         <div style={{ color: "var(--text-tertiary)", fontSize: "0.8125rem" }}>
@@ -212,10 +341,10 @@ export default function LogsClient({ logs }: { logs: AuditLog[] }) {
             {actors.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
           </Select>
           <Select label={t("logs.action")} value={action} onChange={(e) => setAction(e.target.value)}>
-            {actions.map((value) => <option key={value} value={value}>{value === "All" ? t("label.all") : value}</option>)}
+            {actions.map((value) => <option key={value} value={value}>{value === "All" ? t("label.all") : formatAction(value)}</option>)}
           </Select>
           <Select label={t("logs.entity")} value={entityType} onChange={(e) => setEntityType(e.target.value)}>
-            {entityTypes.map((value) => <option key={value} value={value}>{value === "All" ? t("label.all") : value}</option>)}
+            {entityTypes.map((value) => <option key={value} value={value}>{value === "All" ? t("label.all") : formatEntityType(value)}</option>)}
           </Select>
           <Input label={t("logs.from")} type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
           <Input label={t("logs.to")} type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />

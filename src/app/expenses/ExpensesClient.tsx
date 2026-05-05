@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { TrendingDown, CreditCard, Wallet, Calculator, Pencil, Trash2, Car, ShieldCheck, Home, Search, Filter, ArrowUpDown, ArrowUp, ArrowDown, ChevronRight, Download } from "lucide-react";
+import { TrendingDown, CreditCard, Wallet, Calculator, Pencil, Trash2, Car, ShieldCheck, Home, Search, Filter, ArrowUpDown, ArrowUp, ArrowDown, ChevronRight, Download, CircleEllipsis } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Table from "@/components/ui/Table";
 import Input from "@/components/ui/Input";
@@ -443,6 +443,17 @@ export default function ExpensesClient({ expenses, overallRevenue, vehicles }: E
             }}
           >
             {t("expenses.addMovementPayment")}
+          </Button>
+          <Button
+            variant="secondary"
+            icon={<CircleEllipsis size={16} />}
+            onClick={() => {
+              setExpenseMode("general");
+              setEditingExpense(null);
+              setIsModalOpen(true);
+            }}
+          >
+            {t("expenses.addOtherExpense")}
           </Button>
         </div>
       </div>

@@ -8,6 +8,8 @@ export const EXPENSE_CATEGORIES = [
   "Vignette",
   "Assurance",
   "Gasoil",
+  "AdBlue",
+  "Lavage",
   "Visite technique",
   "Salaire",
   "CNSS",
@@ -21,7 +23,10 @@ export const CAR_EXPENSE_CATEGORIES = [
   "Vignette",
   "Assurance",
   "Gasoil",
+  "AdBlue",
+  "Lavage",
   "Visite technique",
+  "Autre",
 ] as const;
 
 const CATEGORY_TRANSLATION_KEYS: Record<string, TranslationKey> = {
@@ -29,6 +34,8 @@ const CATEGORY_TRANSLATION_KEYS: Record<string, TranslationKey> = {
   Vignette: "expenses.cat.vignette",
   Assurance: "expenses.cat.insurance",
   Gasoil: "expenses.cat.fuel",
+  AdBlue: "expenses.cat.adblue",
+  Lavage: "expenses.cat.wash",
   "Visite technique": "expenses.cat.inspection",
   Salaire: "expenses.cat.salary",
   CNSS: "expenses.cat.cnss",
@@ -41,6 +48,11 @@ const CATEGORY_TRANSLATION_KEYS: Record<string, TranslationKey> = {
 const CATEGORY_ALIASES: Record<string, string> = {
   Insurance: "Assurance",
   Fuel: "Gasoil",
+  DEF: "AdBlue",
+  Wash: "Lavage",
+  Washing: "Lavage",
+  CarWash: "Lavage",
+  "Car Wash": "Lavage",
   "Technical Inspection": "Visite technique",
   Salary: "Salaire",
   Rent: "Loyer",

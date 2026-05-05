@@ -9,7 +9,7 @@ import Input, { Textarea } from "@/components/ui/Input";
 import { updateMaintenance } from "@/actions/maintenance";
 import { useSettings } from "@/lib/SettingsContext";
 import { useToast } from "@/components/ui/Toast";
-import { formatDate } from "@/lib/utils";
+import { formatDate, formatDateInput } from "@/lib/utils";
 import { parseMaintenanceDetails, translateMaintenanceText, translateMaintenanceValue } from "@/lib/maintenanceDetails";
 import styles from "../maintenance.module.css";
 
@@ -21,8 +21,8 @@ export default function MaintenanceDetailClient({ log }: { log: any }) {
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
-    serviceDate: new Date(log.serviceDate).toISOString().split("T")[0],
-    returnDate: log.returnDate ? new Date(log.returnDate).toISOString().split("T")[0] : "",
+    serviceDate: formatDateInput(log.serviceDate),
+    returnDate: log.returnDate ? formatDateInput(log.returnDate) : "",
     type: log.type || "",
     description: log.description || "",
     cost: log.cost || 0,
@@ -31,9 +31,8 @@ export default function MaintenanceDetailClient({ log }: { log: any }) {
     partsUsed: (log.partsUsed || []).join("\n"),
     notes: log.notes || "",
   });
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const isActive = !log.returnDate || new Date(log.returnDate) > today;
+  const todayInput = formatDateInput(new Date());
+  const isActive = !log.returnDate || formatDateInput(log.returnDate) > todayInput;
 
   const save = async () => {
     setSaving(true);

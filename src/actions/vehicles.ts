@@ -433,30 +433,59 @@ export async function getVehiclesWithBookings() {
   return vehicles;
 }
 
-// ─── Get All Vehicles With Their Bookings (for maintenance calendar) ──
+// --- Get All Vehicles With Their Bookings (for maintenance calendar) --
 export async function getVehiclesForMaintenance() {
   const companyId = await requireCompanyId();
-  const vehicles = await prisma.vehicle.findMany({
-    where: { companyId },
-    orderBy: { createdAt: "desc" },
-    include: {
-      bookings: {
-        where: {
-          status: { in: ["CONFIRMED", "ACTIVE"] },
-        },
-        select: {
-          startDate: true,
-          endDate: true,
-          status: true,
+  const today = getBusinessStartOfToday();
+  const [vehicles, activeBookings, activeMaintenanceVehicleIds] = await Promise.all([
+    prisma.vehicle.findMany({
+      where: { companyId },
+      orderBy: { createdAt: "desc" },
+      include: {
+        bookings: {
+          where: {
+            status: { in: ["CONFIRMED", "ACTIVE"] },
+          },
+          select: {
+            startDate: true,
+            endDate: true,
+            status: true,
+          },
         },
       },
-    },
-  });
+    }),
+    prisma.booking.findMany({
+      where: {
+        companyId,
+        OR: [
+          { status: { in: ["ACTIVE", "LATE"] } },
+          {
+            status: "CONFIRMED",
+            startDate: { lte: today },
+            endDate: { gte: today },
+          },
+        ],
+      },
+      select: { vehicleId: true },
+    }),
+    getActiveMaintenanceVehicleIds(companyId),
+  ]);
 
-  return vehicles;
+  const activeBookingVehicleIds = new Set(activeBookings.map((booking) => booking.vehicleId));
+
+  return vehicles.map((vehicle) => ({
+    ...vehicle,
+    status: resolveDisplayedVehicleStatus(
+      {
+        id: vehicle.id,
+        status: vehicle.status,
+        bookings: activeBookingVehicleIds.has(vehicle.id) ? [{ id: vehicle.id }] : [],
+      },
+      activeMaintenanceVehicleIds
+    ),
+  }));
 }
 
-// ─── Get Single Vehicle ──────────────────────────────────────────
 export async function getVehicle(id: string) {
   const companyId = await requireCompanyId();
   const today = getBusinessStartOfToday();

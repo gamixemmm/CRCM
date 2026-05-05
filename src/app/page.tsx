@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import DashboardClient from "./DashboardClient";
 import { getCompanyAdminSession } from "@/actions/companyAuth";
+import { getVehicleStats } from "@/actions/vehicles";
 import { redirect } from "next/navigation";
 import { getBusinessDateParts, getBusinessStartOfToday, getBusinessStartOfTomorrow, zonedDateTimeToUtc } from "@/lib/businessTime";
 
@@ -19,10 +20,7 @@ export default async function DashboardPage() {
   const dayAfterTomorrowStart = zonedDateTimeToUtc(tomorrowParts.year, tomorrowParts.month, tomorrowParts.day + 1);
 
   const [
-    vehicleCount,
-    availableCount,
-    rentedCount,
-    maintenanceCount,
+    vehicleStats,
     activeBookings,
     totalCustomers,
     recentBookings,
@@ -34,10 +32,7 @@ export default async function DashboardPage() {
     expenseSummary,
     globalSettings,
   ] = await Promise.all([
-    prisma.vehicle.count({ where: { companyId } }),
-    prisma.vehicle.count({ where: { companyId, status: "AVAILABLE" } }),
-    prisma.vehicle.count({ where: { companyId, status: "RENTED" } }),
-    prisma.vehicle.count({ where: { companyId, status: "MAINTENANCE" } }),
+    getVehicleStats(),
     prisma.booking.count({ where: { companyId, status: { in: ["ACTIVE", "CONFIRMED"] } } }),
     prisma.customer.count({ where: { companyId } }),
     prisma.booking.findMany({
@@ -107,10 +102,10 @@ export default async function DashboardPage() {
   return (
     <DashboardClient
       stats={{
-        vehicleCount,
-        availableCount,
-        rentedCount,
-        maintenanceCount,
+        vehicleCount: vehicleStats.total,
+        availableCount: vehicleStats.available,
+        rentedCount: vehicleStats.rented,
+        maintenanceCount: vehicleStats.maintenance,
         activeBookings,
         totalCustomers,
         overallRevenue,

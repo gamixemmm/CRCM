@@ -8,8 +8,10 @@ import Button from "@/components/ui/Button";
 import Badge from "@/components/ui/Badge";
 import Table from "@/components/ui/Table";
 import Card from "@/components/ui/Card";
+import Input from "@/components/ui/Input";
+import Modal from "@/components/ui/Modal";
 import { useToast } from "@/components/ui/Toast";
-import { formatDate } from "@/lib/utils";
+import { formatDate, formatDateInput } from "@/lib/utils";
 import { formatMaintenanceEntries, translateMaintenanceText } from "@/lib/maintenanceDetails";
 import { resolveMaintenance, unresolveMaintenance, deleteMaintenance } from "@/actions/maintenance";
 import styles from "./maintenance.module.css";
@@ -28,9 +30,10 @@ export default function MaintenanceClient({ logs }: MaintenanceClientProps) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [resolving, setResolving] = useState<string | null>(null);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const isMaintenanceActive = (log: any) => !log.returnDate || new Date(log.returnDate) > today;
+  const [resolveTargetId, setResolveTargetId] = useState<string | null>(null);
+  const [resolveDate, setResolveDate] = useState(() => formatDateInput(new Date()));
+  const todayInput = formatDateInput(new Date());
+  const isMaintenanceActive = (log: any) => !log.returnDate || formatDateInput(log.returnDate) > todayInput;
 
   const filtered = logs.filter((log) => {
     const isActive = isMaintenanceActive(log);
@@ -51,16 +54,26 @@ export default function MaintenanceClient({ logs }: MaintenanceClientProps) {
 
   const handleResolve = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (confirm(t("maintenance.resolveConfirm"))) {
-      setResolving(id);
-      const res = await resolveMaintenance(id);
-      setResolving(null);
-      if (res.success) {
-        toast(t("maintenance.successMsg"), "success");
-        router.refresh();
-      } else {
-        toast(res.message, "error");
-      }
+    setResolveTargetId(id);
+    setResolveDate(formatDateInput(new Date()));
+  };
+
+  const confirmResolve = async () => {
+    if (!resolveTargetId) return;
+    if (!resolveDate) {
+      toast(t("maintenance.resolveDateRequired"), "error");
+      return;
+    }
+
+    setResolving(resolveTargetId);
+    const res = await resolveMaintenance(resolveTargetId, resolveDate);
+    setResolving(null);
+    if (res.success) {
+      toast(t("maintenance.successMsg"), "success");
+      setResolveTargetId(null);
+      router.refresh();
+    } else {
+      toast(res.message, "error");
     }
   };
 
@@ -325,6 +338,44 @@ export default function MaintenanceClient({ logs }: MaintenanceClientProps) {
           </div>
         )}
       </div>
+
+      <Modal
+        isOpen={Boolean(resolveTargetId)}
+        onClose={() => {
+          if (!resolving) setResolveTargetId(null);
+        }}
+        title={t("maintenance.resolve")}
+        size="sm"
+      >
+        <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+          <Input
+            label={t("maintenance.resolutionDate")}
+            type="date"
+            required
+            value={resolveDate}
+            onChange={(e) => setResolveDate(e.target.value)}
+          />
+          <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end" }}>
+            <Button
+              type="button"
+              variant="ghost"
+              disabled={Boolean(resolving)}
+              onClick={() => setResolveTargetId(null)}
+            >
+              {t("action.cancel")}
+            </Button>
+            <Button
+              type="button"
+              variant="success"
+              loading={Boolean(resolving)}
+              icon={<CheckCircle size={16} />}
+              onClick={confirmResolve}
+            >
+              {t("maintenance.done")}
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

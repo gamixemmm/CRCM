@@ -6,7 +6,7 @@ import { requireCompanyId } from "@/lib/company";
 import { canPerform } from "@/lib/permissions";
 import { requireCompanyAdminAccess } from "@/actions/companyAuth";
 import { logAuditAction } from "@/lib/audit";
-import { getBusinessStartOfToday } from "@/lib/businessTime";
+import { getBusinessStartOfToday, zonedDateTimeToUtc } from "@/lib/businessTime";
 import type { Prisma } from "@/generated/prisma/client";
 
 interface MaintenanceInput {
@@ -20,6 +20,12 @@ interface MaintenanceInput {
   type: string;
   partsUsed: string[];
   mileageAtService?: number;
+}
+
+function parseMaintenanceDateInput(value: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return new Date(value);
+  const [year, month, day] = value.split("-").map(Number);
+  return zonedDateTimeToUtc(year, month - 1, day);
 }
 
 async function resolveVehicleStatus(tx: Prisma.TransactionClient, companyId: string, vehicleId: string) {
@@ -130,8 +136,8 @@ export async function updateMaintenance(id: string, input: Partial<MaintenanceIn
     }
 
     const data: Record<string, unknown> = {};
-    if (input.serviceDate !== undefined) data.serviceDate = new Date(input.serviceDate);
-    if (input.returnDate !== undefined) data.returnDate = input.returnDate ? new Date(input.returnDate) : null;
+    if (input.serviceDate !== undefined) data.serviceDate = parseMaintenanceDateInput(input.serviceDate);
+    if (input.returnDate !== undefined) data.returnDate = input.returnDate ? parseMaintenanceDateInput(input.returnDate) : null;
     if (input.description !== undefined) data.description = input.description;
     if (input.cost !== undefined) data.cost = input.cost;
     if (input.serviceProvider !== undefined) data.serviceProvider = input.serviceProvider || null;
@@ -218,10 +224,9 @@ export async function logMaintenance(input: MaintenanceInput) {
       return { success: false, message: "New mileage cannot be less than current mileage" };
     }
 
-    const serviceDate = new Date(input.serviceDate);
+    const serviceDate = parseMaintenanceDateInput(input.serviceDate);
     const today = getBusinessStartOfToday();
-    const returnDate = input.returnDate ? new Date(input.returnDate) : null;
-    returnDate?.setHours(0, 0, 0, 0);
+    const returnDate = input.returnDate ? parseMaintenanceDateInput(input.returnDate) : null;
     const isServiceToday = serviceDate <= today;
     const isStillInMaintenance = !returnDate || returnDate > today;
 
@@ -305,15 +310,20 @@ export async function resolveMaintenance(id: string, returnDate?: string) {
       return { success: false, message: "You do not have permission to manage maintenance." };
     }
     const companyId = await requireCompanyId();
+    let resolvedVehicleMeta: { vehicleId: string; vehiclePlate: string } | null = null;
     await prisma.$transaction(async (tx) => {
-      const current = await tx.maintenance.findFirst({ where: { id, companyId } });
+      const current = await tx.maintenance.findFirst({
+        where: { id, companyId },
+        include: { vehicle: true },
+      });
       if (!current) throw new Error("Log not found");
+      resolvedVehicleMeta = { vehicleId: current.vehicleId, vehiclePlate: current.vehicle.plateNumber };
+      const resolvedReturnDate = returnDate ? parseMaintenanceDateInput(returnDate) : getBusinessStartOfToday();
 
-      // Mark maintenance done
       await tx.maintenance.update({
         where: { id },
         data: {
-          returnDate: returnDate ? new Date(returnDate) : new Date(),
+          returnDate: resolvedReturnDate,
         },
       });
 
@@ -322,6 +332,7 @@ export async function resolveMaintenance(id: string, returnDate?: string) {
     });
 
     revalidatePath("/maintenance");
+    revalidatePath(`/maintenance/${id}`);
     revalidatePath("/vehicles");
     revalidatePath("/");
     await logAuditAction({
@@ -330,6 +341,7 @@ export async function resolveMaintenance(id: string, returnDate?: string) {
       entityType: "Maintenance",
       entityId: id,
       message: `${session.name} resolved maintenance log`,
+      metadata: resolvedVehicleMeta || undefined,
     });
 
     return { success: true, message: "Maintenance resolved" };
