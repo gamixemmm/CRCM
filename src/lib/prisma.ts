@@ -10,7 +10,10 @@ const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 const adapter = new PrismaPg(pool);
 
 function isStalePrismaClient(client: PrismaClient | undefined) {
-  return !!client && typeof (client as PrismaClient & { auditLog?: unknown }).auditLog === "undefined";
+  return !!client && (
+    typeof (client as PrismaClient & { auditLog?: unknown }).auditLog === "undefined" ||
+    typeof (client as PrismaClient & { carInstallmentPayment?: unknown }).carInstallmentPayment === "undefined"
+  );
 }
 
 export const prisma =

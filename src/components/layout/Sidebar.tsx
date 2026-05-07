@@ -19,6 +19,7 @@ import {
   Shield,
   ClipboardList,
   Activity,
+  WalletCards,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useSettings } from "@/lib/SettingsContext";
@@ -36,6 +37,7 @@ const navItems: { labelKey: TranslationKey; href: string; icon: LucideIcon; perm
   { labelKey: "nav.brokers", href: "/customers", icon: Users, permissions: ["VIEW_BROKERS", "MANAGE_BROKERS"] },
   { labelKey: "nav.invoices", href: "/invoices", icon: FileText, permissions: ["VIEW_INVOICES", "MANAGE_INVOICES"] },
   { labelKey: "nav.expenses", href: "/expenses", icon: TrendingDown, permissions: ["VIEW_EXPENSES", "MANAGE_EXPENSES"] },
+  { labelKey: "nav.carInstallments", href: "/car-installments", icon: WalletCards, permissions: ["VIEW_VEHICLES", "MANAGE_VEHICLES"] },
   { labelKey: "nav.vignette", href: "/vignette", icon: ShieldCheck, permissions: ["VIEW_VIGNETTE", "MANAGE_VIGNETTE"] },
   { labelKey: "nav.insurance", href: "/insurance", icon: Shield, permissions: ["VIEW_INSURANCE", "MANAGE_INSURANCE"] },
   { labelKey: "nav.technicalInspection", href: "/technical-inspection", icon: ClipboardCheck, permissions: ["VIEW_TECHNICAL_INSPECTION", "MANAGE_TECHNICAL_INSPECTION"] },
