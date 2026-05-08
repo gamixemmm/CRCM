@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Building2, Lock, LogOut, Plus, ShieldCheck, ShieldOff, UserCog } from "lucide-react";
+import { Building2, Database, Lock, LogOut, Plus, ShieldCheck, ShieldOff, UserCog } from "lucide-react";
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
@@ -11,6 +11,7 @@ import Table from "@/components/ui/Table";
 import { useToast } from "@/components/ui/Toast";
 import {
   createDeveloperCompany,
+  createDeveloperDemoCompany,
   developerLogin,
   developerLogout,
   setDeveloperCompanyActive,
@@ -55,9 +56,18 @@ export default function DeveloperClient({
   const [loginLoading, setLoginLoading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [adminModalOpen, setAdminModalOpen] = useState(false);
+  const [demoModalOpen, setDemoModalOpen] = useState(false);
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
   const [saving, setSaving] = useState(false);
+  const [demoSaving, setDemoSaving] = useState(false);
   const [form, setForm] = useState({ name: "", slug: "", contactEmail: "", notes: "" });
+  const [demoForm, setDemoForm] = useState({
+    profile: "standard" as "compact" | "standard" | "full",
+    name: "",
+    slug: "",
+    adminEmail: "",
+    adminPassword: "Demo12345!",
+  });
   const [adminForm, setAdminForm] = useState({
     name: "",
     email: "",
@@ -101,6 +111,27 @@ export default function DeveloperClient({
       toast(result.message, "success");
       setModalOpen(false);
       setForm({ name: "", slug: "", contactEmail: "", notes: "" });
+      router.refresh();
+    } else {
+      toast(result.message, "error");
+    }
+  };
+
+  const handleCreateDemoCompany = async () => {
+    setDemoSaving(true);
+    const result = await createDeveloperDemoCompany({
+      profile: demoForm.profile,
+      name: demoForm.name,
+      slug: demoForm.slug,
+      adminEmail: demoForm.adminEmail,
+      adminPassword: demoForm.adminPassword,
+    });
+    setDemoSaving(false);
+
+    if (result.success) {
+      toast(result.message, "success");
+      setDemoModalOpen(false);
+      setDemoForm({ profile: "standard", name: "", slug: "", adminEmail: "", adminPassword: "Demo12345!" });
       router.refresh();
     } else {
       toast(result.message, "error");
@@ -283,6 +314,9 @@ export default function DeveloperClient({
               <Button variant="secondary" icon={<LogOut size={16} />} onClick={handleLogout}>
                 Lock
               </Button>
+              <Button variant="secondary" icon={<Database size={16} />} onClick={() => setDemoModalOpen(true)}>
+                Create Demo
+              </Button>
               <Button icon={<Plus size={16} />} onClick={() => setModalOpen(true)}>
                 Add Company
               </Button>
@@ -331,6 +365,68 @@ export default function DeveloperClient({
             </Button>
             <Button type="button" loading={saving} onClick={handleCreateCompany}>
               Save
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal isOpen={demoModalOpen} onClose={() => setDemoModalOpen(false)} title="Create Demo Company" size="sm">
+        <div className={styles.demoForm}>
+          <div className={styles.demoNotice}>
+            Generates a complete tenant with vehicles, brokers, bookings, invoices, expenses, maintenance, employees, insurance, vignette, inspections, and car monthly payments.
+          </div>
+
+          <div className={styles.modalField}>
+            <label className={styles.modalLabel}>Demo Data Size</label>
+            <select
+              value={demoForm.profile}
+              onChange={(event) => setDemoForm({ ...demoForm, profile: event.target.value as "compact" | "standard" | "full" })}
+              className={styles.modalInput}
+            >
+              <option value="compact">Compact - quick sample</option>
+              <option value="standard">Standard - balanced data</option>
+              <option value="full">Full - larger demo</option>
+            </select>
+          </div>
+
+          <Input
+            label="Company Name"
+            value={demoForm.name}
+            onChange={(event) => setDemoForm({ ...demoForm, name: event.target.value })}
+            placeholder="Leave empty to generate"
+          />
+          <Input
+            label="Slug"
+            value={demoForm.slug}
+            onChange={(event) => setDemoForm({ ...demoForm, slug: event.target.value })}
+            placeholder="Leave empty to generate"
+          />
+          <Input
+            label="Admin Email"
+            type="email"
+            value={demoForm.adminEmail}
+            onChange={(event) => setDemoForm({ ...demoForm, adminEmail: event.target.value })}
+            placeholder="Leave empty to generate"
+          />
+          <Input
+            label="Admin Password"
+            type="text"
+            value={demoForm.adminPassword}
+            onChange={(event) => setDemoForm({ ...demoForm, adminPassword: event.target.value })}
+          />
+
+          <div className={styles.demoSummary}>
+            {demoForm.profile === "compact" && "Creates 4 cars, 5 brokers, 5 bookings, 6 expenses, and 3 employees."}
+            {demoForm.profile === "standard" && "Creates 7 cars, 8 brokers, 9 bookings, 12 expenses, and 5 employees."}
+            {demoForm.profile === "full" && "Creates 10 cars, 12 brokers, 14 bookings, 18 expenses, and 7 employees."}
+          </div>
+
+          <div className={styles.modalFooter}>
+            <Button type="button" variant="ghost" onClick={() => setDemoModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="button" loading={demoSaving} icon={<Database size={16} />} onClick={handleCreateDemoCompany}>
+              Generate Demo
             </Button>
           </div>
         </div>
