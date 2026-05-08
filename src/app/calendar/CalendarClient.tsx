@@ -1,218 +1,280 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { CalendarDays, ChevronLeft, ChevronRight, Car, Wrench, Filter } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { BarChart3, Car, ChevronLeft, ChevronRight, Gauge, TrendingUp, Wrench } from "lucide-react";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Legend,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
-import { getCalendarEvents } from "@/actions/calendar";
+import Badge from "@/components/ui/Badge";
+import { getVehicleMonthlyStats } from "@/actions/calendar";
 import { useSettings } from "@/lib/SettingsContext";
 
-export default function CalendarClient() {
-  const router = useRouter();
-  const { language, t } = useSettings();
-  const [currentDate, setCurrentDate] = useState(new Date());
-  const [events, setEvents] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState("ALL"); // ALL, BOOKING, MAINTENANCE
+type MonthlyStats = {
+  month: number;
+  label: string;
+  bookedDays: number;
+  stoppedDays: number;
+  availableDays: number;
+  bookingCount: number;
+  revenue: number;
+};
 
-  const year = currentDate.getFullYear();
-  const month = currentDate.getMonth();
+type VehicleStats = {
+  id: string;
+  label: string;
+  plateNumber: string;
+  status: string;
+  monthly: MonthlyStats[];
+  totals: {
+    bookedDays: number;
+    stoppedDays: number;
+    availableDays: number;
+    bookingCount: number;
+    revenue: number;
+  };
+};
+
+type StatsPayload = {
+  year: number;
+  months: { month: number; label: string }[];
+  vehicles: VehicleStats[];
+};
+
+export default function CalendarClient() {
+  const { formatPrice, t } = useSettings();
+  const [year, setYear] = useState(new Date().getFullYear());
+  const [data, setData] = useState<StatsPayload | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [selectedVehicleId, setSelectedVehicleId] = useState("ALL");
 
   useEffect(() => {
-    async function fetchEvents() {
+    let active = true;
+    async function loadStats() {
       setLoading(true);
-      const data = await getCalendarEvents(year, month);
-      setEvents(data);
+      const result = await getVehicleMonthlyStats(year);
+      if (!active) return;
+      setData(result);
       setLoading(false);
     }
-    fetchEvents();
-  }, [year, month]);
+    loadStats();
+    return () => {
+      active = false;
+    };
+  }, [year]);
 
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const firstDayOfMonth = new Date(year, month, 1).getDay();
+  const selectedVehicle = useMemo(() => {
+    if (!data || selectedVehicleId === "ALL") return null;
+    return data.vehicles.find((vehicle) => vehicle.id === selectedVehicleId) || null;
+  }, [data, selectedVehicleId]);
 
-  const prevMonth = () => setCurrentDate(new Date(year, month - 1, 1));
-  const nextMonth = () => setCurrentDate(new Date(year, month + 1, 1));
+  const chartData = useMemo(() => {
+    if (!data) return [];
 
-  const locale = language === "fr" ? "fr-FR" : language === "ar" ? "ar-MA" : "en-US";
-  const monthLabel = new Intl.DateTimeFormat(locale, { month: "long", year: "numeric" }).format(currentDate);
-  const dayNames = Array.from({ length: 7 }, (_, index) =>
-    new Intl.DateTimeFormat(locale, { weekday: "short" }).format(new Date(2024, 0, index + 7))
-  );
+    if (selectedVehicle) {
+      return selectedVehicle.monthly.map((month) => ({
+        month: month.label,
+        revenue: month.revenue,
+        bookedDays: month.bookedDays,
+        stoppedDays: month.stoppedDays,
+        bookings: month.bookingCount,
+      }));
+    }
 
-  // Build grid
-  const days = [];
-  for (let i = 0; i < firstDayOfMonth; i++) {
-    days.push(null); // Empty slots before 1st day
-  }
-  for (let i = 1; i <= daysInMonth; i++) {
-    days.push(i);
-  }
-
-  // Helper to check if event sits on a mapped grid day
-  const getEventsForDay = (dayNum: number) => {
-    if (!dayNum) return [];
-    
-    // Day in current iteration
-    const cellDate = new Date(year, month, dayNum);
-    cellDate.setHours(0, 0, 0, 0);
-
-    return events.filter(e => {
-      if (filter !== "ALL" && e.type !== filter) return false;
-      const start = new Date(e.startDate);
-      start.setHours(0, 0, 0, 0);
-      const end = new Date(e.endDate);
-      end.setHours(23, 59, 59, 999);
-      if (e.type === "BOOKING" || e.type === "MAINTENANCE") {
-        const startDay = new Date(start);
-        startDay.setHours(0, 0, 0, 0);
-        const endDay = new Date(end);
-        endDay.setHours(0, 0, 0, 0);
-        return cellDate.getTime() === startDay.getTime() || cellDate.getTime() === endDay.getTime();
-      }
-      return cellDate >= start && cellDate <= end;
+    return data.months.map((month) => {
+      const monthlyRows = data.vehicles.map((vehicle) => vehicle.monthly[month.month]);
+      return {
+        month: month.label,
+        revenue: monthlyRows.reduce((sum, row) => sum + row.revenue, 0),
+        bookedDays: monthlyRows.reduce((sum, row) => sum + row.bookedDays, 0),
+        stoppedDays: monthlyRows.reduce((sum, row) => sum + row.stoppedDays, 0),
+        bookings: monthlyRows.reduce((sum, row) => sum + row.bookingCount, 0),
+      };
     });
-  };
+  }, [data, selectedVehicle]);
 
-  const today = new Date();
-  const isToday = (dayNum: number) => 
-    dayNum === today.getDate() && month === today.getMonth() && year === today.getFullYear();
+  const totals = useMemo(() => {
+    if (!data) return { revenue: 0, bookedDays: 0, stoppedDays: 0, bookingCount: 0 };
+    const vehicles = selectedVehicle ? [selectedVehicle] : data.vehicles;
+    return vehicles.reduce(
+      (acc, vehicle) => ({
+        revenue: acc.revenue + vehicle.totals.revenue,
+        bookedDays: acc.bookedDays + vehicle.totals.bookedDays,
+        stoppedDays: acc.stoppedDays + vehicle.totals.stoppedDays,
+        bookingCount: acc.bookingCount + vehicle.totals.bookingCount,
+      }),
+      { revenue: 0, bookedDays: 0, stoppedDays: 0, bookingCount: 0 }
+    );
+  }, [data, selectedVehicle]);
+
+  const vehicleRows = useMemo(() => {
+    if (!data) return [];
+    return [...data.vehicles].sort((a, b) => b.totals.revenue - a.totals.revenue);
+  }, [data]);
 
   return (
-    <div className="animate-fade-in" style={{ height: "100%", display: "flex", flexDirection: "column" }}>
-      <div className="page-header" style={{ flexShrink: 0 }}>
+    <div className="animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+      <div className="page-header">
         <h1>
-          <CalendarDays size={24} />
-          {t("calendar.masterTitle")}
+          <BarChart3 size={24} />
+          {t("statistics.vehiclePerformance")}
         </h1>
         <div className="page-header-actions">
-          <div style={{ display: "flex", gap: "8px", background: "var(--bg-secondary)", padding: "4px", borderRadius: "8px" }}>
-            <button 
-              onClick={() => setFilter("ALL")}
-              style={{ padding: "6px 12px", background: filter === "ALL" ? "var(--bg-elevated)" : "transparent", color: filter === "ALL" ? "var(--text-primary)" : "var(--text-secondary)", border: "none", borderRadius: "6px", cursor: "pointer", fontWeight: 600, fontSize: "0.875rem" }}
-            >
-              {t("calendar.allEvents")}
-            </button>
-            <button 
-              onClick={() => setFilter("BOOKING")}
-              style={{ display: "flex", alignItems: "center", gap: "6px", padding: "6px 12px", background: filter === "BOOKING" ? "var(--accent-muted)" : "transparent", color: filter === "BOOKING" ? "var(--accent)" : "var(--text-secondary)", border: "none", borderRadius: "6px", cursor: "pointer", fontWeight: 600, fontSize: "0.875rem" }}
-            >
-              <Car size={14} /> {t("calendar.rentals")}
-            </button>
-            <button 
-              onClick={() => setFilter("MAINTENANCE")}
-              style={{ display: "flex", alignItems: "center", gap: "6px", padding: "6px 12px", background: filter === "MAINTENANCE" ? "var(--warning-muted)" : "transparent", color: filter === "MAINTENANCE" ? "var(--warning)" : "var(--text-secondary)", border: "none", borderRadius: "6px", cursor: "pointer", fontWeight: 600, fontSize: "0.875rem" }}
-            >
-              <Wrench size={14} /> {t("calendar.shop")}
-            </button>
-          </div>
+          <Button variant="secondary" icon={<ChevronLeft size={16} />} onClick={() => setYear((value) => value - 1)} />
+          <div style={{ minWidth: "86px", textAlign: "center", fontWeight: 800, fontSize: "1.125rem" }}>{year}</div>
+          <Button variant="secondary" icon={<ChevronRight size={16} />} onClick={() => setYear((value) => value + 1)} />
         </div>
       </div>
 
-      <Card padding="md" style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: "0" }}>
-        
-        {/* Calendar Controls */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
-          <h2 style={{ margin: 0, fontSize: "1.5rem" }}>
-            {monthLabel}
-          </h2>
-          <div style={{ display: "flex", gap: "8px" }}>
-            <Button variant="secondary" icon={<ChevronLeft size={16} />} onClick={prevMonth} />
-            <Button variant="secondary" onClick={() => setCurrentDate(new Date())}>{t("calendar.today")}</Button>
-            <Button variant="secondary" icon={<ChevronRight size={16} />} onClick={nextMonth} />
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: "16px" }}>
+        <Card padding="md">
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", color: "var(--success)", marginBottom: "8px" }}>
+            <TrendingUp size={18} />
+            <span style={{ fontSize: "0.875rem", color: "var(--text-secondary)" }}>{t("statistics.revenue")}</span>
           </div>
+          <strong style={{ fontSize: "1.5rem" }}>{formatPrice(totals.revenue)}</strong>
+        </Card>
+        <Card padding="md">
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", color: "var(--accent)", marginBottom: "8px" }}>
+            <Car size={18} />
+            <span style={{ fontSize: "0.875rem", color: "var(--text-secondary)" }}>{t("statistics.movedBookedDays")}</span>
+          </div>
+          <strong style={{ fontSize: "1.5rem" }}>{totals.bookedDays}</strong>
+        </Card>
+        <Card padding="md">
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", color: "var(--warning)", marginBottom: "8px" }}>
+            <Wrench size={18} />
+            <span style={{ fontSize: "0.875rem", color: "var(--text-secondary)" }}>{t("statistics.stoppedDays")}</span>
+          </div>
+          <strong style={{ fontSize: "1.5rem" }}>{totals.stoppedDays}</strong>
+        </Card>
+        <Card padding="md">
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", color: "var(--info)", marginBottom: "8px" }}>
+            <Gauge size={18} />
+            <span style={{ fontSize: "0.875rem", color: "var(--text-secondary)" }}>{t("statistics.bookings")}</span>
+          </div>
+          <strong style={{ fontSize: "1.5rem" }}>{totals.bookingCount}</strong>
+        </Card>
+      </div>
+
+      <Card padding="lg">
+        <div style={{ display: "flex", justifyContent: "space-between", gap: "16px", alignItems: "center", flexWrap: "wrap", marginBottom: "18px" }}>
+          <div>
+            <h2 style={{ margin: 0, fontSize: "1.25rem" }}>
+              {selectedVehicle ? `${selectedVehicle.label} - ${selectedVehicle.plateNumber}` : t("statistics.fleetMonthlyDiagram")}
+            </h2>
+            <p style={{ margin: "4px 0 0", color: "var(--text-secondary)", fontSize: "0.875rem" }}>
+              {t("statistics.diagramDesc")}
+            </p>
+          </div>
+          <select
+            value={selectedVehicleId}
+            onChange={(event) => setSelectedVehicleId(event.target.value)}
+            style={{
+              minWidth: "260px",
+              height: "40px",
+              border: "1px solid var(--border)",
+              borderRadius: "8px",
+              background: "var(--bg-secondary)",
+              color: "var(--text-primary)",
+              padding: "0 12px",
+            }}
+          >
+            <option value="ALL">{t("statistics.allVehicles")}</option>
+            {data?.vehicles.map((vehicle) => (
+              <option key={vehicle.id} value={vehicle.id}>
+                {vehicle.label} - {vehicle.plateNumber}
+              </option>
+            ))}
+          </select>
         </div>
 
-        {/* Days Header */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", borderBottom: "1px solid var(--border)", paddingBottom: "8px", marginBottom: "8px" }}>
-          {dayNames.map(d => (
-            <div key={d} style={{ textAlign: "center", fontWeight: 600, color: "var(--text-secondary)", fontSize: "0.875rem" }}>
-              {d}
-            </div>
-          ))}
-        </div>
-
-        {/* Grid Area */}
-        {loading ? (
-          <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-tertiary)" }}>
-            {t("calendar.loadingSchedule")}
-          </div>
-        ) : (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gridAutoRows: "minmax(120px, 1fr)", gap: "8px", flex: 1, overflowY: "auto", paddingRight: "4px" }}>
-            {days.map((d, index) => {
-              const cellEvents = d ? getEventsForDay(d) : [];
-              return (
-                <div 
-                  key={index} 
-                  style={{ 
-                    background: "var(--bg-tertiary)", 
-                    borderRadius: "8px", 
-                    padding: "8px", 
-                    opacity: d ? 1 : 0.4,
-                    border: d && isToday(d) ? "1px solid var(--accent)" : "1px solid transparent",
-                    display: "flex",
-                    flexDirection: "column",
+        <div style={{ width: "100%", height: "380px" }}>
+          {loading ? (
+            <div style={{ height: "100%", display: "grid", placeItems: "center", color: "var(--text-tertiary)" }}>{t("statistics.loading")}</div>
+          ) : (
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={chartData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                <XAxis dataKey="month" stroke="var(--text-secondary)" />
+                <YAxis yAxisId="left" stroke="var(--text-secondary)" />
+                <YAxis yAxisId="right" orientation="right" stroke="var(--text-secondary)" />
+                <Tooltip
+                  contentStyle={{
+                    background: "var(--bg-secondary)",
+                    border: "1px solid var(--border)",
+                    borderRadius: "8px",
+                    color: "var(--text-primary)",
                   }}
-                >
-                  <div style={{ fontWeight: 600, marginBottom: "8px", color: d && isToday(d) ? "var(--accent)" : "var(--text-primary)" }}>
-                    {d || ""}
-                  </div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: "4px", flex: 1, overflowY: "auto", paddingRight: "2px" }}>
-                    {cellEvents.map(ev => {
-                      const start = new Date(ev.startDate);
-                      const end = new Date(ev.endDate);
-                      
-                      const isStart = d === start.getDate() && month === start.getMonth() && year === start.getFullYear();
-                      const isEnd = d === end.getDate() && month === end.getMonth() && year === end.getFullYear();
+                  formatter={(value, name) => name === "revenue" ? formatPrice(Number(value)) : value}
+                />
+                <Legend />
+                <Bar yAxisId="right" dataKey="revenue" name={t("statistics.revenue")} fill="var(--success)" radius={[4, 4, 0, 0]} />
+                <Bar yAxisId="left" dataKey="bookedDays" name={t("statistics.movedDays")} fill="var(--accent)" radius={[4, 4, 0, 0]} />
+                <Bar yAxisId="left" dataKey="stoppedDays" name={t("statistics.stoppedDays")} fill="var(--warning)" radius={[4, 4, 0, 0]} />
+                <Bar yAxisId="left" dataKey="bookings" name={t("statistics.bookings")} fill="var(--info)" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+        </div>
+      </Card>
 
-                      let displayLabel = ev.title;
-                      if (isStart && isEnd) {
-                        displayLabel = ev.type === "BOOKING"
-                          ? `${t("calendar.sameDay")}: ${ev.title}`
-                          : `${t("calendar.quickFix")}: ${ev.title}`;
-                      } else if (isStart) {
-                        displayLabel = ev.type === "BOOKING"
-                          ? `${t("calendar.rented")}: ${ev.title}`
-                          : `${t("calendar.toShop")}: ${ev.title}`;
-                      } else if (isEnd) {
-                        displayLabel = ev.type === "BOOKING"
-                          ? `${t("calendar.returnEvent")}: ${ev.title}`
-                          : `${t("calendar.outOfShop")}: ${ev.title}`;
-                      } else if (ev.type === "MAINTENANCE") {
-                        displayLabel = `${t("calendar.inShop")}: ${ev.title}`;
-                      }
-
-                      return (
-                        <div 
-                          key={ev.id} 
-                          onClick={() => router.push(ev.type === "BOOKING" ? `/bookings/${ev.originalId}` : `/maintenance`)}
-                          style={{ 
-                            background: ev.bg, 
-                            color: ev.color, 
-                            padding: "4px 6px", 
-                            borderRadius: "4px", 
-                            fontSize: "0.75rem", 
-                            cursor: "pointer",
-                            whiteSpace: "nowrap",
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                            border: `1px solid ${ev.color}33`,
-                            display: "flex",
-                            flexDirection: "column"
-                          }}
-                          title={`${ev.title} - ${ev.subtitle}`}
-                        >
-                          <span style={{ fontWeight: 700 }}>{displayLabel}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
+      <Card padding="lg">
+        <h2 style={{ margin: "0 0 16px", fontSize: "1.25rem" }}>{t("statistics.eachCar")}</h2>
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.875rem" }}>
+            <thead>
+              <tr style={{ color: "var(--text-tertiary)", textAlign: "left", borderBottom: "1px solid var(--border)" }}>
+                <th style={{ padding: "12px" }}>{t("statistics.car")}</th>
+                <th style={{ padding: "12px" }}>{t("statistics.status")}</th>
+                <th style={{ padding: "12px", textAlign: "right" }}>{t("statistics.revenue")}</th>
+                <th style={{ padding: "12px", textAlign: "right" }}>{t("statistics.movedDays")}</th>
+                <th style={{ padding: "12px", textAlign: "right" }}>{t("statistics.stoppedDays")}</th>
+                <th style={{ padding: "12px", textAlign: "right" }}>{t("statistics.bookings")}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {vehicleRows.map((vehicle) => (
+                <tr key={vehicle.id} style={{ borderBottom: "1px solid var(--border)" }}>
+                  <td style={{ padding: "12px" }}>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedVehicleId(vehicle.id)}
+                      style={{ border: "none", background: "transparent", color: "var(--text-primary)", padding: 0, cursor: "pointer", textAlign: "left" }}
+                    >
+                      <strong>{vehicle.label}</strong>
+                      <div style={{ color: "var(--text-tertiary)", fontSize: "0.75rem", marginTop: "2px" }}>{vehicle.plateNumber}</div>
+                    </button>
+                  </td>
+                  <td style={{ padding: "12px" }}>
+                    <Badge variant={vehicle.status === "AVAILABLE" ? "success" : vehicle.status === "MAINTENANCE" ? "warning" : "default"}>
+                      {vehicle.status}
+                    </Badge>
+                  </td>
+                  <td style={{ padding: "12px", textAlign: "right", fontWeight: 700 }}>{formatPrice(vehicle.totals.revenue)}</td>
+                  <td style={{ padding: "12px", textAlign: "right" }}>{vehicle.totals.bookedDays}</td>
+                  <td style={{ padding: "12px", textAlign: "right" }}>{vehicle.totals.stoppedDays}</td>
+                  <td style={{ padding: "12px", textAlign: "right" }}>{vehicle.totals.bookingCount}</td>
+                </tr>
+              ))}
+              {!loading && vehicleRows.length === 0 && (
+                <tr>
+                  <td colSpan={6} style={{ padding: "28px", textAlign: "center", color: "var(--text-tertiary)" }}>
+                    {t("statistics.noVehicles")}
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </Card>
     </div>
   );

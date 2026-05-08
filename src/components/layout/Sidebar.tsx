@@ -5,7 +5,6 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   Car,
-  CalendarDays,
   Users,
   FileText,
   Wrench,
@@ -20,6 +19,7 @@ import {
   ClipboardList,
   Activity,
   WalletCards,
+  BarChart3,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useSettings } from "@/lib/SettingsContext";
@@ -33,7 +33,7 @@ const navItems: { labelKey: TranslationKey; href: string; icon: LucideIcon; perm
   { labelKey: "nav.dashboard", href: "/", icon: LayoutDashboard },
   { labelKey: "nav.vehicles", href: "/vehicles", icon: Car, permissions: ["VIEW_VEHICLES", "MANAGE_VEHICLES"] },
   { labelKey: "nav.bookings", href: "/bookings", icon: ClipboardList, permissions: ["VIEW_BOOKINGS", "MANAGE_BOOKINGS"] },
-  { labelKey: "nav.calendar", href: "/calendar", icon: CalendarDays, permissions: ["VIEW_CALENDAR", "MANAGE_BOOKINGS"] },
+  { labelKey: "nav.calendar", href: "/calendar", icon: BarChart3, permissions: ["VIEW_CALENDAR", "MANAGE_BOOKINGS"] },
   { labelKey: "nav.brokers", href: "/customers", icon: Users, permissions: ["VIEW_BROKERS", "MANAGE_BROKERS"] },
   { labelKey: "nav.invoices", href: "/invoices", icon: FileText, permissions: ["VIEW_INVOICES", "MANAGE_INVOICES"] },
   { labelKey: "nav.expenses", href: "/expenses", icon: TrendingDown, permissions: ["VIEW_EXPENSES", "MANAGE_EXPENSES"] },
