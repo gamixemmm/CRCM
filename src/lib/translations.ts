@@ -348,6 +348,11 @@ const translations = {
   "statistics.status": { en: "Status", fr: "Statut", ar: "الحالة" },
   "statistics.movedDays": { en: "Moved days", fr: "Jours en mouvement", ar: "أيام الحركة" },
   "statistics.noVehicles": { en: "No vehicles found.", fr: "Aucune voiture trouvee.", ar: "لم يتم العثور على سيارات." },
+  "statistics.summaryRange": { en: "Summary period", fr: "Periode du resume", ar: "فترة الملخص" },
+  "statistics.range.LAST_30_DAYS": { en: "Last 30 days", fr: "30 derniers jours", ar: "آخر 30 يوما" },
+  "statistics.range.LAST_90_DAYS": { en: "Last 90 days", fr: "90 derniers jours", ar: "آخر 90 يوما" },
+  "statistics.range.LAST_YEAR": { en: "Last year", fr: "Derniere annee", ar: "آخر سنة" },
+  "statistics.range.ALL_TIME": { en: "All time", fr: "Depuis le debut", ar: "كل الوقت" },
 
   // ─── Settings ───────────────────────────────────────────────────
   "settings.title": { en: "Global Settings", fr: "Paramètres généraux", ar: "الإعدادات العامة" },

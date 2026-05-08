@@ -20,6 +20,23 @@ function getRentalDayCount(start: Date, end: Date) {
   return Math.max(1, getCalendarDayIndex(end) - getCalendarDayIndex(start));
 }
 
+export type VehicleStatsRange = "LAST_30_DAYS" | "LAST_90_DAYS" | "LAST_YEAR" | "ALL_TIME";
+
+function getStatsRange(range: VehicleStatsRange) {
+  const end = new Date();
+  end.setHours(23, 59, 59, 999);
+
+  if (range === "ALL_TIME") {
+    return { start: new Date(0), end };
+  }
+
+  const start = new Date(end);
+  start.setHours(0, 0, 0, 0);
+  start.setDate(start.getDate() - (range === "LAST_30_DAYS" ? 30 : range === "LAST_90_DAYS" ? 90 : 365));
+
+  return { start, end };
+}
+
 export async function getCalendarEvents(year: number, month: number) {
   const companyId = await requireCompanyId();
   // We grab any event that overlaps with this month.
@@ -86,10 +103,13 @@ export async function getCalendarEvents(year: number, month: number) {
   return events;
 }
 
-export async function getVehicleMonthlyStats(year: number) {
+export async function getVehicleMonthlyStats(year: number, summaryRange: VehicleStatsRange = "LAST_30_DAYS") {
   const companyId = await requireCompanyId();
   const yearStart = getBusinessMonthRange(year, 0).start;
   const yearEnd = getBusinessMonthRange(year, 11).end;
+  const range = getStatsRange(summaryRange);
+  const queryStart = new Date(Math.min(yearStart.getTime(), range.start.getTime()));
+  const queryEnd = new Date(Math.max(yearEnd.getTime(), range.end.getTime()));
 
   const [vehicles, bookings, maintenance] = await Promise.all([
     prisma.vehicle.findMany({
@@ -100,17 +120,17 @@ export async function getVehicleMonthlyStats(year: number) {
       where: {
         companyId,
         status: { not: "CANCELLED" },
-        startDate: { lt: yearEnd },
-        endDate: { gte: yearStart },
+        startDate: { lt: queryEnd },
+        endDate: { gte: queryStart },
       },
       include: { vehicle: true },
     }),
     prisma.maintenance.findMany({
       where: {
         companyId,
-        serviceDate: { lt: yearEnd },
+        serviceDate: { lt: queryEnd },
         OR: [
-          { returnDate: { gte: yearStart } },
+          { returnDate: { gte: queryStart } },
           { returnDate: null },
         ],
       },
@@ -125,10 +145,9 @@ export async function getVehicleMonthlyStats(year: number) {
   }));
 
   const vehicleRows = vehicles.map((vehicle) => {
+    const vehicleBookings = bookings.filter((booking) => booking.vehicleId === vehicle.id);
+    const vehicleMaintenance = maintenance.filter((job) => job.vehicleId === vehicle.id);
     const monthly = monthRanges.map((range) => {
-      const vehicleBookings = bookings.filter((booking) => booking.vehicleId === vehicle.id);
-      const vehicleMaintenance = maintenance.filter((job) => job.vehicleId === vehicle.id);
-
       let bookedDays = 0;
       let revenue = 0;
       let bookingCount = 0;
@@ -180,12 +199,48 @@ export async function getVehicleMonthlyStats(year: number) {
         }),
         { bookedDays: 0, stoppedDays: 0, availableDays: 0, bookingCount: 0, revenue: 0 }
       ),
+      summaryTotals: getVehicleSummaryTotals(vehicleBookings, vehicleMaintenance, range),
     };
   });
 
   return {
     year,
     months: monthRanges.map((range) => ({ month: range.month, label: range.label })),
+    summaryRange,
     vehicles: vehicleRows,
+  };
+}
+
+function getVehicleSummaryTotals(
+  bookings: Array<{ startDate: Date; endDate: Date; totalAmount: number | null }>,
+  maintenance: Array<{ serviceDate: Date; returnDate: Date | null }>,
+  range: { start: Date; end: Date }
+) {
+  let bookedDays = 0;
+  let revenue = 0;
+  let bookingCount = 0;
+  let stoppedDays = 0;
+
+  for (const booking of bookings) {
+    const overlapDays = countOverlapDays(booking.startDate, booking.endDate, range.start, range.end);
+    if (overlapDays <= 0) continue;
+
+    bookedDays += overlapDays;
+    bookingCount += 1;
+
+    const totalDays = getRentalDayCount(booking.startDate, booking.endDate);
+    revenue += (booking.totalAmount || 0) * (overlapDays / totalDays);
+  }
+
+  for (const job of maintenance) {
+    const returnDate = job.returnDate || new Date();
+    stoppedDays += countOverlapDays(job.serviceDate, returnDate, range.start, range.end);
+  }
+
+  return {
+    bookedDays,
+    stoppedDays,
+    bookingCount,
+    revenue: Math.round(revenue),
   };
 }

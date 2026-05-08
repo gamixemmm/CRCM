@@ -18,6 +18,8 @@ import Badge from "@/components/ui/Badge";
 import { getVehicleMonthlyStats } from "@/actions/calendar";
 import { useSettings } from "@/lib/SettingsContext";
 
+type SummaryRange = "LAST_30_DAYS" | "LAST_90_DAYS" | "LAST_YEAR" | "ALL_TIME";
+
 type MonthlyStats = {
   month: number;
   label: string;
@@ -41,13 +43,22 @@ type VehicleStats = {
     bookingCount: number;
     revenue: number;
   };
+  summaryTotals: {
+    bookedDays: number;
+    stoppedDays: number;
+    bookingCount: number;
+    revenue: number;
+  };
 };
 
 type StatsPayload = {
   year: number;
   months: { month: number; label: string }[];
+  summaryRange: SummaryRange;
   vehicles: VehicleStats[];
 };
+
+const summaryRanges: SummaryRange[] = ["LAST_30_DAYS", "LAST_90_DAYS", "LAST_YEAR", "ALL_TIME"];
 
 export default function CalendarClient() {
   const { formatPrice, t } = useSettings();
@@ -55,12 +66,13 @@ export default function CalendarClient() {
   const [data, setData] = useState<StatsPayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedVehicleId, setSelectedVehicleId] = useState("ALL");
+  const [summaryRange, setSummaryRange] = useState<SummaryRange>("LAST_30_DAYS");
 
   useEffect(() => {
     let active = true;
     async function loadStats() {
       setLoading(true);
-      const result = await getVehicleMonthlyStats(year);
+      const result = await getVehicleMonthlyStats(year, summaryRange);
       if (!active) return;
       setData(result);
       setLoading(false);
@@ -69,7 +81,7 @@ export default function CalendarClient() {
     return () => {
       active = false;
     };
-  }, [year]);
+  }, [year, summaryRange]);
 
   const selectedVehicle = useMemo(() => {
     if (!data || selectedVehicleId === "ALL") return null;
@@ -117,7 +129,7 @@ export default function CalendarClient() {
 
   const vehicleRows = useMemo(() => {
     if (!data) return [];
-    return [...data.vehicles].sort((a, b) => b.totals.revenue - a.totals.revenue);
+    return [...data.vehicles].sort((a, b) => b.summaryTotals.revenue - a.summaryTotals.revenue);
   }, [data]);
 
   return (
@@ -228,7 +240,29 @@ export default function CalendarClient() {
       </Card>
 
       <Card padding="lg">
-        <h2 style={{ margin: "0 0 16px", fontSize: "1.25rem" }}>{t("statistics.eachCar")}</h2>
+        <div style={{ display: "flex", justifyContent: "space-between", gap: "16px", alignItems: "center", flexWrap: "wrap", marginBottom: "16px" }}>
+          <h2 style={{ margin: 0, fontSize: "1.25rem" }}>{t("statistics.eachCar")}</h2>
+          <select
+            value={summaryRange}
+            onChange={(event) => setSummaryRange(event.target.value as SummaryRange)}
+            style={{
+              minWidth: "180px",
+              height: "40px",
+              border: "1px solid var(--border)",
+              borderRadius: "8px",
+              background: "var(--bg-secondary)",
+              color: "var(--text-primary)",
+              padding: "0 12px",
+            }}
+            aria-label={t("statistics.summaryRange")}
+          >
+            {summaryRanges.map((range) => (
+              <option key={range} value={range}>
+                {t(`statistics.range.${range}`)}
+              </option>
+            ))}
+          </select>
+        </div>
         <div style={{ overflowX: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.875rem" }}>
             <thead>
@@ -259,10 +293,10 @@ export default function CalendarClient() {
                       {vehicle.status}
                     </Badge>
                   </td>
-                  <td style={{ padding: "12px", textAlign: "right", fontWeight: 700 }}>{formatPrice(vehicle.totals.revenue)}</td>
-                  <td style={{ padding: "12px", textAlign: "right" }}>{vehicle.totals.bookedDays}</td>
-                  <td style={{ padding: "12px", textAlign: "right" }}>{vehicle.totals.stoppedDays}</td>
-                  <td style={{ padding: "12px", textAlign: "right" }}>{vehicle.totals.bookingCount}</td>
+                  <td style={{ padding: "12px", textAlign: "right", fontWeight: 700 }}>{formatPrice(vehicle.summaryTotals.revenue)}</td>
+                  <td style={{ padding: "12px", textAlign: "right" }}>{vehicle.summaryTotals.bookedDays}</td>
+                  <td style={{ padding: "12px", textAlign: "right" }}>{vehicle.summaryTotals.stoppedDays}</td>
+                  <td style={{ padding: "12px", textAlign: "right" }}>{vehicle.summaryTotals.bookingCount}</td>
                 </tr>
               ))}
               {!loading && vehicleRows.length === 0 && (
