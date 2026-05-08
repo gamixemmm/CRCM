@@ -72,6 +72,8 @@ const translations = {
   "carInstallments.thisMonthPaid": { en: "This month paid", fr: "Ce mois paye", ar: "تم دفع هذا الشهر" },
   "carInstallments.thisMonthSkipped": { en: "This month skipped", fr: "Ce mois ignore", ar: "تم تخطي هذا الشهر" },
   "carInstallments.thisMonthNotDone": { en: "This month not done", fr: "Ce mois non fait", ar: "هذا الشهر غير منجز" },
+  "carInstallments.thisMonthLeftToPay": { en: "Left to pay this month", fr: "Reste a payer ce mois", ar: "المتبقي للدفع هذا الشهر" },
+  "carInstallments.thisMonthPaidAmount": { en: "Paid this month so far", fr: "Paye ce mois jusqu'ici", ar: "المدفوع هذا الشهر حتى الآن" },
   "carInstallments.totalCars": { en: "Total cars", fr: "Total voitures", ar: "اجمالي السيارات" },
   "carInstallments.paymentInfoSelected": { en: "Monthly payments set", fr: "Paiements mensuels saisis", ar: "تم تحديد الدفعات الشهرية" },
   "carInstallments.paidMonthly": { en: "Paid monthly", fr: "Paye mensuellement", ar: "المدفوع شهريا" },

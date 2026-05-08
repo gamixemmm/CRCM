@@ -68,12 +68,17 @@ export default function CarInstallmentsClient({ vehicles }: { vehicles: VehicleR
         acc.configured += 1;
         acc.totalMonthly += payment.monthlyPaidAmount;
         const status = getMonthlyStatus(payment);
-        if (status === "DONE") acc.thisMonthDone += 1;
-        else if (status === "SKIPPED") acc.thisMonthSkipped += 1;
-        else acc.thisMonthPending += 1;
+        if (status === "DONE") {
+          acc.thisMonthDone += 1;
+          acc.thisMonthPaidAmount += payment.monthlyPaidAmount;
+        }
+        else {
+          acc.thisMonthPending += 1;
+          acc.thisMonthLeftToPay += payment.monthlyPaidAmount;
+        }
         return acc;
       },
-      { totalVehicles: 0, configured: 0, notSet: 0, totalMonthly: 0, thisMonthDone: 0, thisMonthSkipped: 0, thisMonthPending: 0 }
+      { totalVehicles: 0, configured: 0, notSet: 0, totalMonthly: 0, thisMonthDone: 0, thisMonthPending: 0, thisMonthLeftToPay: 0, thisMonthPaidAmount: 0 }
     );
   }, [vehicles]);
 
@@ -301,8 +306,8 @@ export default function CarInstallmentsClient({ vehicles }: { vehicles: VehicleR
           <strong>{stats.totalVehicles}</strong>
         </div>
         <div className={styles.statCard}>
-          <span>{t("carInstallments.paymentInfoSelected")}</span>
-          <strong>{stats.configured}</strong>
+          <span>{t("carInstallments.thisMonthPaidAmount")}</span>
+          <strong>{formatPrice(stats.thisMonthPaidAmount)}</strong>
         </div>
         <div className={styles.statCard}>
           <span>{t("carInstallments.paidMonthly")}</span>
@@ -313,8 +318,8 @@ export default function CarInstallmentsClient({ vehicles }: { vehicles: VehicleR
           <strong>{stats.thisMonthDone}</strong>
         </div>
         <div className={styles.statCard}>
-          <span>{t("carInstallments.thisMonthSkipped")}</span>
-          <strong>{stats.thisMonthSkipped}</strong>
+          <span>{t("carInstallments.thisMonthLeftToPay")}</span>
+          <strong>{formatPrice(stats.thisMonthLeftToPay)}</strong>
         </div>
         <div className={styles.statCard}>
           <span>{t("carInstallments.thisMonthNotDone")}</span>
