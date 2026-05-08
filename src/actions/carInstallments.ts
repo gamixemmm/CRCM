@@ -141,7 +141,7 @@ export async function updateCarInstallmentMonthlyStatus(input: {
           where: {
             companyId,
             vehicleId: vehicle.id,
-            category: CAR_PAYMENT_EXPENSE_CATEGORY,
+            category: { in: [CAR_PAYMENT_EXPENSE_CATEGORY, "Autre"] },
             description: expenseDescription,
           },
         });
@@ -150,6 +150,7 @@ export async function updateCarInstallmentMonthlyStatus(input: {
           await tx.expense.update({
             where: { id: existingExpense.id },
             data: {
+              category: CAR_PAYMENT_EXPENSE_CATEGORY,
               amount: payment.monthlyPaidAmount,
               date: getBusinessStartOfToday(),
             },
@@ -171,7 +172,7 @@ export async function updateCarInstallmentMonthlyStatus(input: {
           where: {
             companyId,
             vehicleId: vehicle.id,
-            category: CAR_PAYMENT_EXPENSE_CATEGORY,
+            category: { in: [CAR_PAYMENT_EXPENSE_CATEGORY, "Autre"] },
             description: expenseDescription,
           },
         });
