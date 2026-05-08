@@ -64,6 +64,7 @@ export default function BookingDetailClient({ booking }: { booking: any }) {
   const end = new Date(booking.endDate);
   const days = getRentalDays(start, end);
   const baseSubtotal = days * booking.vehicle.dailyRate;
+  const canEditBookingDates = booking.status !== "CANCELLED";
   const editPreviewDays = editStartDate && editEndDate && new Date(editEndDate) > new Date(editStartDate)
     ? getRentalDays(editStartDate, editEndDate)
     : 0;
@@ -89,6 +90,13 @@ export default function BookingDetailClient({ booking }: { booking: any }) {
     });
     setShowSecondDriver(Boolean(booking.driver2FirstName || booking.driver2LastName || booking.driver2CIN || booking.driver2License));
     setIsEditDriversModalOpen(true);
+  };
+
+  const openEditDatesModal = () => {
+    setEditStartDate(formatDateInput(booking.startDate));
+    setEditEndDate(formatDateInput(booking.endDate));
+    setEditPricePerDay(booking.pricePerDay ?? booking.vehicle.dailyRate);
+    setIsEditDatesModalOpen(true);
   };
 
   const handleGenerateInvoice = async () => {
@@ -204,17 +212,12 @@ export default function BookingDetailClient({ booking }: { booking: any }) {
           <Card padding="lg">
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", paddingBottom: "8px", borderBottom: "1px solid var(--border)" }}>
               <h3 style={{ margin: 0 }}>{t("bookings.timeline")}</h3>
-              {booking.status !== "COMPLETED" && booking.status !== "CANCELLED" && (
+              {canEditBookingDates && (
                 <Button
                   size="sm"
                   variant="ghost"
                   icon={<Edit3 size={14} />}
-                  onClick={() => {
-                    setEditStartDate(formatDateInput(booking.startDate));
-                    setEditEndDate(formatDateInput(booking.endDate));
-                    setEditPricePerDay(booking.pricePerDay ?? booking.vehicle.dailyRate);
-                    setIsEditDatesModalOpen(true);
-                  }}
+                  onClick={openEditDatesModal}
                 >
                   {t("bookings.editDates")}
                 </Button>
@@ -353,19 +356,16 @@ export default function BookingDetailClient({ booking }: { booking: any }) {
             
             <div style={{ display: "flex", flexDirection: "column", gap: "12px", fontSize: "0.875rem" }}>
               <div
-                style={{ display: "flex", justifyContent: "space-between", cursor: booking.status !== "COMPLETED" && booking.status !== "CANCELLED" ? "pointer" : "default", borderRadius: "6px", padding: "4px 0" }}
+                style={{ display: "flex", justifyContent: "space-between", cursor: canEditBookingDates ? "pointer" : "default", borderRadius: "6px", padding: "4px 0" }}
                 onClick={() => {
-                  if (booking.status === "COMPLETED" || booking.status === "CANCELLED") return;
-                  setEditStartDate(formatDateInput(booking.startDate));
-                  setEditEndDate(formatDateInput(booking.endDate));
-                  setEditPricePerDay(booking.pricePerDay ?? booking.vehicle.dailyRate);
-                  setIsEditDatesModalOpen(true);
+                  if (!canEditBookingDates) return;
+                  openEditDatesModal();
                 }}
-                title={booking.status !== "COMPLETED" && booking.status !== "CANCELLED" ? "Click to edit" : ""}
+                title={canEditBookingDates ? "Click to edit" : ""}
               >
                 <span style={{ color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: "6px" }}>
                   {t("vehicles.dailyRate")} ({days} {t("label.days")})
-                  {booking.status !== "COMPLETED" && booking.status !== "CANCELLED" && <Edit3 size={12} style={{ color: "var(--text-tertiary)" }} />}
+                  {canEditBookingDates && <Edit3 size={12} style={{ color: "var(--text-tertiary)" }} />}
                 </span>
                 <span>{formatCurrency(booking.pricePerDay ?? booking.vehicle.dailyRate)}</span>
               </div>
