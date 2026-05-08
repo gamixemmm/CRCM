@@ -143,28 +143,7 @@
   align-items: flex-end;
 }
 
-.progressTrack {
-  width: 100%;
-  height: 8px;
-  overflow: hidden;
-  border-radius: 999px;
-  background: var(--bg-tertiary);
-}
-
-.progressTrack span {
-  display: block;
-  height: 100%;
-  border-radius: inherit;
-  background: var(--accent);
-}
-
 .mobileMetaGrid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.mobileMetaGridSingle {
   display: grid;
   grid-template-columns: 1fr;
   gap: 10px;
@@ -224,28 +203,6 @@
 
 .modalIntro strong {
   color: var(--text-primary);
-}
-
-.paymentSummary {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 12px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--bg-tertiary);
-}
-
-.paymentSummary span {
-  color: var(--text-secondary);
-  font-size: 0.875rem;
-}
-
-.paymentSummary strong {
-  color: var(--text-primary);
-  font-weight: 800;
-  word-break: break-word;
 }
 
 .modalField {

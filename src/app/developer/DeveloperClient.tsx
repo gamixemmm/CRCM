@@ -18,6 +18,7 @@ import {
   upsertDeveloperCompanyAdmin,
 } from "@/actions/developer";
 import { formatDate } from "@/lib/utils";
+import styles from "./developer.module.css";
 
 type CompanyAdmin = {
   id: string;
@@ -160,8 +161,8 @@ export default function DeveloperClient({
 
   if (!authenticated) {
     return (
-      <div className="animate-fade-in" style={{ maxWidth: "460px", margin: "80px auto" }}>
-        <div style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)", borderRadius: "12px", padding: "28px" }}>
+      <div className={styles.loginShell}>
+        <div className={`animate-fade-in ${styles.loginPanel}`}>
           <div style={{ width: "46px", height: "46px", borderRadius: "10px", background: "var(--accent-muted)", color: "var(--accent)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "18px" }}>
             <Lock size={22} />
           </div>
@@ -270,42 +271,46 @@ export default function DeveloperClient({
   ];
 
   return (
-    <div className="animate-fade-in">
-      <div className="page-header">
-        <h1>
-          <ShieldCheck size={24} />
-          Developer Console
-        </h1>
-        <div style={{ display: "flex", gap: "10px" }}>
-          <Button variant="secondary" icon={<LogOut size={16} />} onClick={handleLogout}>
-            Lock
-          </Button>
-          <Button icon={<Plus size={16} />} onClick={() => setModalOpen(true)}>
-            Add Company
-          </Button>
+    <div className={styles.page}>
+      <div className={`animate-fade-in ${styles.shell}`}>
+        <div className={styles.panel}>
+          <div className={`page-header ${styles.header}`}>
+            <h1>
+              <ShieldCheck size={24} />
+              Developer Console
+            </h1>
+            <div className={styles.actions}>
+              <Button variant="secondary" icon={<LogOut size={16} />} onClick={handleLogout}>
+                Lock
+              </Button>
+              <Button icon={<Plus size={16} />} onClick={() => setModalOpen(true)}>
+                Add Company
+              </Button>
+            </div>
+          </div>
+
+          <div className={styles.statsGrid}>
+            <div className={styles.statCard}>
+              <div className={styles.statLabel}>Total Companies</div>
+              <div className={styles.statValue}>{stats.total}</div>
+            </div>
+            <div className={styles.statCard}>
+              <div className={styles.statLabel} style={{ color: "var(--success)" }}>Active</div>
+              <div className={styles.statValue} style={{ color: "var(--success)" }}>{stats.active}</div>
+            </div>
+            <div className={styles.statCard}>
+              <div className={styles.statLabel} style={{ color: "var(--danger)" }}>Disabled</div>
+              <div className={styles.statValue} style={{ color: "var(--danger)" }}>{stats.disabled}</div>
+            </div>
+            <div className={styles.statCard}>
+              <div className={styles.statLabel} style={{ color: "var(--accent)" }}>With Admin</div>
+              <div className={styles.statValue} style={{ color: "var(--accent)" }}>{stats.withAdmin}</div>
+            </div>
+          </div>
+
+          <Table columns={columns} data={companies} keyExtractor={(company) => company.id} emptyMessage="No companies added yet." />
         </div>
       </div>
-
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "16px", marginBottom: "24px" }}>
-        <div style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)", borderRadius: "12px", padding: "18px" }}>
-          <div style={{ color: "var(--text-secondary)", fontSize: "0.875rem" }}>Total Companies</div>
-          <div style={{ fontSize: "1.75rem", fontWeight: 800 }}>{stats.total}</div>
-        </div>
-        <div style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)", borderRadius: "12px", padding: "18px" }}>
-          <div style={{ color: "var(--success)", fontSize: "0.875rem" }}>Active</div>
-          <div style={{ fontSize: "1.75rem", fontWeight: 800, color: "var(--success)" }}>{stats.active}</div>
-        </div>
-        <div style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)", borderRadius: "12px", padding: "18px" }}>
-          <div style={{ color: "var(--danger)", fontSize: "0.875rem" }}>Disabled</div>
-          <div style={{ fontSize: "1.75rem", fontWeight: 800, color: "var(--danger)" }}>{stats.disabled}</div>
-        </div>
-        <div style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)", borderRadius: "12px", padding: "18px" }}>
-          <div style={{ color: "var(--accent)", fontSize: "0.875rem" }}>With Admin</div>
-          <div style={{ fontSize: "1.75rem", fontWeight: 800, color: "var(--accent)" }}>{stats.withAdmin}</div>
-        </div>
-      </div>
-
-      <Table columns={columns} data={companies} keyExtractor={(company) => company.id} emptyMessage="No companies added yet." />
 
       <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title="Add Company" size="sm">
         <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>

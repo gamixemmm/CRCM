@@ -24,8 +24,6 @@ function getCurrentMonthMarker() {
 
 export async function saveCarInstallmentPayment(input: {
   vehicleId: string;
-  purchasePrice: number;
-  paidAmount: number;
   monthlyPaidAmount: number;
 }): Promise<ActionResult> {
   try {
@@ -35,28 +33,14 @@ export async function saveCarInstallmentPayment(input: {
     }
 
     const companyId = await requireCompanyId();
-    const purchasePrice = Number(input.purchasePrice);
-    const paidAmount = Number(input.paidAmount);
     const monthlyPaidAmount = Number(input.monthlyPaidAmount);
 
     if (!input.vehicleId) {
       return { success: false, message: "Please select a vehicle.", messageKey: "carInstallments.selectVehicleError" };
     }
 
-    if (!Number.isFinite(purchasePrice) || purchasePrice <= 0) {
-      return { success: false, message: "Please enter a valid car price.", messageKey: "carInstallments.invalidCarPrice" };
-    }
-
-    if (!Number.isFinite(paidAmount) || paidAmount < 0) {
-      return { success: false, message: "Please enter a valid paid amount.", messageKey: "carInstallments.invalidPaidAmount" };
-    }
-
     if (!Number.isFinite(monthlyPaidAmount) || monthlyPaidAmount < 0) {
       return { success: false, message: "Please enter a valid monthly payment amount.", messageKey: "carInstallments.invalidMonthlyAmount" };
-    }
-
-    if (paidAmount > purchasePrice) {
-      return { success: false, message: "Paid amount cannot be higher than the car price.", messageKey: "carInstallments.paidAbovePrice" };
     }
 
     const vehicle = await prisma.vehicle.findFirst({
@@ -73,13 +57,11 @@ export async function saveCarInstallmentPayment(input: {
       create: {
         companyId,
         vehicleId: input.vehicleId,
-        purchasePrice,
-        paidAmount,
+        purchasePrice: 0,
+        paidAmount: 0,
         monthlyPaidAmount,
       },
       update: {
-        purchasePrice,
-        paidAmount,
         monthlyPaidAmount,
       },
     });
@@ -91,7 +73,7 @@ export async function saveCarInstallmentPayment(input: {
       entityType: "CarInstallmentPayment",
       entityId: payment.id,
       message: `${session.name} updated installment payment for ${vehicle.plateNumber}`,
-      metadata: { vehicleId: vehicle.id, purchasePrice, paidAmount, monthlyPaidAmount },
+      metadata: { vehicleId: vehicle.id, monthlyPaidAmount },
     });
 
     return { success: true, message: "Car payment information saved.", messageKey: "carInstallments.saved", data: payment };
@@ -104,7 +86,6 @@ export async function saveCarInstallmentPayment(input: {
 export async function updateCarInstallmentMonthlyStatus(input: {
   vehicleId: string;
   status: "DONE" | "SKIPPED";
-  paymentAmount?: number;
 }): Promise<ActionResult> {
   try {
     const session = await requireCompanyAdminAccess();
@@ -131,27 +112,10 @@ export async function updateCarInstallmentMonthlyStatus(input: {
     }
 
     const { month, year } = getCurrentMonthMarker();
-    const paymentAmount = Number(input.paymentAmount);
-    const remainingAmount = Math.max(0, payment.purchasePrice - payment.paidAmount);
-    if (input.status === "DONE") {
-      if (!Number.isFinite(paymentAmount) || paymentAmount <= 0) {
-        return { success: false, message: "Please enter a valid payment amount.", messageKey: "carInstallments.invalidPaymentAmount" };
-      }
-
-      if (paymentAmount > remainingAmount) {
-        return { success: false, message: "Payment amount cannot be higher than the remaining car balance.", messageKey: "carInstallments.paymentAboveRemaining" };
-      }
-    }
-
-    const nextPaidAmount =
-      input.status === "DONE"
-        ? payment.paidAmount + paymentAmount
-        : payment.paidAmount;
 
     const updated = await prisma.carInstallmentPayment.update({
       where: { vehicleId: input.vehicleId },
       data: {
-        paidAmount: nextPaidAmount,
         monthlyPaymentStatus: input.status,
         monthlyPaymentMonth: month,
         monthlyPaymentYear: year,
@@ -165,7 +129,7 @@ export async function updateCarInstallmentMonthlyStatus(input: {
       entityType: "CarInstallmentPayment",
       entityId: updated.id,
       message: `${session.name} marked car installment month as ${input.status.toLowerCase()} for ${vehicle.plateNumber}`,
-      metadata: { vehicleId: vehicle.id, status: input.status, paymentAmount: input.status === "DONE" ? paymentAmount : 0, month, year },
+      metadata: { vehicleId: vehicle.id, status: input.status, month, year },
     });
 
     return {
