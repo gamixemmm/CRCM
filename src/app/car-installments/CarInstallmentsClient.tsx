@@ -150,6 +150,16 @@ export default function CarInstallmentsClient({ vehicles }: { vehicles: VehicleR
     }
   };
 
+  const handleMarkMonthUnpaid = async (vehicle: VehicleRow) => {
+    const result = await updateCarInstallmentMonthlyStatus({ vehicleId: vehicle.id, status: "NOT_DONE" });
+    if (result.success) {
+      toast(t((result.messageKey ?? "carInstallments.monthMarkedUnpaid") as TranslationKey), "success");
+      router.refresh();
+    } else {
+      toast(t((result.messageKey ?? "carInstallments.updateMonthlyFailed") as TranslationKey), "error");
+    }
+  };
+
   const columns = [
     {
       key: "vehicle",
@@ -193,7 +203,7 @@ export default function CarInstallmentsClient({ vehicles }: { vehicles: VehicleR
           </Button>
           {vehicle.installmentPayment && (
             <>
-              {getMonthlyStatus(vehicle.installmentPayment) === "NOT_DONE" && (
+              {getMonthlyStatus(vehicle.installmentPayment) === "NOT_DONE" ? (
                 <>
                   <Button
                     type="button"
@@ -212,6 +222,15 @@ export default function CarInstallmentsClient({ vehicles }: { vehicles: VehicleR
                     {t("carInstallments.skipMonth")}
                   </Button>
                 </>
+              ) : (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => handleMarkMonthUnpaid(vehicle)}
+                >
+                  {t("status.unpaid")}
+                </Button>
               )}
             </>
           )}
@@ -243,13 +262,19 @@ export default function CarInstallmentsClient({ vehicles }: { vehicles: VehicleR
                 <strong>{formatPrice(payment.monthlyPaidAmount)}</strong>
               </div>
             </div>
-            {getMonthlyStatus(payment) === "NOT_DONE" && (
+            {getMonthlyStatus(payment) === "NOT_DONE" ? (
               <div className={styles.mobileActionRow}>
                 <Button type="button" size="sm" variant="success" onClick={(e) => { e.stopPropagation(); handleMarkMonthPaid(vehicle); }}>
                   {t("status.paid")}
                 </Button>
                 <Button type="button" size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); handleSkipMonth(vehicle); }}>
                   {t("carInstallments.skipMonth")}
+                </Button>
+              </div>
+            ) : (
+              <div className={styles.mobileActionRow}>
+                <Button type="button" size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); handleMarkMonthUnpaid(vehicle); }}>
+                  {t("status.unpaid")}
                 </Button>
               </div>
             )}

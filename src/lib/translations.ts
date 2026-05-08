@@ -105,6 +105,7 @@ const translations = {
   "carInstallments.saveFailed": { en: "Failed to save car payment information.", fr: "Echec de l'enregistrement des informations de paiement.", ar: "فشل حفظ معلومات دفع السيارة." },
   "carInstallments.paymentRecorded": { en: "Car payment recorded.", fr: "Paiement voiture enregistre.", ar: "تم تسجيل دفعة السيارة." },
   "carInstallments.monthSkipped": { en: "This month was skipped.", fr: "Ce mois a ete ignore.", ar: "تم تخطي هذا الشهر." },
+  "carInstallments.monthMarkedUnpaid": { en: "This month was marked unpaid.", fr: "Ce mois a ete marque impaye.", ar: "تم وضع هذا الشهر كغير مدفوع." },
   "carInstallments.updateMonthlyFailed": { en: "Failed to update monthly payment status.", fr: "Echec de la mise a jour du statut mensuel.", ar: "فشل تحديث حالة الدفع الشهرية." },
 
   // ─── Common Actions ─────────────────────────────────────────────
@@ -585,6 +586,7 @@ const translations = {
   "expenses.cat.rent": { en: "Rent", fr: "Loyer", ar: "إيجار" },
   "expenses.cat.accounting": { en: "Accounting", fr: "Comptabilité", ar: "محاسبة" },
   "expenses.cat.movement": { en: "Movement", fr: "Mouvement", ar: "Movement" },
+  "expenses.cat.carPayment": { en: "Car payment", fr: "Paiement voiture", ar: "دفعة السيارة" },
   "expenses.cat.other": { en: "Other", fr: "Autre", ar: "أخرى" },
   "expenses.desc.salaryPayment": { en: "Salary payment", fr: "Paiement salaire", ar: "دفع الراتب" },
   "expenses.desc.insurancePayment": { en: "Insurance payment", fr: "Paiement assurance", ar: "دفع التأمين" },

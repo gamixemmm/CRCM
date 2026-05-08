@@ -15,6 +15,7 @@ export const EXPENSE_CATEGORIES = [
   "CNSS",
   "Loyer",
   "Mouvement",
+  "Car payment",
   "Comptabilité",
   "Autre",
 ] as const;
@@ -26,6 +27,7 @@ export const CAR_EXPENSE_CATEGORIES = [
   "AdBlue",
   "Lavage",
   "Visite technique",
+  "Car payment",
   "Autre",
 ] as const;
 
@@ -41,6 +43,7 @@ const CATEGORY_TRANSLATION_KEYS: Record<string, TranslationKey> = {
   CNSS: "expenses.cat.cnss",
   Loyer: "expenses.cat.rent",
   Mouvement: "expenses.cat.movement",
+  "Car payment": "expenses.cat.carPayment",
   Comptabilité: "expenses.cat.accounting",
   Autre: "expenses.cat.other",
 };
@@ -57,6 +60,8 @@ const CATEGORY_ALIASES: Record<string, string> = {
   Salary: "Salaire",
   Rent: "Loyer",
   Movement: "Mouvement",
+  "Car Payment": "Car payment",
+  "Car monthly payment": "Car payment",
   Accounting: "Comptabilité",
   Other: "Autre",
   "ComptabilitÃ©": "Comptabilité",
