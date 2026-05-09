@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Activity, Filter, Search, ChevronRight } from "lucide-react";
+import { Activity, Filter, Search, ChevronRight, Undo2 } from "lucide-react";
 import Card from "@/components/ui/Card";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
@@ -13,6 +13,8 @@ import { useSettings } from "@/lib/SettingsContext";
 import { formatDate } from "@/lib/utils";
 import { translateExpenseCategory, translateExpenseDescription } from "@/lib/expenseCategories";
 import type { TranslationKey } from "@/lib/translations";
+import { undoAuditLogAction } from "@/actions/auditLogs";
+import { useToast } from "@/components/ui/Toast";
 import styles from "./logs.module.css";
 
 type AuditLog = {
@@ -27,17 +29,21 @@ type AuditLog = {
   message: string;
   metadata: Record<string, unknown> | null;
   createdAt: string;
+  canUndo?: boolean;
+  undoDone?: boolean;
 };
 
 export default function LogsClient({ logs }: { logs: AuditLog[] }) {
-  const { t } = useSettings();
+  const { t, formatPrice } = useSettings();
   const router = useRouter();
+  const { toast } = useToast();
   const [search, setSearch] = useState("");
   const [actor, setActor] = useState("All");
   const [action, setAction] = useState("All");
   const [entityType, setEntityType] = useState("All");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [undoingLogId, setUndoingLogId] = useState<string | null>(null);
 
   const actors = useMemo(() => {
     const values = new Map<string, string>();
@@ -62,21 +68,34 @@ export default function LogsClient({ logs }: { logs: AuditLog[] }) {
   };
 
   const formatEntityType = (entityType: string | null) => {
-    const labels: Record<string, string> = {
-      GlobalSettings: "Cash register",
-      EmployeeSalaryPayment: "Salary payment",
-      EmployeeAccount: "Employee account",
-      EmployeeRole: "Employee role",
-      VignettePayment: "Vignette payment",
-      InsurancePayment: "Insurance payment",
-      TechnicalInspection: "Technical inspection",
+    const labels: Record<string, TranslationKey> = {
+      Account: "logs.entity.account",
+      AuditLog: "logs.entity.auditLog",
+      Booking: "logs.entity.booking",
+      CarInstallmentPayment: "logs.entity.carInstallmentPayment",
+      Company: "logs.entity.company",
+      Customer: "logs.entity.customer",
+      Employee: "logs.entity.employee",
+      EmployeeAccount: "logs.entity.employeeAccount",
+      EmployeeRole: "logs.entity.employeeRole",
+      EmployeeSalaryPayment: "logs.entity.employeeSalaryPayment",
+      Expense: "logs.entity.expense",
+      GlobalSettings: "logs.entity.globalSettings",
+      InsurancePayment: "logs.entity.insurancePayment",
+      Invoice: "logs.entity.invoice",
+      Maintenance: "logs.entity.maintenance",
+      TechnicalInspection: "logs.entity.technicalInspection",
+      Vehicle: "logs.entity.vehicle",
+      VignettePayment: "logs.entity.vignettePayment",
     };
 
-    return entityType ? labels[entityType] || entityType.replace(/([a-z])([A-Z])/g, "$1 $2") : "-";
+    return entityType ? (labels[entityType] ? t(labels[entityType]) : entityType.replace(/([a-z])([A-Z])/g, "$1 $2")) : "-";
   };
 
   const formatAction = (action: string) => {
     const labels: Record<string, TranslationKey> = {
+      ADD_CASH_REGISTER_AMOUNT: "logs.action.addedCash",
+      COMPLETE_TECHNICAL_INSPECTION: "logs.action.completedTechnicalInspection",
       CREATE_EXPENSE: "logs.action.addedExpense",
       UPDATE_EXPENSE: "logs.action.updatedExpense",
       DELETE_EXPENSE: "logs.action.deletedExpense",
@@ -91,18 +110,49 @@ export default function LogsClient({ logs }: { logs: AuditLog[] }) {
       IMPORT_VEHICLES: "logs.action.importedVehicles",
       CREATE_BOOKING: "logs.action.addedBooking",
       UPDATE_BOOKING: "logs.action.updatedBooking",
+      UPDATE_BOOKING_STATUS: "logs.action.updatedBookingStatus",
+      UPDATE_BOOKING_DATES: "logs.action.updatedBookingDates",
+      UPDATE_BOOKING_DRIVERS: "logs.action.updatedBookingDrivers",
+      EARLY_PICKUP: "logs.action.earlyPickup",
+      RETURN_BOOKING: "logs.action.returnedBooking",
       DELETE_BOOKING: "logs.action.deletedBooking",
       CREATE_CUSTOMER: "logs.action.addedCustomer",
+      CREATE_BROKER: "logs.action.addedBroker",
       UPDATE_CUSTOMER: "logs.action.updatedCustomer",
       DELETE_CUSTOMER: "logs.action.deletedCustomer",
-      ADD_CASH_REGISTER_AMOUNT: "logs.action.addedCash",
       REMOVE_CASH_REGISTER_AMOUNT: "logs.action.removedCash",
       UPDATE_CASH_REGISTER: "logs.action.updatedCashRegister",
+      CREATE_INVOICE: "logs.action.createdInvoice",
       UPDATE_INVOICE_PAYMENT: "logs.action.paymentRecorded",
+      DELETE_INVOICE: "logs.action.deletedInvoice",
+      CREATE_EMPLOYEE: "logs.action.createdEmployee",
+      UPDATE_EMPLOYEE: "logs.action.updatedEmployee",
+      DELETE_EMPLOYEE: "logs.action.deletedEmployee",
+      CREATE_EMPLOYEE_ACCOUNT: "logs.action.createdEmployeeAccount",
+      UPDATE_EMPLOYEE_ACCOUNT: "logs.action.updatedEmployeeAccount",
+      CREATE_EMPLOYEE_ROLE: "logs.action.createdEmployeeRole",
+      UPDATE_EMPLOYEE_ROLE: "logs.action.updatedEmployeeRole",
+      DELETE_EMPLOYEE_ROLE: "logs.action.deletedEmployeeRole",
+      CREATE_DEMO_COMPANY: "logs.action.createdDemoCompany",
+      EXPORT_COMPANY_DATA: "logs.action.exportedCompanyData",
+      LOGIN: "logs.action.login",
+      LOGOUT: "logs.action.logout",
+      MARK_VIGNETTE_PAID: "logs.action.markedVignettePaid",
+      RECORD_INSURANCE_PAYMENT: "logs.action.recordedInsurancePayment",
+      UPDATE_USER_SETTINGS: "logs.action.updatedUserSettings",
+      UPSERT_CAR_INSTALLMENT_PAYMENT: "logs.action.updatedCarInstallment",
+      UNDO_ACTION: "logs.action.undidAction",
     };
     const key = labels[action];
 
     return key ? t(key) : action.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase());
+  };
+
+  const formatActorRole = (role: string | null) => {
+    if (!role) return "-";
+    if (role === "Administrator") return t("logs.role.administrator");
+    if (role === "Employee") return t("logs.role.employee");
+    return role;
   };
 
   const formatLogMessage = (log: AuditLog) => {
@@ -122,7 +172,7 @@ export default function LogsClient({ logs }: { logs: AuditLog[] }) {
       const amount = getMetadataNumber(log, "bookingTotalAmount") ?? getMetadataNumber(log, "totalAmount");
       const detailParts = [
         driverName,
-        amount !== null ? String(amount) : null,
+        amount !== null ? formatPrice(amount) : null,
       ].filter(Boolean);
 
       if (vehicleLabel) {
@@ -139,7 +189,7 @@ export default function LogsClient({ logs }: { logs: AuditLog[] }) {
       const amount = getMetadataNumber(log, "amountPaid");
       const detailParts = [
         driverName,
-        amount !== null ? `${t("logs.message.amountAdded")}: ${amount}` : null,
+        amount !== null ? `${t("logs.message.amountAdded")}: ${formatPrice(amount)}` : null,
       ].filter(Boolean);
 
       if (vehicleLabel) {
@@ -160,7 +210,7 @@ export default function LogsClient({ logs }: { logs: AuditLog[] }) {
       const amount = getMetadataNumber(log, "expenseAmount") ?? getMetadataNumber(log, "amount");
       const detailParts = [
         description || (category ? translateExpenseCategory(category, t) : null),
-        amount !== null ? String(amount) : null,
+        amount !== null ? formatPrice(amount) : null,
       ].filter(Boolean);
 
       if (vehicleLabel) {
@@ -176,35 +226,38 @@ export default function LogsClient({ logs }: { logs: AuditLog[] }) {
       return `${formatAction(log.action)}: ${vehicleLabel}`;
     }
 
+    if (log.action === "UNDO_ACTION") {
+      const originalAction = getMetadataString(log, "originalAction");
+      return originalAction ? `${formatAction(log.action)}: ${formatAction(originalAction)}` : formatAction(log.action);
+    }
+
     return formatAction(log.action);
   };
 
-  const filteredLogs = useMemo(() => {
-    const term = search.trim().toLowerCase();
-    return logs.filter((log) => {
-      const actorKey = log.actorId || log.actorEmail || "system";
-      const createdDate = new Date(log.createdAt).toISOString().split("T")[0];
-      const matchesSearch =
-        !term ||
-        log.message.toLowerCase().includes(term) ||
-        log.action.toLowerCase().includes(term) ||
-        formatAction(log.action).toLowerCase().includes(term) ||
-        formatLogMessage(log).toLowerCase().includes(term) ||
-        (log.actorName || "").toLowerCase().includes(term) ||
-        (log.actorEmail || "").toLowerCase().includes(term) ||
-        (log.entityType || "").toLowerCase().includes(term) ||
-        (log.entityId || "").toLowerCase().includes(term);
+  const term = search.trim().toLowerCase();
+  const filteredLogs = logs.filter((log) => {
+    const actorKey = log.actorId || log.actorEmail || "system";
+    const createdDate = new Date(log.createdAt).toISOString().split("T")[0];
+    const matchesSearch =
+      !term ||
+      log.message.toLowerCase().includes(term) ||
+      log.action.toLowerCase().includes(term) ||
+      formatAction(log.action).toLowerCase().includes(term) ||
+      formatLogMessage(log).toLowerCase().includes(term) ||
+      (log.actorName || "").toLowerCase().includes(term) ||
+      (log.actorEmail || "").toLowerCase().includes(term) ||
+      (log.entityType || "").toLowerCase().includes(term) ||
+      (log.entityId || "").toLowerCase().includes(term);
 
-      return (
-        matchesSearch &&
-        (actor === "All" || actorKey === actor) &&
-        (action === "All" || log.action === action) &&
-        (entityType === "All" || log.entityType === entityType) &&
-        (!startDate || createdDate >= startDate) &&
-        (!endDate || createdDate <= endDate)
-      );
-    });
-  }, [logs, search, actor, action, entityType, startDate, endDate]);
+    return (
+      matchesSearch &&
+      (actor === "All" || actorKey === actor) &&
+      (action === "All" || log.action === action) &&
+      (entityType === "All" || log.entityType === entityType) &&
+      (!startDate || createdDate >= startDate) &&
+      (!endDate || createdDate <= endDate)
+    );
+  });
 
   const getLogHref = (log: AuditLog) => {
     const entityType = log.entityType;
@@ -241,6 +294,15 @@ export default function LogsClient({ logs }: { logs: AuditLog[] }) {
     if (href) router.push(href);
   };
 
+  const handleUndo = async (log: AuditLog) => {
+    if (!window.confirm(t("logs.undoConfirm"))) return;
+    setUndoingLogId(log.id);
+    const result = await undoAuditLogAction(log.id);
+    setUndoingLogId(null);
+    toast(result.success ? t("logs.undoSuccess") : result.message || t("logs.undoFailed"), result.success ? "success" : "error");
+    if (result.success) router.refresh();
+  };
+
   const columns = [
     {
       key: "createdAt",
@@ -257,7 +319,7 @@ export default function LogsClient({ logs }: { logs: AuditLog[] }) {
       render: (log: AuditLog) => (
         <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
           <strong>{log.actorName || log.actorEmail || t("logs.system")}</strong>
-          <span style={{ color: "var(--text-tertiary)", fontSize: "0.75rem" }}>{log.actorRole || "-"}</span>
+          <span style={{ color: "var(--text-tertiary)", fontSize: "0.75rem" }}>{formatActorRole(log.actorRole)}</span>
         </div>
       ),
     },
@@ -282,6 +344,32 @@ export default function LogsClient({ logs }: { logs: AuditLog[] }) {
       key: "message",
       label: t("logs.message"),
       render: (log: AuditLog) => <span>{formatLogMessage(log)}</span>,
+    },
+    {
+      key: "undo",
+      label: t("logs.undo"),
+      align: "right" as const,
+      render: (log: AuditLog) => (
+        log.canUndo ? (
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            icon={<Undo2 size={14} />}
+            loading={undoingLogId === log.id}
+            onClick={(event) => {
+              event.stopPropagation();
+              handleUndo(log);
+            }}
+          >
+            {t("logs.undo")}
+          </Button>
+        ) : log.undoDone ? (
+          <Badge variant="success">{t("logs.undone")}</Badge>
+        ) : (
+          <span style={{ color: "var(--text-tertiary)" }}>-</span>
+        )
+      ),
     },
   ];
 
@@ -317,9 +405,27 @@ export default function LogsClient({ logs }: { logs: AuditLog[] }) {
 
       <div className={styles.mobileFooter}>
         <div style={{ color: "var(--text-tertiary)", fontSize: "0.8125rem" }}>
-          {log.actorRole || t("logs.system")}
+          {formatActorRole(log.actorRole)}
         </div>
-        <ChevronRight size={16} style={{ color: "var(--text-tertiary)" }} />
+        {log.canUndo ? (
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            icon={<Undo2 size={14} />}
+            loading={undoingLogId === log.id}
+            onClick={(event) => {
+              event.stopPropagation();
+              handleUndo(log);
+            }}
+          >
+            {t("logs.undo")}
+          </Button>
+        ) : log.undoDone ? (
+          <Badge variant="success">{t("logs.undone")}</Badge>
+        ) : (
+          <ChevronRight size={16} style={{ color: "var(--text-tertiary)" }} />
+        )}
       </div>
     </Card>
   );

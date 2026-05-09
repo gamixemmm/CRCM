@@ -31,7 +31,8 @@ export default function BookingsClient({ bookings, vehicles, maintenanceLogs }: 
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [exporting, setExporting] = useState(false);
   const [lookupVehicleId, setLookupVehicleId] = useState("");
-  const [lookupDate, setLookupDate] = useState("");
+  const [lookupStartDate, setLookupStartDate] = useState("");
+  const [lookupEndDate, setLookupEndDate] = useState("");
 
   const filtered = bookings.filter((b) => {
     const displayStatus = getBookingDisplayStatus(b);
@@ -49,25 +50,25 @@ export default function BookingsClient({ bookings, vehicles, maintenanceLogs }: 
     return matchesStatus && matchesSearch;
   });
 
-  const lookupResults = lookupVehicleId && lookupDate
+  const lookupRangeStart = lookupStartDate ? new Date(`${lookupStartDate}T00:00:00`) : null;
+  const lookupRangeEnd = lookupEndDate ? new Date(`${lookupEndDate}T23:59:59.999`) : null;
+  const hasLookupRange = Boolean(lookupVehicleId && lookupRangeStart && lookupRangeEnd);
+
+  const lookupResults = hasLookupRange && lookupRangeStart && lookupRangeEnd
     ? bookings.filter((booking) => {
         if (booking.vehicleId !== lookupVehicleId) return false;
-        const dayStart = new Date(`${lookupDate}T00:00:00`);
-        const dayEnd = new Date(`${lookupDate}T23:59:59.999`);
         const bookingStart = new Date(booking.startDate);
         const bookingEnd = new Date(booking.endDate);
-        return bookingStart <= dayEnd && bookingEnd >= dayStart;
+        return bookingStart <= lookupRangeEnd && bookingEnd >= lookupRangeStart;
       })
     : [];
 
-  const lookupMaintenanceResults = lookupVehicleId && lookupDate
+  const lookupMaintenanceResults = hasLookupRange && lookupRangeStart && lookupRangeEnd
     ? maintenanceLogs.filter((log) => {
         if (log.vehicleId !== lookupVehicleId) return false;
-        const dayStart = new Date(`${lookupDate}T00:00:00`);
-        const dayEnd = new Date(`${lookupDate}T23:59:59.999`);
         const serviceDate = new Date(log.serviceDate);
-        const returnDate = log.returnDate ? new Date(log.returnDate) : dayEnd;
-        return serviceDate <= dayEnd && returnDate >= dayStart;
+        const returnDate = log.returnDate ? new Date(log.returnDate) : lookupRangeEnd;
+        return serviceDate <= lookupRangeEnd && returnDate >= lookupRangeStart;
       })
     : [];
 
@@ -346,13 +347,14 @@ export default function BookingsClient({ bookings, vehicles, maintenanceLogs }: 
             <h3>{t("bookings.vehicleDateSearch")}</h3>
             <p>{t("bookings.vehicleDateSearchDesc")}</p>
           </div>
-          {(lookupVehicleId || lookupDate) && (
+          {(lookupVehicleId || lookupStartDate || lookupEndDate) && (
             <Button
               type="button"
               variant="ghost"
               onClick={() => {
                 setLookupVehicleId("");
-                setLookupDate("");
+                setLookupStartDate("");
+                setLookupEndDate("");
               }}
             >
               {t("calendar.clear")}
@@ -373,18 +375,36 @@ export default function BookingsClient({ bookings, vehicles, maintenanceLogs }: 
             </select>
           </label>
           <label className={styles.lookupField}>
-            <span>{t("label.date")}</span>
-            <input type="date" value={lookupDate} onChange={(e) => setLookupDate(e.target.value)} />
+            <span>{t("bookings.pickupDate")}</span>
+            <input
+              type="date"
+              value={lookupStartDate}
+              onChange={(e) => {
+                setLookupStartDate(e.target.value);
+                if (lookupEndDate && e.target.value && lookupEndDate < e.target.value) {
+                  setLookupEndDate(e.target.value);
+                }
+              }}
+            />
+          </label>
+          <label className={styles.lookupField}>
+            <span>{t("bookings.returnDate")}</span>
+            <input
+              type="date"
+              value={lookupEndDate}
+              min={lookupStartDate || undefined}
+              onChange={(e) => setLookupEndDate(e.target.value)}
+            />
           </label>
         </div>
 
-        {lookupVehicleId && lookupDate && (
+        {hasLookupRange && lookupRangeStart && lookupRangeEnd && (
           <div className={styles.lookupResults}>
             <div className={styles.lookupResultsTitle}>
               {selectedLookupVehicle
                 ? `${selectedLookupVehicle.brand} ${selectedLookupVehicle.model} - ${selectedLookupVehicle.plateNumber}`
                 : t("bookings.vehicle")}
-              <span>{formatDate(`${lookupDate}T00:00:00`)}</span>
+              <span>{formatDate(lookupRangeStart)} {t("label.to")} {formatDate(lookupRangeEnd)}</span>
             </div>
 
             {lookupResults.length > 0 || lookupMaintenanceResults.length > 0 ? (
