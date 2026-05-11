@@ -46,6 +46,7 @@ interface BookingDriverInput {
 }
 
 const RENTAL_HOLD_STATUSES = ["CONFIRMED", "ACTIVE", "LATE"];
+const MAINTENANCE_BOOKING_WARNING = "Vehicle has unfinished maintenance for these dates.";
 
 function startOfToday() {
   return getBusinessStartOfToday();
@@ -68,6 +69,24 @@ function getPaymentStatus(totalAmount: number, amountDue: number, paidTotal: num
   if (amountDue === 0 && totalAmount > 0) return "PAID";
   if (paidTotal > 0) return "PARTIAL";
   return "PENDING";
+}
+
+async function getUnfinishedMaintenanceWarning(companyId: string, vehicleId: string, start: Date, end: Date) {
+  const today = getBusinessStartOfToday();
+  const maintenanceOverlap = await prisma.maintenance.findFirst({
+    where: {
+      companyId,
+      vehicleId,
+      serviceDate: { lte: end },
+      OR: [
+        { returnDate: null },
+        { returnDate: { gt: today, gte: start } },
+      ],
+    },
+    select: { id: true },
+  });
+
+  return maintenanceOverlap ? MAINTENANCE_BOOKING_WARNING : null;
 }
 
 async function syncLateBookings(companyId: string) {
@@ -286,7 +305,7 @@ export async function createBooking(input: BookingInput) {
       return { success: false, message: "Vehicle not found" };
     }
 
-    if (vehicle.status !== "AVAILABLE") {
+    if (vehicle.status !== "AVAILABLE" && vehicle.status !== "MAINTENANCE") {
       return { success: false, message: "Vehicle is not available for booking." };
     }
 
@@ -306,21 +325,7 @@ export async function createBooking(input: BookingInput) {
       return { success: false, message: "Vehicle is already booked for these dates." };
     }
 
-    const maintenanceOverlap = await prisma.maintenance.count({
-      where: {
-        companyId,
-        vehicleId: input.vehicleId,
-        serviceDate: { lte: end },
-        OR: [
-          { returnDate: null },
-          { returnDate: { gte: start } },
-        ],
-      },
-    });
-
-    if (maintenanceOverlap > 0) {
-      return { success: false, message: "Vehicle is in maintenance for these dates." };
-    }
+    const maintenanceWarning = await getUnfinishedMaintenanceWarning(companyId, input.vehicleId, start, end);
 
     const booking = await prisma.$transaction(async (tx) => {
       const b = await tx.booking.create({
@@ -401,7 +406,12 @@ export async function createBooking(input: BookingInput) {
       metadata: { vehicleId: input.vehicleId, customerId: input.customerId, totalAmount: input.totalAmount },
     });
 
-    return { success: true, message: "Booking created", data: booking };
+    return {
+      success: true,
+      message: "Booking created",
+      data: booking,
+      warnings: maintenanceWarning ? [maintenanceWarning] : [],
+    };
   } catch (error) {
     console.error(error);
     return { success: false, message: "Failed to create booking" };
@@ -425,6 +435,7 @@ export async function updateBookingStatus(bookingId: string, newStatus: string, 
       return { success: false, message: "Booking not found" };
     }
 
+    let maintenanceWarning: string | null = null;
     if (newStatus === "ACTIVE" || newStatus === "LATE" || newStatus === "CONFIRMED") {
       const overlaps = await prisma.booking.count({
         where: {
@@ -441,21 +452,7 @@ export async function updateBookingStatus(bookingId: string, newStatus: string, 
         return { success: false, message: "Vehicle has a conflicting booking for these dates" };
       }
 
-      const maintenanceOverlap = await prisma.maintenance.count({
-        where: {
-          companyId,
-          vehicleId: booking.vehicleId,
-          serviceDate: { lte: booking.endDate },
-          OR: [
-            { returnDate: null },
-            { returnDate: { gte: booking.startDate } },
-          ],
-        },
-      });
-
-      if (maintenanceOverlap > 0) {
-        return { success: false, message: "Vehicle is in maintenance for these dates." };
-      }
+      maintenanceWarning = await getUnfinishedMaintenanceWarning(companyId, booking.vehicleId, booking.startDate, booking.endDate);
     }
 
     await prisma.$transaction(async (tx) => {
@@ -509,7 +506,11 @@ export async function updateBookingStatus(bookingId: string, newStatus: string, 
       metadata: { status: newStatus, invoiceDeleted: newStatus === "CANCELLED" ? Boolean(options?.deleteInvoice && booking.invoice) : false },
     });
 
-    return { success: true, message: `Booking marked as ${newStatus}` };
+    return {
+      success: true,
+      message: `Booking marked as ${newStatus}`,
+      warnings: maintenanceWarning ? [maintenanceWarning] : [],
+    };
   } catch (error) {
     console.error(error);
     return { success: false, message: "Failed to update booking status" };
@@ -771,21 +772,7 @@ export async function updateBookingDates(bookingId: string, newStartDate: string
       return { success: false, message: "Vehicle has a conflicting booking for these dates" };
     }
 
-    const maintenanceOverlap = await prisma.maintenance.count({
-      where: {
-        companyId,
-        vehicleId: booking.vehicleId,
-        serviceDate: { lte: newEnd },
-        OR: [
-          { returnDate: null },
-          { returnDate: { gte: newStart } },
-        ],
-      },
-    });
-
-    if (maintenanceOverlap > 0) {
-      return { success: false, message: "Vehicle is in maintenance for these dates." };
-    }
+    const maintenanceWarning = await getUnfinishedMaintenanceWarning(companyId, booking.vehicleId, newStart, newEnd);
 
     // Calculate new duration and total
     const newDays = getRentalDays(newStart, newEnd);
@@ -832,7 +819,11 @@ export async function updateBookingDates(bookingId: string, newStartDate: string
       metadata: { newStartDate, newEndDate, newPricePerDay, totalAmount: newTotal },
     });
 
-    return { success: true, message: `Dates updated — ${newDays} days, total recalculated` };
+    return {
+      success: true,
+      message: `Dates updated — ${newDays} days, total recalculated`,
+      warnings: maintenanceWarning ? [maintenanceWarning] : [],
+    };
   } catch (error) {
     console.error(error);
     return { success: false, message: "Failed to update booking dates" };

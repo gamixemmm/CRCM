@@ -72,6 +72,11 @@ export default function BookingForm({ vehicles, customers: initialCustomers }: {
     return value >= normalizeDate(rangeStart).getTime() && value <= normalizeDate(rangeEnd).getTime();
   };
 
+  const rangeOverlaps = (rangeStart: Date, rangeEnd: Date, targetStart: Date, targetEnd: Date) => {
+    return normalizeDate(rangeStart).getTime() <= normalizeDate(targetEnd).getTime()
+      && normalizeDate(rangeEnd).getTime() >= normalizeDate(targetStart).getTime();
+  };
+
   const addYears = (date: Date, years: number) => {
     const next = new Date(date);
     next.setFullYear(next.getFullYear() + years);
@@ -130,12 +135,23 @@ export default function BookingForm({ vehicles, customers: initialCustomers }: {
       }
     }
 
+    const today = normalizeDate(new Date());
+    const hasUnfinishedMaintenance = (selectedVehicle.maintenance || []).some((log: any) => {
+      const maintenanceStart = new Date(log.serviceDate);
+      const maintenanceEnd = log.returnDate ? new Date(log.returnDate) : new Date(8640000000000000);
+      const isDone = log.returnDate && normalizeDate(new Date(log.returnDate)).getTime() <= today.getTime();
+      return !isDone && rangeOverlaps(maintenanceStart, maintenanceEnd, start, end);
+    });
+    if (hasUnfinishedMaintenance) {
+      warnings.push("Vehicle has unfinished maintenance for these dates.");
+    }
+
     return warnings;
   }, [selectedVehicle, start, end]);
 
   // Filter vehicles by availability when dates are selected
   const isVehicleAvailable = (vehicle: any): boolean => {
-    if (vehicle.status !== "AVAILABLE") return false;
+    if (vehicle.status !== "AVAILABLE" && vehicle.status !== "MAINTENANCE") return false;
     if (!start || !end) return true;
     const bookings = vehicle.bookings || [];
     const hasBookingConflict = bookings.some((b: any) => {
@@ -144,13 +160,7 @@ export default function BookingForm({ vehicles, customers: initialCustomers }: {
       return bStart <= end && bEnd >= start;
     });
     if (hasBookingConflict) return false;
-
-    const maintenanceLogs = vehicle.maintenance || [];
-    return !maintenanceLogs.some((log: any) => {
-      const mStart = new Date(log.serviceDate);
-      const mEnd = log.returnDate ? new Date(log.returnDate) : new Date(8640000000000000);
-      return mStart <= end && mEnd >= start;
-    });
+    return true;
   };
 
   const vehicleOptions = useMemo(() => {
@@ -238,6 +248,7 @@ export default function BookingForm({ vehicles, customers: initialCustomers }: {
 
     if (result.success && result.data) {
       toast(result.message, "success");
+      result.warnings?.forEach((warning: string) => toast(warning, "warning"));
       const createdBooking = result.data as any;
       router.push(`/bookings/${createdBooking.id}`);
     } else {

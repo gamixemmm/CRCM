@@ -21,6 +21,9 @@ export default function BookingDetailClient({ booking }: { booking: any }) {
 
   const router = useRouter();
   const { toast } = useToast();
+  const showWarnings = (warnings?: string[]) => {
+    warnings?.forEach((warning) => toast(warning, "warning"));
+  };
   
   const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
   const [invoiceForm, setInvoiceForm] = useState({
@@ -426,6 +429,7 @@ export default function BookingDetailClient({ booking }: { booking: any }) {
                     setPickupLoading(false);
                     if (res.success) {
                       toast(t("toast.carPickedUp"), "success");
+                      showWarnings(res.warnings);
                       router.refresh();
                     } else {
                       toast(res.message, "error");
@@ -444,6 +448,7 @@ export default function BookingDetailClient({ booking }: { booking: any }) {
                     setPickupLoading(false);
                     if (res.success) {
                       toast(t("toast.carPickedUp"), "success");
+                      showWarnings(res.warnings);
                       router.refresh();
                     } else {
                       toast(res.message, "error");
@@ -1064,6 +1069,7 @@ export default function BookingDetailClient({ booking }: { booking: any }) {
                 setEditDatesLoading(false);
                 if (res.success) {
                   toast(res.message, "success");
+                  showWarnings(res.warnings);
                   setIsEditDatesModalOpen(false);
                   router.refresh();
                 } else {
