@@ -21,16 +21,21 @@ const statusFilters = ["ALL", "UNPAID", "PENDING", "PARTIAL", "PAID"];
 
 interface InvoicesClientProps {
   invoices: any[];
+  canViewAllInvoices: boolean;
+  canPayInvoices: boolean;
+  canDeleteInvoices: boolean;
 }
 
-export default function InvoicesClient({ invoices }: InvoicesClientProps) {
+export default function InvoicesClient({ invoices, canViewAllInvoices, canPayInvoices, canDeleteInvoices }: InvoicesClientProps) {
   const { formatPrice: formatCurrency, t, formatStatusT } = useSettings();
 
   const router = useRouter();
   const { toast } = useToast();
   const searchParams = useSearchParams();
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState(searchParams.get("status") || "ALL");
+  const allowedStatusFilters = canViewAllInvoices ? statusFilters : ["UNPAID", "PENDING", "PARTIAL"];
+  const requestedStatus = searchParams.get("status") || (canViewAllInvoices ? "ALL" : "UNPAID");
+  const [statusFilter, setStatusFilter] = useState(allowedStatusFilters.includes(requestedStatus) ? requestedStatus : allowedStatusFilters[0]);
   const [processing, setProcessing] = useState<string | null>(null);
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
   const [paymentForm, setPaymentForm] = useState({ id: "", amount: "", amountDue: 0, method: "ESPECE", dailyRate: 0 });
@@ -200,13 +205,13 @@ export default function InvoicesClient({ invoices }: InvoicesClientProps) {
         </Badge>
       ),
     },
-    {
+    ...(canPayInvoices || canDeleteInvoices ? [{
       key: "actions",
       label: t("label.actions"),
       align: "right" as const,
       render: (i: any) => (
         <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
-          {i.paymentStatus !== "PAID" ? (
+          {canPayInvoices && (i.paymentStatus !== "PAID" ? (
             <Button
               size="sm"
               variant="success"
@@ -226,17 +231,19 @@ export default function InvoicesClient({ invoices }: InvoicesClientProps) {
             >
               {t("invoices.unpay")}
             </Button>
+          ))}
+          {canDeleteInvoices && (
+            <Button
+              size="sm"
+              variant="danger"
+              loading={processing === i.id}
+              onClick={(e) => handleDelete(i.id, e)}
+              icon={<Trash2 size={14} />}
+            />
           )}
-          <Button
-            size="sm"
-            variant="danger"
-            loading={processing === i.id}
-            onClick={(e) => handleDelete(i.id, e)}
-            icon={<Trash2 size={14} />}
-          />
         </div>
       ),
-    },
+    }] : []),
   ];
 
   const mobileCards = filtered.map((i) => (
@@ -296,7 +303,7 @@ export default function InvoicesClient({ invoices }: InvoicesClientProps) {
           {t("invoices.invId")} {i.id.slice(0, 8).toUpperCase()}
         </div>
         <div className={styles.mobileActions}>
-          {i.paymentStatus !== "PAID" ? (
+          {canPayInvoices && (i.paymentStatus !== "PAID" ? (
             <Button
               size="sm"
               variant="success"
@@ -316,14 +323,16 @@ export default function InvoicesClient({ invoices }: InvoicesClientProps) {
             >
               {t("invoices.unpay")}
             </Button>
+          ))}
+          {canDeleteInvoices && (
+            <Button
+              size="sm"
+              variant="danger"
+              loading={processing === i.id}
+              onClick={(e) => handleDelete(i.id, e)}
+              icon={<Trash2 size={14} />}
+            />
           )}
-          <Button
-            size="sm"
-            variant="danger"
-            loading={processing === i.id}
-            onClick={(e) => handleDelete(i.id, e)}
-            icon={<Trash2 size={14} />}
-          />
           <Link href={`/invoices/${i.id}`} onClick={(e) => e.stopPropagation()} className={styles.mobileLink}>
             {t("action.view")}
           </Link>
@@ -354,7 +363,7 @@ export default function InvoicesClient({ invoices }: InvoicesClientProps) {
         </div>
 
         <div className={styles.filterRow}>
-          {statusFilters.map((s) => (
+          {allowedStatusFilters.map((s) => (
             <button
               key={s}
               onClick={() => setStatusFilter(s)}

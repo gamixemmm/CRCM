@@ -13,7 +13,15 @@ import { formatDate } from "@/lib/utils";
 import { translateExpenseCategory, translateExpenseDescription } from "@/lib/expenseCategories";
 import styles from "../expenses.module.css";
 
-export default function ExpenseDetailClient({ expense, vehicles }: { expense: any; vehicles: any[] }) {
+export default function ExpenseDetailClient({
+  expense,
+  vehicles,
+  canEditDeleteExpenses,
+}: {
+  expense: any;
+  vehicles: any[];
+  canEditDeleteExpenses: boolean;
+}) {
   const router = useRouter();
   const { t, formatPrice } = useSettings();
   const { toast } = useToast();
@@ -40,8 +48,12 @@ export default function ExpenseDetailClient({ expense, vehicles }: { expense: an
         <h1>{t("expenses.description")}</h1>
         <div className={styles.detailActions}>
           <Button variant="ghost" icon={<ArrowLeft size={16} />} onClick={() => router.back()}>{t("action.back")}</Button>
-          <Button icon={<Pencil size={16} />} onClick={() => setIsModalOpen(true)}>{t("action.edit")}</Button>
-          <Button variant="danger" icon={<Trash2 size={16} />} loading={deleting} onClick={handleDelete} />
+          {canEditDeleteExpenses && (
+            <>
+              <Button icon={<Pencil size={16} />} onClick={() => setIsModalOpen(true)}>{t("action.edit")}</Button>
+              <Button variant="danger" icon={<Trash2 size={16} />} loading={deleting} onClick={handleDelete} />
+            </>
+          )}
         </div>
       </div>
 
@@ -68,15 +80,17 @@ export default function ExpenseDetailClient({ expense, vehicles }: { expense: an
         </div>
       </Card>
 
-      <AddExpenseModal
-        isOpen={isModalOpen}
-        onClose={() => {
-          setIsModalOpen(false);
-          router.refresh();
-        }}
-        vehicles={vehicles}
-        editingExpense={expense}
-      />
+      {canEditDeleteExpenses && (
+        <AddExpenseModal
+          isOpen={isModalOpen}
+          onClose={() => {
+            setIsModalOpen(false);
+            router.refresh();
+          }}
+          vehicles={vehicles}
+          editingExpense={expense}
+        />
+      )}
     </div>
   );
 }

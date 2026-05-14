@@ -715,7 +715,7 @@ const translations = {
 
   // ─── Settings - Employee Roles ─────────────────────────────
   "settings.employeeRoles": { en: "Employee Roles", fr: "Postes des employes", ar: "مناصب الموظفين" },
-  "settings.employeeRolesDesc": { en: "Manage the role options used when adding employees.", fr: "Gerez les postes disponibles lors de l'ajout des employes.", ar: "إدارة خيارات المناصب عند إضافة الموظفين." },
+  "settings.employeeRolesDesc": { en: "Manage role templates used to prefill employee permissions. Access is applied per employee.", fr: "Gerez les modeles de postes utilises pour pre-remplir les permissions des employes. L'acces s'applique par employe.", ar: "ادارة قوالب المناصب التي تستعمل لملء صلاحيات الموظفين. يتم تطبيق الوصول لكل موظف." },
   "settings.newRole": { en: "New Role", fr: "Nouveau poste", ar: "منصب جديد" },
   "settings.noRoles": { en: "No roles added yet.", fr: "Aucun poste ajoute.", ar: "لم تتم إضافة أي منصب بعد." },
   "settings.roleAdded": { en: "Role added", fr: "Poste ajoute", ar: "تمت إضافة المنصب" },

@@ -46,7 +46,7 @@ function getMonthlyStatus(payment: InstallmentPayment | null) {
   return payment.monthlyPaymentStatus;
 }
 
-export default function CarInstallmentsClient({ vehicles }: { vehicles: VehicleRow[] }) {
+export default function CarInstallmentsClient({ vehicles, canAddCarPayments }: { vehicles: VehicleRow[]; canAddCarPayments: boolean }) {
   const router = useRouter();
   const { toast } = useToast();
   const { t, formatPrice } = useSettings();
@@ -91,6 +91,7 @@ export default function CarInstallmentsClient({ vehicles }: { vehicles: VehicleR
   }, [vehicles, search]);
 
   const openPaymentModal = (vehicle: VehicleRow) => {
+    if (!canAddCarPayments) return;
     setSelectedVehicle(vehicle);
     setMonthlyPaidAmount(vehicle.installmentPayment ? String(vehicle.installmentPayment.monthlyPaidAmount) : "");
   };
@@ -197,45 +198,47 @@ export default function CarInstallmentsClient({ vehicles }: { vehicles: VehicleR
       align: "right" as const,
       render: (vehicle: VehicleRow) => (
         <div className={styles.actionGroup}>
-          <Button
-            type="button"
-            size="sm"
-            variant="secondary"
-            icon={<Edit3 size={14} />}
-            onClick={() => openPaymentModal(vehicle)}
-          >
-            {vehicle.installmentPayment ? t("action.edit") : t("carInstallments.submit")}
-          </Button>
-          {vehicle.installmentPayment && (
+          {canAddCarPayments && (
             <>
-              {getMonthlyStatus(vehicle.installmentPayment) === "NOT_DONE" ? (
-                <>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="success"
-                    onClick={() => handleMarkMonthPaid(vehicle)}
-                  >
-                    {t("status.paid")}
-                  </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                icon={<Edit3 size={14} />}
+                onClick={() => openPaymentModal(vehicle)}
+              >
+                {vehicle.installmentPayment ? t("action.edit") : t("carInstallments.submit")}
+              </Button>
+              {vehicle.installmentPayment && (
+                getMonthlyStatus(vehicle.installmentPayment) === "NOT_DONE" ? (
+                  <>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="success"
+                      onClick={() => handleMarkMonthPaid(vehicle)}
+                    >
+                      {t("status.paid")}
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => handleSkipMonth(vehicle)}
+                    >
+                      {t("carInstallments.skipMonth")}
+                    </Button>
+                  </>
+                ) : (
                   <Button
                     type="button"
                     size="sm"
                     variant="ghost"
-                    onClick={() => handleSkipMonth(vehicle)}
+                    onClick={() => handleMarkMonthUnpaid(vehicle)}
                   >
-                    {t("carInstallments.skipMonth")}
+                    {t("status.unpaid")}
                   </Button>
-                </>
-              ) : (
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => handleMarkMonthUnpaid(vehicle)}
-                >
-                  {t("status.unpaid")}
-                </Button>
+                )
               )}
             </>
           )}
@@ -248,7 +251,7 @@ export default function CarInstallmentsClient({ vehicles }: { vehicles: VehicleR
     const payment = vehicle.installmentPayment;
 
     return (
-      <Card key={vehicle.id} padding="md" className={styles.mobileCard} hover onClick={() => openPaymentModal(vehicle)}>
+      <Card key={vehicle.id} padding="md" className={styles.mobileCard} hover={canAddCarPayments} onClick={() => openPaymentModal(vehicle)}>
           <div className={styles.mobileTop}>
             <div className={styles.vehicleText}>
               <strong>{vehicle.brand} {vehicle.model}</strong>
@@ -267,7 +270,7 @@ export default function CarInstallmentsClient({ vehicles }: { vehicles: VehicleR
                 <strong>{formatPrice(payment.monthlyPaidAmount)}</strong>
               </div>
             </div>
-            {getMonthlyStatus(payment) === "NOT_DONE" ? (
+            {canAddCarPayments && getMonthlyStatus(payment) === "NOT_DONE" ? (
               <div className={styles.mobileActionRow}>
                 <Button type="button" size="sm" variant="success" onClick={(e) => { e.stopPropagation(); handleMarkMonthPaid(vehicle); }}>
                   {t("status.paid")}
@@ -276,13 +279,13 @@ export default function CarInstallmentsClient({ vehicles }: { vehicles: VehicleR
                   {t("carInstallments.skipMonth")}
                 </Button>
               </div>
-            ) : (
+            ) : canAddCarPayments ? (
               <div className={styles.mobileActionRow}>
                 <Button type="button" size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); handleMarkMonthUnpaid(vehicle); }}>
                   {t("status.unpaid")}
                 </Button>
               </div>
-            )}
+            ) : null}
           </>
         ) : (
           <div className={styles.emptyPayment}>{t("carInstallments.emptyPayment")}</div>
@@ -361,7 +364,7 @@ export default function CarInstallmentsClient({ vehicles }: { vehicles: VehicleR
       </div>
 
       <Modal
-        isOpen={!!selectedVehicle}
+        isOpen={canAddCarPayments && !!selectedVehicle}
         onClose={() => setSelectedVehicle(null)}
         title={t("carInstallments.paymentInfoTitle")}
         size="sm"

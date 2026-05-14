@@ -64,6 +64,7 @@ export default function DashboardClient({
   session,
 }: DashboardClientProps) {
   const { formatPrice: formatCurrency, t, formatStatusT } = useSettings();
+  const canViewDashboardFinancials = hasPermission(session, "VIEW_DASHBOARD_FINANCIALS");
 
   const getDayLabel = (dateString: string) => {
     const d = new Date(dateString);
@@ -116,25 +117,25 @@ export default function DashboardClient({
     });
   }
 
-  if (hasPermission(session, "VIEW_PENDING_REVENUE")) {
+  if (canViewDashboardFinancials) {
     statCards.push({
       label: t("dashboard.howMuchRevenue"),
       value: formatCurrency(stats.pendingRevenue),
       icon: <CreditCard size={22} />,
       color: "var(--danger)",
       bg: "var(--danger-muted)",
-      href: "/invoices?status=UNPAID",
+      href: hasPermission(session, "VIEW_ALL_INVOICES") || hasPermission(session, "VIEW_UNPAID_INVOICES") || hasPermission(session, "MANAGE_INVOICES") ? "/invoices?status=UNPAID" : "/",
     });
   }
 
-  if (hasPermission(session, "VIEW_EXPENSES") || hasPermission(session, "MANAGE_EXPENSES")) {
+  if (canViewDashboardFinancials) {
     statCards.push({
       label: t("expenses.remainder"),
       value: formatCurrency(stats.remainder),
       icon: <Calculator size={22} />,
       color: stats.remainder < 0 ? "var(--danger)" : "var(--success)",
       bg: stats.remainder < 0 ? "var(--danger-muted)" : "var(--success-muted)",
-      href: "/expenses",
+      href: hasPermission(session, "VIEW_EXPENSES") || hasPermission(session, "MANAGE_EXPENSES") || canViewDashboardFinancials ? "/expenses" : "/",
     });
   }
 

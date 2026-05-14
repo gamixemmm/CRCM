@@ -36,7 +36,7 @@ export async function saveCarInstallmentPayment(input: {
 }): Promise<ActionResult> {
   try {
     const session = await requireCompanyAdminAccess();
-    if (!canPerform(session, ["MANAGE_VEHICLES"])) {
+    if (!canPerform(session, ["ADD_CAR_PAYMENTS"])) {
       return { success: false, message: "You do not have permission to manage vehicle payments.", messageKey: "carInstallments.noPermission" };
     }
 
@@ -97,7 +97,7 @@ export async function updateCarInstallmentMonthlyStatus(input: {
 }): Promise<ActionResult> {
   try {
     const session = await requireCompanyAdminAccess();
-    if (!canPerform(session, ["MANAGE_VEHICLES"])) {
+    if (!canPerform(session, ["ADD_CAR_PAYMENTS"])) {
       return { success: false, message: "You do not have permission to manage vehicle payments.", messageKey: "carInstallments.noPermission" };
     }
 

@@ -11,7 +11,7 @@ export default async function CarInstallmentsPage() {
   if (!session) {
     redirect("/login?next=/car-installments");
   }
-  if (!canPerform(session, ["VIEW_VEHICLES"])) redirect("/");
+  if (!canPerform(session, ["VIEW_CAR_PAYMENTS"])) redirect("/");
 
   const vehicles = await prisma.vehicle.findMany({
     where: { companyId: session.companyId },
@@ -21,5 +21,5 @@ export default async function CarInstallmentsPage() {
     },
   });
 
-  return <CarInstallmentsClient vehicles={JSON.parse(JSON.stringify(vehicles))} />;
+  return <CarInstallmentsClient vehicles={JSON.parse(JSON.stringify(vehicles))} canAddCarPayments={canPerform(session, ["ADD_CAR_PAYMENTS"])} />;
 }

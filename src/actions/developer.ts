@@ -277,6 +277,20 @@ export async function createDeveloperDemoCompany(input: {
         ],
       },
     });
+    await tx.employeeRole.create({
+      data: {
+        companyId: createdCompany.id,
+        name: "Finance Dashboard",
+        permissions: ["VIEW_DASHBOARD_FINANCIALS"],
+      },
+    });
+    await tx.employeeRole.create({
+      data: {
+        companyId: createdCompany.id,
+        name: "Expense Editor",
+        permissions: ["VIEW_EXPENSES", "EDIT_DELETE_EXPENSES"],
+      },
+    });
 
     const vehicles = [];
     for (const item of vehicleSeed.slice(0, counts.vehicles)) {

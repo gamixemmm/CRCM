@@ -4,13 +4,16 @@ import { Pool } from "pg";
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
+  prismaSchemaVersion: string | undefined;
 };
 
+const PRISMA_SCHEMA_VERSION = "employee-permissions-2026-05-14";
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 const adapter = new PrismaPg(pool);
 
 function isStalePrismaClient(client: PrismaClient | undefined) {
   return !!client && (
+    globalForPrisma.prismaSchemaVersion !== PRISMA_SCHEMA_VERSION ||
     typeof (client as PrismaClient & { auditLog?: unknown }).auditLog === "undefined" ||
     typeof (client as PrismaClient & { carInstallmentPayment?: unknown }).carInstallmentPayment === "undefined"
   );
@@ -30,4 +33,5 @@ export const prisma =
 
 if (process.env.NODE_ENV !== "production") {
   globalForPrisma.prisma = prisma;
+  globalForPrisma.prismaSchemaVersion = PRISMA_SCHEMA_VERSION;
 }

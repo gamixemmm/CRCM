@@ -13,6 +13,7 @@ interface EmployeeInput {
   phone?: string;
   email?: string;
   role?: string;
+  permissions?: string[];
   hasSalary: boolean;
   salary?: number;
   payDay?: number;
@@ -31,6 +32,23 @@ function getCurrentPayrollPeriod() {
 
 function getEmployeeName(employee: { firstName: string; lastName: string }) {
   return `${employee.firstName} ${employee.lastName}`.trim();
+}
+
+async function getRoleTemplatePermissions(companyId: string, role?: string) {
+  const roleName = role?.trim();
+  if (!roleName) return [];
+
+  const roleDoc = await prisma.employeeRole.findUnique({
+    where: {
+      companyId_name: {
+        companyId,
+        name: roleName,
+      },
+    },
+    select: { permissions: true },
+  });
+
+  return roleDoc?.permissions || [];
 }
 
 export async function getEmployees() {
@@ -89,6 +107,7 @@ export async function createEmployee(input: EmployeeInput) {
       }
     }
 
+    const permissions = input.permissions ?? await getRoleTemplatePermissions(companyId, input.role);
     const employee = await prisma.employee.create({
       data: {
         companyId,
@@ -97,6 +116,7 @@ export async function createEmployee(input: EmployeeInput) {
         phone: input.phone?.trim() || null,
         email: input.email?.trim() || null,
         role: input.role?.trim() || null,
+        permissions,
         hasSalary: input.hasSalary,
         salary: input.hasSalary ? input.salary : null,
         payDay: input.hasSalary ? input.payDay : null,
@@ -128,6 +148,7 @@ export async function updateEmployee(id: string, input: EmployeeInput) {
     if (!input.firstName.trim() || !input.lastName.trim()) {
       return { success: false, message: "Employee name is required" };
     }
+    const companyId = await requireCompanyId();
 
     if (input.hasSalary) {
       if (!Number.isFinite(input.salary) || !input.salary || input.salary <= 0) {
@@ -147,6 +168,7 @@ export async function updateEmployee(id: string, input: EmployeeInput) {
         phone: input.phone?.trim() || null,
         email: input.email?.trim() || null,
         role: input.role?.trim() || null,
+        permissions: input.permissions ?? await getRoleTemplatePermissions(companyId, input.role),
         hasSalary: input.hasSalary,
         salary: input.hasSalary ? input.salary : null,
         payDay: input.hasSalary ? input.payDay : null,

@@ -36,21 +36,6 @@ export async function getCompanyAdminSession() {
   });
 
   if (employeeAcct && employeeAcct.active && employeeAcct.company.active) {
-    let permissions: string[] = [];
-    if (employeeAcct.employee?.role) {
-      const roleDoc = await prisma.employeeRole.findUnique({
-        where: {
-          companyId_name: {
-            companyId: employeeAcct.companyId,
-            name: employeeAcct.employee.role,
-          },
-        },
-      });
-      if (roleDoc) {
-        permissions = roleDoc.permissions || [];
-      }
-    }
-
     return {
       id: employeeAcct.id,
       companyId: employeeAcct.companyId,
@@ -58,7 +43,7 @@ export async function getCompanyAdminSession() {
       name: employeeAcct.name,
       email: employeeAcct.email,
       role: employeeAcct.employee?.role || "Employee",
-      permissions,
+      permissions: employeeAcct.employee?.permissions || [],
     };
   }
 

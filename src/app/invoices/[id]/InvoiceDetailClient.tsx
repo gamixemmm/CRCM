@@ -16,7 +16,15 @@ import { updatePaymentStatus, deleteInvoice } from "@/actions/invoices";
 import { formatDate, getFullName } from "@/lib/utils";
 import styles from "../invoices.module.css";
 
-export default function InvoiceDetailClient({ invoice }: { invoice: any }) {
+export default function InvoiceDetailClient({
+  invoice,
+  canPayInvoices,
+  canDeleteInvoices,
+}: {
+  invoice: any;
+  canPayInvoices: boolean;
+  canDeleteInvoices: boolean;
+}) {
   const { formatPrice: formatCurrency, t } = useSettings();
 
   const router = useRouter();
@@ -136,7 +144,7 @@ export default function InvoiceDetailClient({ invoice }: { invoice: any }) {
           <span style={{ fontSize: "0.8125rem", color: "var(--text-tertiary)" }}>ID: {invoice.id}</span>
         </div>
         <div className={styles.detailActionRow}>
-          {invoice.paymentStatus !== "PAID" && (
+          {canPayInvoices && invoice.paymentStatus !== "PAID" && (
             <Button
               variant="success"
               icon={<CreditCard size={16} />}
@@ -148,14 +156,16 @@ export default function InvoiceDetailClient({ invoice }: { invoice: any }) {
               {t("invoices.recordPayment")}
             </Button>
           )}
-          {invoice.paymentStatus === "PAID" && (
+          {canPayInvoices && invoice.paymentStatus === "PAID" && (
             <Button variant="secondary" icon={<XCircle size={16} />} onClick={handleMarkUnpaid} loading={processing}>
               {t("invoices.markUnpaid")}
             </Button>
           )}
-          <Button variant="danger" icon={<Trash2 size={16} />} onClick={handleDeleteInvoice} loading={processing}>
-            {t("action.delete")}
-          </Button>
+          {canDeleteInvoices && (
+            <Button variant="danger" icon={<Trash2 size={16} />} onClick={handleDeleteInvoice} loading={processing}>
+              {t("action.delete")}
+            </Button>
+          )}
           <Link href={`/invoices/${invoice.id}/print`}>
             <Button variant="secondary" icon={<Printer size={16} />}>
               {t("action.print")}
@@ -303,7 +313,7 @@ export default function InvoiceDetailClient({ invoice }: { invoice: any }) {
 
       {/* Payment Modal entirely replicates the Invoices page flow */}
       <Modal
-        isOpen={paymentModalOpen}
+        isOpen={canPayInvoices && paymentModalOpen}
         onClose={() => setPaymentModalOpen(false)}
         title={t("invoices.recordPayment")}
         size="sm"

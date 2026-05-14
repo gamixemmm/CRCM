@@ -12,11 +12,18 @@ export default async function InvoicesPage() {
   if (!session) {
     redirect("/login?next=/invoices");
   }
-  if (!canPerform(session, ["VIEW_INVOICES"])) redirect("/");
-  const invoices = await getInvoices();
+  const canViewAllInvoices = canPerform(session, ["VIEW_ALL_INVOICES"]);
+  const canViewUnpaidInvoices = canPerform(session, ["VIEW_UNPAID_INVOICES"]);
+  if (!canViewAllInvoices && !canViewUnpaidInvoices) redirect("/");
+  const invoices = await getInvoices({ status: canViewAllInvoices ? "ALL" : "UNPAID" });
   return (
     <Suspense fallback={<div>Loading invoices...</div>}>
-      <InvoicesClient invoices={JSON.parse(JSON.stringify(invoices))} />
+      <InvoicesClient
+        invoices={JSON.parse(JSON.stringify(invoices))}
+        canViewAllInvoices={canViewAllInvoices}
+        canPayInvoices={canPerform(session, ["PAY_INVOICES"])}
+        canDeleteInvoices={canPerform(session, ["DELETE_INVOICES"])}
+      />
     </Suspense>
   );
 }

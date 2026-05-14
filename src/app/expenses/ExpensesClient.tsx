@@ -15,6 +15,7 @@ import { adjustCashRegisterAmount, deleteExpense, getExpensesPdfExportData } fro
 import { createExpensesReportPdf } from "@/lib/simplePdf";
 import { useToast } from "@/components/ui/Toast";
 import { EXPENSE_CATEGORIES, normalizeExpenseCategory, translateExpenseCategory, translateExpenseDescription } from "@/lib/expenseCategories";
+import { canPerform } from "@/lib/permissions";
 import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
 import styles from "./expenses.module.css";
@@ -22,13 +23,20 @@ import styles from "./expenses.module.css";
 interface ExpensesClientProps {
   expenses: any[];
   overallRevenue: number;
+  totalCharges: number;
   vehicles: any[];
+  session: { role?: string; permissions?: string[] } | null;
 }
 
-export default function ExpensesClient({ expenses, overallRevenue, vehicles }: ExpensesClientProps) {
+export default function ExpensesClient({ expenses, overallRevenue, totalCharges, vehicles, session }: ExpensesClientProps) {
   const { t, formatPrice, language } = useSettings();
   const router = useRouter();
   const { toast } = useToast();
+  const canViewExpenses = canPerform(session, ["VIEW_EXPENSES"]);
+  const canViewFinancialTickers = canPerform(session, ["VIEW_DASHBOARD_FINANCIALS"]);
+  const canAddExpenses = canPerform(session, ["ADD_EXPENSE_PAYMENTS"]);
+  const canEditDeleteExpenses = canPerform(session, ["EDIT_DELETE_EXPENSES"]);
+  const canManageCash = canPerform(session, ["MANAGE_EXPENSES"]);
   
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -49,7 +57,6 @@ export default function ExpensesClient({ expenses, overallRevenue, vehicles }: E
   const [sortBy, setSortBy] = useState("date");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
 
-  const totalCharges = expenses.reduce((acc, exp) => acc + exp.amount, 0);
   const reste = overallRevenue - totalCharges;
 
   const handleEdit = (expense: any, e: React.MouseEvent) => {
@@ -279,7 +286,7 @@ export default function ExpensesClient({ expenses, overallRevenue, vehicles }: E
         </span>
       ),
     },
-    {
+    ...(canEditDeleteExpenses ? [{
       key: "actions",
       label: t("label.actions"),
       align: "right" as const,
@@ -302,7 +309,7 @@ export default function ExpensesClient({ expenses, overallRevenue, vehicles }: E
           />
         </div>
       ),
-    },
+    }] : []),
   ];
 
   const mobileCards = processedExpenses.map((e) => (
@@ -348,33 +355,37 @@ export default function ExpensesClient({ expenses, overallRevenue, vehicles }: E
             {e.vehicle ? `${e.vehicle.brand} ${e.vehicle.model}` : "—"}
           </span>
         </div>
-        <div className={styles.mobileMetaItem}>
-          <span className={styles.mobileMetaLabel}>{t("label.actions")}</span>
-          <span className={styles.mobileMetaValue}>{t("action.view")}</span>
-        </div>
+        {canViewExpenses && (
+          <div className={styles.mobileMetaItem}>
+            <span className={styles.mobileMetaLabel}>{t("label.actions")}</span>
+            <span className={styles.mobileMetaValue}>{t("action.view")}</span>
+          </div>
+        )}
       </div>
 
       <div className={styles.mobileFooter} onClick={(e) => e.stopPropagation()}>
         <div style={{ fontSize: "0.8125rem", color: "var(--text-tertiary)" }}>
           {t("label.date")}: {formatDate(e.date)}
         </div>
-        <div className={styles.mobileActions}>
-          <Button
-            size="sm"
-            variant="secondary"
-            onClick={(ev) => handleEdit(e, ev)}
-            icon={<Pencil size={14} />}
-          >
-            {t("expenses.edit")}
-          </Button>
-          <Button
-            size="sm"
-            variant="danger"
-            loading={deletingId === e.id}
-            onClick={(ev) => handleDelete(e.id, ev)}
-            icon={<Trash2 size={14} />}
-          />
-        </div>
+        {canEditDeleteExpenses && (
+          <div className={styles.mobileActions}>
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={(ev) => handleEdit(e, ev)}
+              icon={<Pencil size={14} />}
+            >
+              {t("expenses.edit")}
+            </Button>
+            <Button
+              size="sm"
+              variant="danger"
+              loading={deletingId === e.id}
+              onClick={(ev) => handleDelete(e.id, ev)}
+              icon={<Trash2 size={14} />}
+            />
+          </div>
+        )}
       </div>
     </Card>
   ));
@@ -388,6 +399,7 @@ export default function ExpensesClient({ expenses, overallRevenue, vehicles }: E
           <TrendingDown size={24} />
           {t("expenses.title")}
         </h1>
+        {canAddExpenses && (
         <div className={styles.headerActions}>
           <Button
             variant="secondary"
@@ -456,8 +468,11 @@ export default function ExpensesClient({ expenses, overallRevenue, vehicles }: E
             {t("expenses.addOtherExpense")}
           </Button>
         </div>
+        )}
       </div>
 
+      {canViewFinancialTickers && (
+      <>
       <div className={styles.statsGrid}>
         {/* Card: Total Charges */}
         <div className={styles.statCard}>
@@ -484,12 +499,14 @@ export default function ExpensesClient({ expenses, overallRevenue, vehicles }: E
                 {t("expenses.cashAmount")}
               </h3>
             </div>
-            <Button
-              size="sm"
-              variant="secondary"
-              icon={<Pencil size={14} />}
-              onClick={openCashAdjustmentModal}
-            />
+            {canManageCash && (
+              <Button
+                size="sm"
+                variant="secondary"
+                icon={<Pencil size={14} />}
+                onClick={openCashAdjustmentModal}
+              />
+            )}
           </div>
           <div style={{ fontSize: "2rem", fontWeight: "bold", color: "var(--text-primary)" }}>
             {formatPrice(overallRevenue)}
@@ -536,12 +553,14 @@ export default function ExpensesClient({ expenses, overallRevenue, vehicles }: E
             <div className={styles.mobileStatsItemValue} style={{ color: "var(--success)" }}>
               {formatPrice(overallRevenue)}
             </div>
-            <Button
-              size="sm"
-              variant="secondary"
-              icon={<Pencil size={14} />}
-              onClick={openCashAdjustmentModal}
-            />
+            {canManageCash && (
+              <Button
+                size="sm"
+                variant="secondary"
+                icon={<Pencil size={14} />}
+                onClick={openCashAdjustmentModal}
+              />
+            )}
           </div>
           <div className={styles.mobileStatsItem}>
             <div className={styles.mobileStatsItemLabel}>
@@ -554,7 +573,11 @@ export default function ExpensesClient({ expenses, overallRevenue, vehicles }: E
           </div>
         </div>
       </div>
+      </>
+      )}
 
+      {canViewExpenses && (
+      <>
       {/* Filter Bar */}
       <div className={styles.filterBar}>
         <div className={styles.filterField}>
@@ -643,6 +666,8 @@ export default function ExpensesClient({ expenses, overallRevenue, vehicles }: E
           </div>
         )}
       </div>
+      </>
+      )}
 
       <AddExpenseModal
         isOpen={isModalOpen}

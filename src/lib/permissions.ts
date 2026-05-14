@@ -1,6 +1,7 @@
 export const PERMISSIONS = [
   { id: "VIEW_OVERALL_REVENUE", label: "View Overall Revenue" },
   { id: "VIEW_PENDING_REVENUE", label: "View Pending Payments" },
+  { id: "VIEW_DASHBOARD_FINANCIALS", label: "View Dashboard Revenue Due and Remainder" },
   { id: "VIEW_VEHICLES", label: "View Vehicles" },
   { id: "ADD_VEHICLES", label: "Add Vehicles" },
   { id: "MANAGE_VEHICLES", label: "View and Manage Vehicles" },
@@ -11,11 +12,16 @@ export const PERMISSIONS = [
   { id: "VIEW_BROKERS", label: "View Brokers" },
   { id: "ADD_BROKERS", label: "Add Brokers" },
   { id: "MANAGE_BROKERS", label: "View and Manage Brokers" },
-  { id: "VIEW_INVOICES", label: "View Invoices" },
-  { id: "ADD_INVOICE_PAYMENTS", label: "Add Invoice Payments" },
+  { id: "VIEW_ALL_INVOICES", label: "View All Invoices" },
+  { id: "VIEW_UNPAID_INVOICES", label: "View Pending or Partial Invoices Only" },
+  { id: "PAY_INVOICES", label: "Pay Invoices" },
+  { id: "DELETE_INVOICES", label: "Delete Invoices" },
   { id: "MANAGE_INVOICES", label: "View and Manage Invoices" },
+  { id: "VIEW_CAR_PAYMENTS", label: "View Car Payments" },
+  { id: "ADD_CAR_PAYMENTS", label: "Add Car Payments" },
   { id: "VIEW_EXPENSES", label: "View Expenses" },
   { id: "ADD_EXPENSE_PAYMENTS", label: "Add Expense Payments" },
+  { id: "EDIT_DELETE_EXPENSES", label: "Edit or Delete Expenses" },
   { id: "MANAGE_EXPENSES", label: "View and Manage Expenses" },
   { id: "VIEW_VIGNETTE", label: "View Vignette" },
   { id: "MANAGE_VIGNETTE", label: "View and Manage Vignette" },
@@ -38,6 +44,8 @@ export const PERMISSIONS = [
 const PERMISSION_ALIASES: Record<string, string> = {
   VIEW_CUSTOMERS: "VIEW_BROKERS",
   MANAGE_CUSTOMERS: "MANAGE_BROKERS",
+  VIEW_INVOICES: "VIEW_ALL_INVOICES",
+  ADD_INVOICE_PAYMENTS: "PAY_INVOICES",
 };
 
 const PERMISSION_IMPLICATIONS: Record<string, string[]> = {
@@ -47,8 +55,10 @@ const PERMISSION_IMPLICATIONS: Record<string, string[]> = {
   MANAGE_BOOKINGS: ["ADD_BOOKINGS", "VIEW_BOOKINGS", "VIEW_CALENDAR"],
   ADD_BROKERS: ["VIEW_BROKERS"],
   MANAGE_BROKERS: ["ADD_BROKERS", "VIEW_BROKERS"],
-  ADD_INVOICE_PAYMENTS: ["VIEW_INVOICES"],
-  MANAGE_INVOICES: ["ADD_INVOICE_PAYMENTS", "VIEW_INVOICES"],
+  PAY_INVOICES: ["VIEW_UNPAID_INVOICES"],
+  DELETE_INVOICES: ["VIEW_ALL_INVOICES"],
+  MANAGE_INVOICES: ["PAY_INVOICES", "DELETE_INVOICES", "VIEW_ALL_INVOICES", "VIEW_UNPAID_INVOICES"],
+  ADD_CAR_PAYMENTS: ["VIEW_CAR_PAYMENTS"],
   ADD_EXPENSE_PAYMENTS: ["VIEW_EXPENSES"],
   MANAGE_EXPENSES: ["ADD_EXPENSE_PAYMENTS", "VIEW_EXPENSES"],
   MANAGE_VIGNETTE: ["VIEW_VIGNETTE"],

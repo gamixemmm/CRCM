@@ -138,8 +138,8 @@ export async function logExpense(input: ExpenseInput) {
 export async function updateExpense(id: string, input: ExpenseInput) {
   try {
     const session = await requireCompanyAdminAccess();
-    if (!canPerform(session, ["MANAGE_EXPENSES"])) {
-      return { success: false, message: "You do not have permission to manage expenses." };
+    if (!canPerform(session, ["EDIT_DELETE_EXPENSES"])) {
+      return { success: false, message: "You do not have permission to edit expenses." };
     }
     const companyId = await requireCompanyId();
     const current = await prisma.expense.findFirst({ where: { id, companyId } });
@@ -178,8 +178,8 @@ export async function updateExpense(id: string, input: ExpenseInput) {
 export async function deleteExpense(id: string) {
   try {
     const session = await requireCompanyAdminAccess();
-    if (!canPerform(session, ["MANAGE_EXPENSES"])) {
-      return { success: false, message: "You do not have permission to manage expenses." };
+    if (!canPerform(session, ["EDIT_DELETE_EXPENSES"])) {
+      return { success: false, message: "You do not have permission to delete expenses." };
     }
     const companyId = await requireCompanyId();
     const current = await prisma.expense.findFirst({ where: { id, companyId } });

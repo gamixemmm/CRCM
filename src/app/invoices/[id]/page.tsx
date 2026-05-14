@@ -1,10 +1,15 @@
 import { getInvoice } from "@/actions/invoices";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import InvoiceDetailClient from "./InvoiceDetailClient";
+import { getCompanyAdminSession } from "@/actions/companyAuth";
+import { canPerform } from "@/lib/permissions";
 
 export const dynamic = "force-dynamic";
 
 export default async function InvoiceDetailPage(props: { params: Promise<{ id: string }> }) {
+  const session = await getCompanyAdminSession();
+  if (!session) redirect("/login?next=/invoices");
+
   const params = await props.params;
   const invoice = await getInvoice(params.id);
 
@@ -12,5 +17,16 @@ export default async function InvoiceDetailPage(props: { params: Promise<{ id: s
     return notFound();
   }
 
-  return <InvoiceDetailClient invoice={JSON.parse(JSON.stringify(invoice))} />;
+  const canViewAllInvoices = canPerform(session, ["VIEW_ALL_INVOICES"]);
+  const canViewUnpaidInvoices = canPerform(session, ["VIEW_UNPAID_INVOICES"]);
+  const isUnpaidInvoice = invoice.paymentStatus === "PENDING" || invoice.paymentStatus === "PARTIAL";
+  if (!canViewAllInvoices && (!canViewUnpaidInvoices || !isUnpaidInvoice)) redirect("/invoices");
+
+  return (
+    <InvoiceDetailClient
+      invoice={JSON.parse(JSON.stringify(invoice))}
+      canPayInvoices={canPerform(session, ["PAY_INVOICES"])}
+      canDeleteInvoices={canPerform(session, ["DELETE_INVOICES"])}
+    />
+  );
 }

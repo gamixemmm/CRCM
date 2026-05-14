@@ -14,7 +14,7 @@ import { useToast } from "@/components/ui/Toast";
 import { createEmployee, updateEmployee, deleteEmployee, confirmEmployeeSalary } from "@/actions/employees";
 import { upsertEmployeeAccount } from "@/actions/companyAuth";
 import { useSettings } from "@/lib/SettingsContext";
-import { canPerform } from "@/lib/permissions";
+import { PERMISSIONS, canPerform, getPermissionLabel } from "@/lib/permissions";
 import styles from "./employees.module.css";
 
 type SalaryPayment = {
@@ -33,6 +33,7 @@ type Employee = {
   phone?: string | null;
   email?: string | null;
   role?: string | null;
+  permissions: string[];
   hasSalary: boolean;
   salary?: number | null;
   payDay?: number | null;
@@ -54,6 +55,7 @@ type EmployeeForm = {
   phone: string;
   email: string;
   role: string;
+  permissions: string[];
   hasSalary: boolean;
   salary: string;
   payDay: string;
@@ -67,6 +69,7 @@ const emptyForm: EmployeeForm = {
   phone: "",
   email: "",
   role: "",
+  permissions: [],
   hasSalary: true,
   salary: "",
   payDay: "1",
@@ -89,7 +92,7 @@ export default function EmployeesClient({
   companyAdmin: { id: string; companyId: string; companyName: string; name: string; email: string; role?: string; permissions?: string[] };
   employees: Employee[];
   dueEmployees: Employee[];
-  roles: { id: string; name: string }[];
+  roles: { id: string; name: string; permissions?: string[] }[];
   month: number;
   year: number;
 }) {
@@ -126,6 +129,24 @@ export default function EmployeesClient({
     setIsFormOpen(true);
   };
 
+  const applyRoleTemplate = (roleName: string) => {
+    const role = roles.find((item) => item.name === roleName);
+    setForm((current) => ({
+      ...current,
+      role: roleName,
+      permissions: role?.permissions || current.permissions,
+    }));
+  };
+
+  const togglePermission = (permissionId: string, checked: boolean) => {
+    setForm((current) => ({
+      ...current,
+      permissions: checked
+        ? Array.from(new Set([...current.permissions, permissionId]))
+        : current.permissions.filter((id) => id !== permissionId),
+    }));
+  };
+
   const openEdit = (employee: Employee) => {
     setEditingEmployee(employee);
     setForm({
@@ -134,6 +155,7 @@ export default function EmployeesClient({
       phone: employee.phone || "",
       email: employee.email || "",
       role: employee.role || "",
+      permissions: employee.permissions || [],
       hasSalary: employee.hasSalary,
       salary: employee.salary ? String(employee.salary) : "",
       payDay: employee.payDay ? String(employee.payDay) : "1",
@@ -166,6 +188,7 @@ export default function EmployeesClient({
       phone: form.phone,
       email: form.email,
       role: form.role,
+      permissions: form.permissions,
       hasSalary: form.hasSalary,
       salary,
       payDay,
@@ -253,6 +276,7 @@ export default function EmployeesClient({
         <div className={styles.employeeName}>
           <span>{getName(employee)}</span>
           {employee.role && <small>{employee.role}</small>}
+          <small>{employee.permissions?.length || 0} permissions</small>
         </div>
       ),
     },
@@ -379,6 +403,7 @@ export default function EmployeesClient({
               <div className={styles.mobileName}>{getName(employee)}</div>
             </div>
             {employee.role && <div className={styles.mobileRole}>{employee.role}</div>}
+            <div className={styles.mobileRole}>{employee.permissions?.length || 0} permissions</div>
           </div>
           <ChevronRight size={16} style={{ color: "var(--text-tertiary)", flexShrink: 0, marginTop: "4px" }} />
         </div>
@@ -546,7 +571,7 @@ export default function EmployeesClient({
             <Select
               label={t("employees.role")}
               value={form.role}
-              onChange={(e) => setForm({ ...form, role: e.target.value })}
+              onChange={(e) => applyRoleTemplate(e.target.value)}
               options={roles.map((role) => ({ value: role.name, label: role.name }))}
               placeholder={t("employees.selectRole")}
             />
@@ -564,6 +589,46 @@ export default function EmployeesClient({
               <input type="checkbox" checked={form.active} onChange={(e) => setForm({ ...form, active: e.target.checked })} />
               <span>{t("status.active")}</span>
             </label>
+          </div>
+          <div style={{ border: "1px solid var(--border)", borderRadius: "8px", padding: "14px", background: "var(--bg-tertiary)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", gap: "12px", alignItems: "center", marginBottom: "12px", flexWrap: "wrap" }}>
+              <div>
+                <strong style={{ display: "block" }}>Employee Permissions</strong>
+                <span style={{ color: "var(--text-secondary)", fontSize: "0.8125rem" }}>
+                  These permissions apply directly to this employee account.
+                </span>
+              </div>
+              <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => setForm((current) => ({ ...current, permissions: PERMISSIONS.map((permission) => permission.id) }))}
+                >
+                  Select all
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setForm((current) => ({ ...current, permissions: [] }))}
+                >
+                  Clear
+                </Button>
+              </div>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: "8px" }}>
+              {PERMISSIONS.map((permission) => (
+                <label key={permission.id} style={{ display: "flex", gap: "8px", alignItems: "flex-start", fontSize: "0.8125rem", color: "var(--text-secondary)", cursor: "pointer" }}>
+                  <input
+                    type="checkbox"
+                    checked={form.permissions.includes(permission.id)}
+                    onChange={(e) => togglePermission(permission.id, e.target.checked)}
+                  />
+                  <span>{getPermissionLabel(permission.id)}</span>
+                </label>
+              ))}
+            </div>
           </div>
           <Textarea label={t("label.notes")} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={3} />
           <div className={styles.formActions}>

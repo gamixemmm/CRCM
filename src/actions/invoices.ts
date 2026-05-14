@@ -29,7 +29,9 @@ export async function getInvoices(params?: { status?: string; search?: string })
   const where: Record<string, unknown> = {};
   where.companyId = companyId;
 
-  if (params?.status && params.status !== "ALL") {
+  if (params?.status === "UNPAID") {
+    where.paymentStatus = { in: ["PENDING", "PARTIAL"] };
+  } else if (params?.status && params.status !== "ALL") {
     where.paymentStatus = params.status;
   }
 
@@ -138,8 +140,8 @@ export async function updatePaymentStatus(
 ) {
   try {
     const session = await requireCompanyAdminAccess();
-    if (!canPerform(session, ["ADD_INVOICE_PAYMENTS"])) {
-      return { success: false, message: "You do not have permission to add invoice payments." };
+    if (!canPerform(session, ["PAY_INVOICES"])) {
+      return { success: false, message: "You do not have permission to pay invoices." };
     }
     const companyId = await requireCompanyId();
     const invoice = await prisma.$transaction(async (tx) => {
@@ -273,8 +275,8 @@ export async function updatePaymentStatus(
 export async function deleteInvoice(id: string) {
   try {
     const session = await requireCompanyAdminAccess();
-    if (!canPerform(session, ["MANAGE_INVOICES"])) {
-      return { success: false, message: "You do not have permission to manage invoices." };
+    if (!canPerform(session, ["DELETE_INVOICES"])) {
+      return { success: false, message: "You do not have permission to delete invoices." };
     }
     const companyId = await requireCompanyId();
     const current = await prisma.invoice.findFirst({ where: { id, companyId } });

@@ -257,6 +257,7 @@ model Employee {
   phone          String?
   email          String?
   role           String?
+  permissions    String[]                @default([])
   hasSalary      Boolean                 @default(true)
   salary         Float?
   payDay         Int?
