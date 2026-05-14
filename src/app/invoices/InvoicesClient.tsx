@@ -4,7 +4,7 @@ import { useSettings } from "@/lib/SettingsContext";
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { FileText, Search, User, Car, CheckCircle, XCircle, Trash2, ChevronRight, CreditCard } from "lucide-react";
+import { FileText, Search, User, Car, CheckCircle, XCircle, Trash2, ChevronRight } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Badge from "@/components/ui/Badge";
 import Table from "@/components/ui/Table";
@@ -33,7 +33,15 @@ export default function InvoicesClient({ invoices }: InvoicesClientProps) {
   const [statusFilter, setStatusFilter] = useState(searchParams.get("status") || "ALL");
   const [processing, setProcessing] = useState<string | null>(null);
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
-  const [paymentForm, setPaymentForm] = useState({ id: "", amount: "", amountDue: 0, method: "ESPECE" });
+  const [paymentForm, setPaymentForm] = useState({ id: "", amount: "", amountDue: 0, method: "ESPECE", dailyRate: 0 });
+  const [overpaymentPrompt, setOverpaymentPrompt] = useState<{
+    id: string;
+    paymentAmount: number;
+    extensionDays: number;
+    overpayment: number;
+    remainingCredit: number;
+    method: string;
+  } | null>(null);
 
   const filtered = invoices.filter((i) => {
     const matchesStatus = 
@@ -50,10 +58,37 @@ export default function InvoicesClient({ invoices }: InvoicesClientProps) {
     return matchesStatus && searchMatch;
   });
 
-  const handleMarkPaid = (id: string, amountDue: number, e: React.MouseEvent) => {
+  const handleMarkPaid = (invoice: any, e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent row click
-    setPaymentForm({ id, amount: String(amountDue), amountDue, method: "ESPECE" });
+    setPaymentForm({
+      id: invoice.id,
+      amount: String(invoice.amountDue),
+      amountDue: invoice.amountDue,
+      method: "ESPECE",
+      dailyRate: invoice.booking.pricePerDay ?? invoice.booking.vehicle.dailyRate ?? 0,
+    });
     setPaymentModalOpen(true);
+  };
+
+  const recordPayment = async (extendBooking: boolean) => {
+    const paymentAmount = overpaymentPrompt?.paymentAmount ?? Number(paymentForm.amount);
+    const isFullPayment = paymentAmount >= paymentForm.amountDue;
+    const finalStatus = isFullPayment ? "PAID" : "PARTIAL";
+    const invoiceId = overpaymentPrompt?.id ?? paymentForm.id;
+    const method = overpaymentPrompt?.method ?? paymentForm.method;
+
+    setOverpaymentPrompt(null);
+    setProcessing(invoiceId);
+    setPaymentModalOpen(false);
+    
+    const res = await updatePaymentStatus(invoiceId, finalStatus, paymentAmount, false, method, { extendBooking });
+    setProcessing(null);
+    if (res.success) {
+      toast(res.message, "success");
+      router.refresh();
+    } else {
+      toast(res.message, "error");
+    }
   };
 
   const submitPayment = async () => {
@@ -62,21 +97,24 @@ export default function InvoicesClient({ invoices }: InvoicesClientProps) {
       toast("Invalid amount", "error");
       return;
     }
-    
-    const isFullPayment = paymentAmount >= paymentForm.amountDue;
-    const finalStatus = isFullPayment ? "PAID" : "PARTIAL";
 
-    setProcessing(paymentForm.id);
-    setPaymentModalOpen(false);
-    
-    const res = await updatePaymentStatus(paymentForm.id, finalStatus, paymentAmount, false, paymentForm.method);
-    setProcessing(null);
-    if (res.success) {
-      toast(res.message, "success");
-      router.refresh();
-    } else {
-      toast(res.message, "error");
+    const overpayment = paymentAmount - paymentForm.amountDue;
+    const extensionDays = paymentForm.dailyRate > 0 ? Math.floor(overpayment / paymentForm.dailyRate) : 0;
+
+    if (overpayment > 0 && extensionDays > 0) {
+      setPaymentModalOpen(false);
+      setOverpaymentPrompt({
+        id: paymentForm.id,
+        paymentAmount,
+        extensionDays,
+        overpayment,
+        remainingCredit: overpayment - extensionDays * paymentForm.dailyRate,
+        method: paymentForm.method,
+      });
+      return;
     }
+
+    await recordPayment(false);
   };
 
   const handleMarkUnpaid = async (id: string, e: React.MouseEvent) => {
@@ -173,7 +211,7 @@ export default function InvoicesClient({ invoices }: InvoicesClientProps) {
               size="sm"
               variant="success"
               loading={processing === i.id}
-              onClick={(e) => handleMarkPaid(i.id, i.amountDue, e)}
+              onClick={(e) => handleMarkPaid(i, e)}
               icon={<CheckCircle size={14} />}
             >
               {t("invoices.pay")}
@@ -263,7 +301,7 @@ export default function InvoicesClient({ invoices }: InvoicesClientProps) {
               size="sm"
               variant="success"
               loading={processing === i.id}
-              onClick={(e) => handleMarkPaid(i.id, i.amountDue, e)}
+              onClick={(e) => handleMarkPaid(i, e)}
               icon={<CheckCircle size={14} />}
             >
               {t("invoices.pay")}
@@ -388,6 +426,46 @@ export default function InvoicesClient({ invoices }: InvoicesClientProps) {
             </Button>
           </div>
         </div>
+      </Modal>
+
+      <Modal
+        isOpen={Boolean(overpaymentPrompt)}
+        onClose={() => setOverpaymentPrompt(null)}
+        title={t("invoices.extendBookingTitle")}
+        size="sm"
+      >
+        {overpaymentPrompt && (
+          <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+            <p style={{ margin: 0, color: "var(--text-secondary)", lineHeight: 1.5 }}>
+              {t("invoices.extendBookingQuestion")}
+            </p>
+            <div style={{ padding: "12px", background: "var(--bg-tertiary)", borderRadius: "8px", fontSize: "0.875rem", display: "flex", flexDirection: "column", gap: "8px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span>{t("invoices.overpayment")}</span>
+                <strong>{formatCurrency(overpaymentPrompt.overpayment)}</strong>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span>{t("invoices.coveredExtension")}</span>
+                <strong>{overpaymentPrompt.extensionDays} {t("label.days")}</strong>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span>{t("invoices.remainingCredit")}</span>
+                <strong>{formatCurrency(overpaymentPrompt.remainingCredit)}</strong>
+              </div>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+              <Button fullWidth variant="primary" onClick={() => recordPayment(true)} loading={processing === overpaymentPrompt.id}>
+                {t("invoices.extendBookingYes")}
+              </Button>
+              <Button fullWidth variant="secondary" onClick={() => recordPayment(false)} loading={processing === overpaymentPrompt.id}>
+                {t("invoices.extendBookingNo")}
+              </Button>
+              <Button fullWidth variant="ghost" onClick={() => setOverpaymentPrompt(null)}>
+                {t("action.cancel")}
+              </Button>
+            </div>
+          </div>
+        )}
       </Modal>
     </div>
   );

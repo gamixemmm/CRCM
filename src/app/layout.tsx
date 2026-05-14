@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import AppShell from "@/components/layout/AppShell";
 import { ToastProvider } from "@/components/ui/Toast";
+import NumberInputWheelGuard from "@/components/ui/NumberInputWheelGuard";
 import { SettingsProvider } from "@/lib/SettingsContext";
 
 export const metadata: Metadata = {
@@ -19,6 +20,7 @@ export default function RootLayout({
       <body>
         <SettingsProvider>
           <ToastProvider>
+            <NumberInputWheelGuard />
             <AppShell>{children}</AppShell>
           </ToastProvider>
         </SettingsProvider>
@@ -26,4 +28,3 @@ export default function RootLayout({
     </html>
   );
 }
-

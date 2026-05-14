@@ -101,3 +101,8 @@ export function getRentalDays(start: Date | string, end: Date | string) {
   const days = getBusinessCalendarDayIndex(end) - getBusinessCalendarDayIndex(start);
   return Math.max(1, days);
 }
+
+export function addBusinessCalendarDays(date: Date | string, days: number) {
+  const parts = getBusinessDateParts(typeof date === "string" ? new Date(date) : date);
+  return zonedDateTimeToUtc(parts.year, parts.month, parts.day + days);
+}

@@ -4,7 +4,7 @@ import { useSettings } from "@/lib/SettingsContext";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Printer, User, Car, Calendar, DollarSign, CreditCard, History, CheckCircle, Clock, XCircle, Trash2 } from "lucide-react";
+import { ArrowLeft, Printer, User, Calendar, DollarSign, CreditCard, History, CheckCircle, Clock, XCircle, Trash2 } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
@@ -24,6 +24,13 @@ export default function InvoiceDetailClient({ invoice }: { invoice: any }) {
   
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
   const [paymentForm, setPaymentForm] = useState({ amount: String(invoice.amountDue), method: "ESPECE" });
+  const [overpaymentPrompt, setOverpaymentPrompt] = useState<{
+    paymentAmount: number;
+    extensionDays: number;
+    overpayment: number;
+    remainingCredit: number;
+    method: string;
+  } | null>(null);
   const [processing, setProcessing] = useState(false);
 
   const start = new Date(invoice.booking.startDate);
@@ -43,20 +50,17 @@ export default function InvoiceDetailClient({ invoice }: { invoice: any }) {
     }
   }
 
-  const submitPayment = async () => {
-    const paymentAmount = Number(paymentForm.amount);
-    if (paymentForm.amount === "" || Number.isNaN(paymentAmount) || paymentAmount <= 0) {
-      toast("Invalid amount", "error");
-      return;
-    }
-    
+  const recordPayment = async (extendBooking: boolean) => {
+    const paymentAmount = overpaymentPrompt?.paymentAmount ?? Number(paymentForm.amount);
+    const method = overpaymentPrompt?.method ?? paymentForm.method;
     const isFullPayment = paymentAmount >= invoice.amountDue;
     const finalStatus = isFullPayment ? "PAID" : "PARTIAL";
 
+    setOverpaymentPrompt(null);
     setProcessing(true);
     setPaymentModalOpen(false);
     
-    const res = await updatePaymentStatus(invoice.id, finalStatus, paymentAmount, false, paymentForm.method);
+    const res = await updatePaymentStatus(invoice.id, finalStatus, paymentAmount, false, method, { extendBooking });
     setProcessing(false);
     
     if (res.success) {
@@ -65,6 +69,32 @@ export default function InvoiceDetailClient({ invoice }: { invoice: any }) {
     } else {
       toast(res.message, "error");
     }
+  };
+
+  const submitPayment = async () => {
+    const paymentAmount = Number(paymentForm.amount);
+    if (paymentForm.amount === "" || Number.isNaN(paymentAmount) || paymentAmount <= 0) {
+      toast("Invalid amount", "error");
+      return;
+    }
+
+    const dailyRate = invoice.booking.pricePerDay ?? invoice.booking.vehicle.dailyRate ?? 0;
+    const overpayment = paymentAmount - invoice.amountDue;
+    const extensionDays = dailyRate > 0 ? Math.floor(overpayment / dailyRate) : 0;
+
+    if (overpayment > 0 && extensionDays > 0) {
+      setPaymentModalOpen(false);
+      setOverpaymentPrompt({
+        paymentAmount,
+        extensionDays,
+        overpayment,
+        remainingCredit: overpayment - extensionDays * dailyRate,
+        method: paymentForm.method,
+      });
+      return;
+    }
+
+    await recordPayment(false);
   };
 
   const handleMarkUnpaid = async () => {
@@ -311,6 +341,46 @@ export default function InvoiceDetailClient({ invoice }: { invoice: any }) {
             </Button>
           </div>
         </div>
+      </Modal>
+
+      <Modal
+        isOpen={Boolean(overpaymentPrompt)}
+        onClose={() => setOverpaymentPrompt(null)}
+        title={t("invoices.extendBookingTitle")}
+        size="sm"
+      >
+        {overpaymentPrompt && (
+          <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+            <p style={{ margin: 0, color: "var(--text-secondary)", lineHeight: 1.5 }}>
+              {t("invoices.extendBookingQuestion")}
+            </p>
+            <div style={{ padding: "12px", background: "var(--bg-tertiary)", borderRadius: "8px", fontSize: "0.875rem", display: "flex", flexDirection: "column", gap: "8px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span>{t("invoices.overpayment")}</span>
+                <strong>{formatCurrency(overpaymentPrompt.overpayment)}</strong>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span>{t("invoices.coveredExtension")}</span>
+                <strong>{overpaymentPrompt.extensionDays} {t("label.days")}</strong>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span>{t("invoices.remainingCredit")}</span>
+                <strong>{formatCurrency(overpaymentPrompt.remainingCredit)}</strong>
+              </div>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+              <Button fullWidth variant="primary" onClick={() => recordPayment(true)} loading={processing}>
+                {t("invoices.extendBookingYes")}
+              </Button>
+              <Button fullWidth variant="secondary" onClick={() => recordPayment(false)} loading={processing}>
+                {t("invoices.extendBookingNo")}
+              </Button>
+              <Button fullWidth variant="ghost" onClick={() => setOverpaymentPrompt(null)}>
+                {t("action.cancel")}
+              </Button>
+            </div>
+          </div>
+        )}
       </Modal>
 
     </div>

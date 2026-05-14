@@ -6,6 +6,7 @@ import { requireCompanyId } from "@/lib/company";
 import { canPerform } from "@/lib/permissions";
 import { requireCompanyAdminAccess } from "@/actions/companyAuth";
 import { logAuditAction } from "@/lib/audit";
+import { addBusinessCalendarDays } from "@/lib/businessTime";
 
 interface InvoiceInput {
   bookingId: string;
@@ -16,6 +17,12 @@ interface InvoiceInput {
   depositPaid?: number;
   notes?: string;
 }
+
+interface PaymentOptions {
+  extendBooking?: boolean;
+}
+
+const RENTAL_HOLD_STATUSES = ["CONFIRMED", "ACTIVE", "LATE"];
 
 export async function getInvoices(params?: { status?: string; search?: string }) {
   const companyId = await requireCompanyId();
@@ -121,7 +128,14 @@ export async function createInvoice(input: InvoiceInput) {
   }
 }
 
-export async function updatePaymentStatus(id: string, status: "PENDING" | "PAID" | "PARTIAL", amountPaid: number = 0, markBookingCompleted = false, paymentMethod?: string) {
+export async function updatePaymentStatus(
+  id: string,
+  status: "PENDING" | "PAID" | "PARTIAL",
+  amountPaid: number = 0,
+  markBookingCompleted = false,
+  paymentMethod?: string,
+  options: PaymentOptions = {}
+) {
   try {
     const session = await requireCompanyAdminAccess();
     if (!canPerform(session, ["ADD_INVOICE_PAYMENTS"])) {
@@ -129,26 +143,70 @@ export async function updatePaymentStatus(id: string, status: "PENDING" | "PAID"
     }
     const companyId = await requireCompanyId();
     const invoice = await prisma.$transaction(async (tx) => {
-      const current = await tx.invoice.findFirst({ where: { id, companyId } });
+      const current = await tx.invoice.findFirst({
+        where: { id, companyId },
+        include: { booking: { include: { vehicle: true } } },
+      });
       if (!current) throw new Error("Not found");
       
       let newAmountDue = current.amountDue;
+      let extensionDays = 0;
+      let extensionCharge = 0;
 
       if (status === "PAID") {
-        newAmountDue = 0;
+        newAmountDue = current.amountDue - amountPaid;
       } else if (status === "PARTIAL") {
         newAmountDue = current.amountDue - amountPaid;
         if (newAmountDue <= 0) {
-          newAmountDue = 0;
           status = "PAID";
         }
       } else if (status === "PENDING") {
         newAmountDue = current.totalAmount - current.depositPaid;
       }
 
+      if (status !== "PENDING" && options.extendBooking && newAmountDue < 0) {
+        const dailyRate = current.booking.pricePerDay ?? current.booking.vehicle.dailyRate;
+        if (dailyRate > 0) {
+          extensionDays = Math.floor(Math.abs(newAmountDue) / dailyRate);
+          if (extensionDays > 0) {
+            const newEndDate = addBusinessCalendarDays(current.booking.endDate, extensionDays);
+            const overlaps = await tx.booking.count({
+              where: {
+                companyId,
+                vehicleId: current.booking.vehicleId,
+                id: { not: current.bookingId },
+                status: { in: RENTAL_HOLD_STATUSES },
+                startDate: { lte: newEndDate },
+                endDate: { gte: current.booking.endDate },
+              },
+            });
+
+            if (overlaps > 0) {
+              throw new Error("Vehicle has a conflicting booking during the paid extension.");
+            }
+
+            extensionCharge = extensionDays * dailyRate;
+            newAmountDue += extensionCharge;
+
+            await tx.booking.update({
+              where: { id: current.bookingId },
+              data: {
+                endDate: newEndDate,
+                totalAmount: current.booking.totalAmount + extensionCharge,
+              },
+            });
+          }
+        }
+      }
+
+      if (newAmountDue <= 0 && status !== "PENDING") {
+        status = "PAID";
+      }
+
       let notesToUpdate = current.notes;
       if (paymentMethod && status !== "PENDING") {
-        notesToUpdate = `${current.notes ? current.notes + '\n' : ''}[Payment: ${amountPaid} via ${paymentMethod}]`;
+        const extensionNote = extensionDays > 0 ? ` Extended booking by ${extensionDays} day${extensionDays === 1 ? "" : "s"}.` : "";
+        notesToUpdate = `${current.notes ? current.notes + '\n' : ''}[Payment: ${amountPaid} via ${paymentMethod}]${extensionNote}`;
       }
 
       const inv = await tx.invoice.update({
@@ -157,6 +215,10 @@ export async function updatePaymentStatus(id: string, status: "PENDING" | "PAID"
           paymentStatus: status,
           paidAt: status === "PAID" ? new Date() : (status === "PENDING" ? null : current.paidAt),
           amountDue: newAmountDue,
+          ...(extensionCharge > 0 ? {
+            subtotal: current.subtotal + extensionCharge,
+            totalAmount: current.totalAmount + extensionCharge,
+          } : {}),
           notes: notesToUpdate,
         },
       });
@@ -189,6 +251,8 @@ export async function updatePaymentStatus(id: string, status: "PENDING" | "PAID"
     revalidatePath("/invoices");
     revalidatePath(`/invoices/${id}`);
     revalidatePath(`/bookings/${invoice.bookingId}`);
+    revalidatePath("/bookings");
+    revalidatePath("/vehicles");
     revalidatePath("/");
     await logAuditAction({
       actor: session,
@@ -196,13 +260,13 @@ export async function updatePaymentStatus(id: string, status: "PENDING" | "PAID"
       entityType: "Invoice",
       entityId: id,
       message: `${session.name} updated invoice payment to ${status}`,
-      metadata: { status, amountPaid, paymentMethod },
+      metadata: { status, amountPaid, paymentMethod, extendBooking: options.extendBooking },
     });
 
     return { success: true, message: `Invoice marked as ${status}` };
   } catch (error) {
     console.error("Failed to update status", error);
-    return { success: false, message: "Failed to update invoice status" };
+    return { success: false, message: error instanceof Error ? error.message : "Failed to update invoice status" };
   }
 }
 
