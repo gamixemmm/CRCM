@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { requireCompanyAdminAccess } from "@/actions/companyAuth";
 import { requireCompanyId } from "@/lib/company";
-import { canPerform } from "@/lib/permissions";
+import { canPerform, normalizePermissions } from "@/lib/permissions";
 import { logAuditAction } from "@/lib/audit";
 
 interface EmployeeInput {
@@ -48,7 +48,7 @@ async function getRoleTemplatePermissions(companyId: string, role?: string) {
     select: { permissions: true },
   });
 
-  return roleDoc?.permissions || [];
+  return normalizePermissions(roleDoc?.permissions);
 }
 
 export async function getEmployees() {
@@ -107,7 +107,7 @@ export async function createEmployee(input: EmployeeInput) {
       }
     }
 
-    const permissions = input.permissions ?? await getRoleTemplatePermissions(companyId, input.role);
+    const permissions = normalizePermissions(input.permissions ?? await getRoleTemplatePermissions(companyId, input.role));
     const employee = await prisma.employee.create({
       data: {
         companyId,
@@ -168,7 +168,7 @@ export async function updateEmployee(id: string, input: EmployeeInput) {
         phone: input.phone?.trim() || null,
         email: input.email?.trim() || null,
         role: input.role?.trim() || null,
-        permissions: input.permissions ?? await getRoleTemplatePermissions(companyId, input.role),
+        permissions: normalizePermissions(input.permissions ?? await getRoleTemplatePermissions(companyId, input.role)),
         hasSalary: input.hasSalary,
         salary: input.hasSalary ? input.salary : null,
         payDay: input.hasSalary ? input.payDay : null,
@@ -326,7 +326,7 @@ export async function createEmployeeRole(name: string, permissions: string[] = [
     const role = await prisma.employeeRole.create({
       data: {
         name: trimmed,
-        permissions,
+        permissions: normalizePermissions(permissions),
         company: {
           connect: { id: companyId },
         },
@@ -340,7 +340,7 @@ export async function createEmployeeRole(name: string, permissions: string[] = [
       entityType: "EmployeeRole",
       entityId: role.id,
       message: `${session.name} created employee role ${trimmed}`,
-      metadata: { permissions },
+      metadata: { permissions: normalizePermissions(permissions) },
     });
     return { success: true, message: "Role added", data: role };
   } catch (error) {
@@ -359,7 +359,8 @@ export async function updateEmployeeRole(id: string, name: string, permissions: 
     const companyId = await requireCompanyId();
     const current = await prisma.employeeRole.findFirst({ where: { id, companyId } });
     if (!current) return { success: false, message: "Role not found" };
-    const role = await prisma.employeeRole.update({ where: { id }, data: { name: trimmed, permissions } });
+    const normalizedPermissions = normalizePermissions(permissions);
+    const role = await prisma.employeeRole.update({ where: { id }, data: { name: trimmed, permissions: normalizedPermissions } });
     revalidatePath("/settings");
     revalidatePath("/employees");
     await logAuditAction({
@@ -368,7 +369,7 @@ export async function updateEmployeeRole(id: string, name: string, permissions: 
       entityType: "EmployeeRole",
       entityId: role.id,
       message: `${session.name} updated employee role ${trimmed}`,
-      metadata: { permissions },
+      metadata: { permissions: normalizedPermissions },
     });
     return { success: true, message: "Role updated", data: role };
   } catch (error) {

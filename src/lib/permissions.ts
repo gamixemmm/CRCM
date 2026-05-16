@@ -15,7 +15,7 @@ export const PERMISSIONS = [
   { id: "VIEW_ALL_INVOICES", label: "View All Invoices" },
   { id: "VIEW_UNPAID_INVOICES", label: "View Pending or Partial Invoices Only" },
   { id: "PAY_INVOICES", label: "Pay Invoices" },
-  { id: "DELETE_INVOICES", label: "Delete Invoices" },
+  { id: "CANCEL_INVOICES", label: "Cancel Invoices" },
   { id: "MANAGE_INVOICES", label: "View and Manage Invoices" },
   { id: "VIEW_CAR_PAYMENTS", label: "View Car Payments" },
   { id: "ADD_CAR_PAYMENTS", label: "Add Car Payments" },
@@ -56,8 +56,8 @@ const PERMISSION_IMPLICATIONS: Record<string, string[]> = {
   ADD_BROKERS: ["VIEW_BROKERS"],
   MANAGE_BROKERS: ["ADD_BROKERS", "VIEW_BROKERS"],
   PAY_INVOICES: ["VIEW_UNPAID_INVOICES"],
-  DELETE_INVOICES: ["VIEW_ALL_INVOICES"],
-  MANAGE_INVOICES: ["PAY_INVOICES", "DELETE_INVOICES", "VIEW_ALL_INVOICES", "VIEW_UNPAID_INVOICES"],
+  CANCEL_INVOICES: ["VIEW_ALL_INVOICES"],
+  MANAGE_INVOICES: ["VIEW_ALL_INVOICES", "VIEW_UNPAID_INVOICES"],
   ADD_CAR_PAYMENTS: ["VIEW_CAR_PAYMENTS"],
   ADD_EXPENSE_PAYMENTS: ["VIEW_EXPENSES"],
   MANAGE_EXPENSES: ["ADD_EXPENSE_PAYMENTS", "VIEW_EXPENSES"],
@@ -76,9 +76,14 @@ function canonicalizePermission(permission: string) {
   return PERMISSION_ALIASES[permission] || permission;
 }
 
+export function normalizePermissions(permissions: string[] = []) {
+  const validPermissions = new Set(PERMISSIONS.map((permission) => permission.id));
+  return Array.from(new Set(permissions.map(canonicalizePermission).filter((permission) => validPermissions.has(permission))));
+}
+
 function expandPermissions(permissions: string[]) {
   const expanded = new Set<string>();
-  const stack = permissions.map(canonicalizePermission);
+  const stack = normalizePermissions(permissions);
 
   while (stack.length > 0) {
     const permission = stack.pop();
@@ -112,7 +117,6 @@ export function hasAnyPermission(session: { permissions?: string[] } | null, per
 
 export function canPerform(session: { role?: string; permissions?: string[] } | null, permissions: string[]): boolean {
   if (!session) return false;
-  if (session.role === "Administrator") return true;
   return hasAnyPermission(session, permissions);
 }
 

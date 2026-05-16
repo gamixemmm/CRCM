@@ -9,7 +9,7 @@ import Input from "@/components/ui/Input";
 import { createEmployeeRole, deleteEmployeeRole, updateEmployeeRole } from "@/actions/employees";
 import { extractCompanyData } from "@/actions/dataExport";
 import { useToast } from "@/components/ui/Toast";
-import { PERMISSIONS, canPerform, getPermissionLabel } from "@/lib/permissions";
+import { PERMISSIONS, canPerform, getPermissionLabel, normalizePermissions } from "@/lib/permissions";
 import { Trash2 } from "lucide-react";
 
 export default function SettingsClient({
@@ -21,7 +21,9 @@ export default function SettingsClient({
 }) {
   const { currency, setCurrency, language, setLanguage, t } = useSettings();
   const { toast } = useToast();
-  const [roles, setRoles] = useState(employeeRoles);
+  const [roles, setRoles] = useState(() =>
+    employeeRoles.map((role) => ({ ...role, permissions: normalizePermissions(role.permissions) }))
+  );
   const [newRole, setNewRole] = useState("");
   const [editingRoleId, setEditingRoleId] = useState<string | null>(null);
   const [editingRoleName, setEditingRoleName] = useState("");
@@ -44,7 +46,7 @@ export default function SettingsClient({
 
   const handleAddRole = async () => {
     setSavingRole(true);
-    const result = await createEmployeeRole(newRole, newRolePermissions);
+    const result = await createEmployeeRole(newRole, normalizePermissions(newRolePermissions));
     setSavingRole(false);
 
     if (result.success && result.data) {
@@ -60,7 +62,7 @@ export default function SettingsClient({
   const handleUpdateRole = async () => {
     if (!editingRoleId) return;
     setSavingRole(true);
-    const result = await updateEmployeeRole(editingRoleId, editingRoleName, editingRolePermissions);
+    const result = await updateEmployeeRole(editingRoleId, editingRoleName, normalizePermissions(editingRolePermissions));
     setSavingRole(false);
 
     if (result.success && result.data) {
@@ -395,7 +397,7 @@ export default function SettingsClient({
                           onClick={() => {
                             setEditingRoleId(role.id);
                             setEditingRoleName(role.name);
-                            setEditingRolePermissions(role.permissions || []);
+                            setEditingRolePermissions(normalizePermissions(role.permissions));
                           }}
                         >
                           {t("action.edit")}

@@ -22,7 +22,7 @@ export default async function InvoicesPage() {
         invoices={JSON.parse(JSON.stringify(invoices))}
         canViewAllInvoices={canViewAllInvoices}
         canPayInvoices={canPerform(session, ["PAY_INVOICES"])}
-        canDeleteInvoices={canPerform(session, ["DELETE_INVOICES"])}
+        canCancelInvoices={canPerform(session, ["CANCEL_INVOICES"])}
       />
     </Suspense>
   );

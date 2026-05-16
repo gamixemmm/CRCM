@@ -19,11 +19,11 @@ import styles from "../invoices.module.css";
 export default function InvoiceDetailClient({
   invoice,
   canPayInvoices,
-  canDeleteInvoices,
+  canCancelInvoices,
 }: {
   invoice: any;
   canPayInvoices: boolean;
-  canDeleteInvoices: boolean;
+  canCancelInvoices: boolean;
 }) {
   const { formatPrice: formatCurrency, t } = useSettings();
 
@@ -117,12 +117,12 @@ export default function InvoiceDetailClient({
     }
   };
 
-  const handleDeleteInvoice = async () => {
+  const handleCancelInvoice = async () => {
     setProcessing(true);
     const res = await deleteInvoice(invoice.id);
     setProcessing(false);
     if (res.success) {
-      toast("Invoice deleted", "success");
+      toast("Invoice cancelled", "success");
       router.push("/invoices");
     } else {
       toast(res.message, "error");
@@ -161,9 +161,9 @@ export default function InvoiceDetailClient({
               {t("invoices.markUnpaid")}
             </Button>
           )}
-          {canDeleteInvoices && (
-            <Button variant="danger" icon={<Trash2 size={16} />} onClick={handleDeleteInvoice} loading={processing}>
-              {t("action.delete")}
+          {canCancelInvoices && (
+            <Button variant="danger" icon={<Trash2 size={16} />} onClick={handleCancelInvoice} loading={processing}>
+              {t("action.cancel")}
             </Button>
           )}
           <Link href={`/invoices/${invoice.id}/print`}>

@@ -275,8 +275,8 @@ export async function updatePaymentStatus(
 export async function deleteInvoice(id: string) {
   try {
     const session = await requireCompanyAdminAccess();
-    if (!canPerform(session, ["DELETE_INVOICES"])) {
-      return { success: false, message: "You do not have permission to delete invoices." };
+    if (!canPerform(session, ["CANCEL_INVOICES"])) {
+      return { success: false, message: "You do not have permission to cancel invoices." };
     }
     const companyId = await requireCompanyId();
     const current = await prisma.invoice.findFirst({ where: { id, companyId } });
@@ -299,7 +299,7 @@ export async function deleteInvoice(id: string) {
       metadata: { bookingId: invoice.bookingId },
     });
 
-    return { success: true, message: "Invoice deleted successfully" };
+    return { success: true, message: "Invoice cancelled successfully" };
   } catch (error) {
     console.error("Failed to delete invoice", error);
     return { success: false, message: "Failed to delete invoice" };

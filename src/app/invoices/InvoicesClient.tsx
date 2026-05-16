@@ -23,10 +23,10 @@ interface InvoicesClientProps {
   invoices: any[];
   canViewAllInvoices: boolean;
   canPayInvoices: boolean;
-  canDeleteInvoices: boolean;
+  canCancelInvoices: boolean;
 }
 
-export default function InvoicesClient({ invoices, canViewAllInvoices, canPayInvoices, canDeleteInvoices }: InvoicesClientProps) {
+export default function InvoicesClient({ invoices, canViewAllInvoices, canPayInvoices, canCancelInvoices }: InvoicesClientProps) {
   const { formatPrice: formatCurrency, t, formatStatusT } = useSettings();
 
   const router = useRouter();
@@ -135,13 +135,13 @@ export default function InvoicesClient({ invoices, canViewAllInvoices, canPayInv
     }
   };
 
-  const handleDelete = async (id: string, e: React.MouseEvent) => {
+  const handleCancel = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     setProcessing(id);
     const res = await deleteInvoice(id);
     setProcessing(null);
     if (res.success) {
-      toast("Invoice deleted", "success");
+      toast("Invoice cancelled", "success");
       router.refresh();
     } else {
       toast(res.message, "error");
@@ -205,7 +205,7 @@ export default function InvoicesClient({ invoices, canViewAllInvoices, canPayInv
         </Badge>
       ),
     },
-    ...(canPayInvoices || canDeleteInvoices ? [{
+    ...(canPayInvoices || canCancelInvoices ? [{
       key: "actions",
       label: t("label.actions"),
       align: "right" as const,
@@ -232,12 +232,12 @@ export default function InvoicesClient({ invoices, canViewAllInvoices, canPayInv
               {t("invoices.unpay")}
             </Button>
           ))}
-          {canDeleteInvoices && (
+          {canCancelInvoices && (
             <Button
               size="sm"
               variant="danger"
               loading={processing === i.id}
-              onClick={(e) => handleDelete(i.id, e)}
+              onClick={(e) => handleCancel(i.id, e)}
               icon={<Trash2 size={14} />}
             />
           )}
@@ -324,12 +324,12 @@ export default function InvoicesClient({ invoices, canViewAllInvoices, canPayInv
               {t("invoices.unpay")}
             </Button>
           ))}
-          {canDeleteInvoices && (
+          {canCancelInvoices && (
             <Button
               size="sm"
               variant="danger"
               loading={processing === i.id}
-              onClick={(e) => handleDelete(i.id, e)}
+              onClick={(e) => handleCancel(i.id, e)}
               icon={<Trash2 size={14} />}
             />
           )}

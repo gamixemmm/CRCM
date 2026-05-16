@@ -14,7 +14,7 @@ import { useToast } from "@/components/ui/Toast";
 import { createEmployee, updateEmployee, deleteEmployee, confirmEmployeeSalary } from "@/actions/employees";
 import { upsertEmployeeAccount } from "@/actions/companyAuth";
 import { useSettings } from "@/lib/SettingsContext";
-import { PERMISSIONS, canPerform, getPermissionLabel } from "@/lib/permissions";
+import { PERMISSIONS, canPerform, getPermissionLabel, normalizePermissions } from "@/lib/permissions";
 import styles from "./employees.module.css";
 
 type SalaryPayment = {
@@ -134,7 +134,7 @@ export default function EmployeesClient({
     setForm((current) => ({
       ...current,
       role: roleName,
-      permissions: role?.permissions || current.permissions,
+      permissions: normalizePermissions(role?.permissions || current.permissions),
     }));
   };
 
@@ -155,7 +155,7 @@ export default function EmployeesClient({
       phone: employee.phone || "",
       email: employee.email || "",
       role: employee.role || "",
-      permissions: employee.permissions || [],
+      permissions: normalizePermissions(employee.permissions),
       hasSalary: employee.hasSalary,
       salary: employee.salary ? String(employee.salary) : "",
       payDay: employee.payDay ? String(employee.payDay) : "1",
@@ -188,7 +188,7 @@ export default function EmployeesClient({
       phone: form.phone,
       email: form.email,
       role: form.role,
-      permissions: form.permissions,
+      permissions: normalizePermissions(form.permissions),
       hasSalary: form.hasSalary,
       salary,
       payDay,

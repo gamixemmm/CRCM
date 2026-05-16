@@ -16,7 +16,15 @@ import { updateBookingStatus, handleEarlyPickup, handleReturn, updateBookingDate
 import { formatDate, formatDateInput, getBookingDisplayStatus, getRentalDays, getStatusColor, getStatusBg, getFullName } from "@/lib/utils";
 import styles from "../bookings.module.css";
 
-export default function BookingDetailClient({ booking }: { booking: any }) {
+export default function BookingDetailClient({
+  booking,
+  canPayInvoices,
+  canCancelInvoices,
+}: {
+  booking: any;
+  canPayInvoices: boolean;
+  canCancelInvoices: boolean;
+}) {
   const { formatPrice: formatCurrency, currency, t, formatStatusT } = useSettings();
 
   const router = useRouter();
@@ -135,13 +143,13 @@ export default function BookingDetailClient({ booking }: { booking: any }) {
     }
   };
 
-  const handleDeleteInvoice = async () => {
+  const handleCancelInvoice = async () => {
     if (!booking.invoice) return;
     setGenerating(true);
     const res = await deleteInvoice(booking.invoice.id);
     setGenerating(false);
     if (res.success) {
-      toast("Invoice deleted", "success");
+      toast("Invoice cancelled", "success");
       router.refresh();
     } else {
       toast(res.message, "error");
@@ -396,12 +404,14 @@ export default function BookingDetailClient({ booking }: { booking: any }) {
                   </div>
                   
                   <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
-                    {booking.invoice.paymentStatus === "PAID" && (
+                    {canPayInvoices && booking.invoice.paymentStatus === "PAID" && (
                       <Button size="sm" variant="secondary" onClick={handleMarkUnpaid} loading={generating}>
                         {t("invoices.markUnpaid")}
                       </Button>
                     )}
-                    <Button size="sm" variant="danger" icon={<Trash2 size={14} />} onClick={handleDeleteInvoice} loading={generating} />
+                    {canCancelInvoices && (
+                      <Button size="sm" variant="danger" icon={<Trash2 size={14} />} onClick={handleCancelInvoice} loading={generating} />
+                    )}
                   </div>
                 </div>
               ) : (

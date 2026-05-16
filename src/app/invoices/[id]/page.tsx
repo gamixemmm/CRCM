@@ -26,7 +26,7 @@ export default async function InvoiceDetailPage(props: { params: Promise<{ id: s
     <InvoiceDetailClient
       invoice={JSON.parse(JSON.stringify(invoice))}
       canPayInvoices={canPerform(session, ["PAY_INVOICES"])}
-      canDeleteInvoices={canPerform(session, ["DELETE_INVOICES"])}
+      canCancelInvoices={canPerform(session, ["CANCEL_INVOICES"])}
     />
   );
 }
